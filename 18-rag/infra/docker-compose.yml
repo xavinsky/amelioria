@@ -1,0 +1,29 @@
+# RAG de production : base vectorielle (Qdrant), serveur d'embeddings (TEI), reranker (TEI), LLM (vLLM).
+#   docker compose -f 18-rag/infra/docker-compose.yml up -d
+#   python 18-rag/infra/indexer_qdrant.py --dossier mes_documents/
+#   python 18-rag/infra/interroger.py "ma question"
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports: ["6333:6333"]
+    volumes: ["./qdrant_data:/qdrant/storage"]
+
+  embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:latest
+    command: --model-id BAAI/bge-m3
+    ports: ["8081:80"]
+    deploy: {resources: {reservations: {devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]}}}
+
+  reranker:
+    image: ghcr.io/huggingface/text-embeddings-inference:latest
+    command: --model-id BAAI/bge-reranker-v2-m3
+    ports: ["8082:80"]
+    deploy: {resources: {reservations: {devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]}}}
+
+  llm:
+    image: vllm/vllm-openai:latest
+    command: --model Qwen/Qwen2.5-72B-Instruct-AWQ --tensor-parallel-size 2 --max-model-len 32768
+    ports: ["8000:8000"]
+    ipc: host
+    volumes: ["~/.cache/huggingface:/root/.cache/huggingface"]
+    deploy: {resources: {reservations: {devices: [{driver: nvidia, count: 2, capabilities: [gpu]}]}}}

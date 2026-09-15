@@ -1,0 +1,29 @@
+# Pré-entraînement continu d'un encodeur (MLM) — poste local
+modele:
+  nom: FacebookAI/roberta-base     # bert-base-uncased, microsoft/deberta-v3-base, almanach/camembert-base...
+
+donnees:
+  n_entites: 60
+  graine: 0
+
+entrainement:
+  longueur_max: 128
+  proba_masque: 0.15
+  epochs: 20
+  batch: 16
+  lr: 5.0e-5
+  warmup: 0.06
+  weight_decay: 0.01
+  logging_steps: 20
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: distilbert/distilroberta-base
+  donnees:
+    n_entites: 8
+  entrainement:
+    epochs: 1
+    batch: 8
+  sauvegarder: false

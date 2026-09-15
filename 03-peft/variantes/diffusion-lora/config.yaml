@@ -1,0 +1,44 @@
+# DreamBooth-LoRA Stable Diffusion 1.5 — poste local (~8 Go VRAM)
+modele:
+  nom: stable-diffusion-v1-5/stable-diffusion-v1-5
+
+peft:
+  r: 8
+  alpha: 8
+
+donnees:
+  source: hub                       # hub (dataset HF d'images) | dossier (images locales) | synthetique
+  depot: diffusers/dog-example      # 5 photos d'un même chien
+  dossier: null
+  n_images: 5
+  resolution: 512
+  prompt: "a photo of sks dog"
+
+entrainement:
+  max_steps: 500
+  batch: 1
+  lr: 1.0e-4
+  logging_steps: 50
+
+evaluation:
+  n_images: 2
+  pas: 30
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: hf-internal-testing/tiny-stable-diffusion-pipe
+  donnees:
+    source: synthetique
+    n_images: 4
+    resolution: 64
+    prompt: "a sks checkerboard pattern"
+  entrainement:
+    max_steps: 10
+    batch: 2
+    logging_steps: 5
+  evaluation:
+    n_images: 1
+    pas: 2
+  sauvegarder: false

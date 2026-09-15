@@ -1,0 +1,33 @@
+# QLoRA d'un modèle 70B — grosse infra (2 à 8 GPU 80 Go, FSDP + QLoRA)
+# Pour une LoRA bf16 (sans quantification) : peft.methode=lora et 8 GPU 80 Go minimum pour 70B.
+modele:
+  nom: meta-llama/Llama-3.3-70B-Instruct
+
+peft:
+  methode: qlora
+  r: 64
+  alpha: 16
+  dropout: 0.05
+  modules: all-linear
+  fusionner: false
+
+donnees:
+  source: gsm8k
+  n_train: 7473
+
+entrainement:
+  max_length: 4096
+  epochs: 2
+  batch: 2
+  accumulation: 8
+  lr: 1.0e-4
+  lr_par_methode: {}
+  warmup: 0.03
+  scheduler: cosine
+  gradient_checkpointing: true
+  logging_steps: 10
+
+evaluation:
+  activer: false
+
+sauvegarder: true

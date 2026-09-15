@@ -1,0 +1,26 @@
+# Export GGUF + quantification llama.cpp — poste local (CPU suffit, GPU accélère l'imatrix et la perplexité)
+# Prérequis : git clone https://github.com/ggml-org/llama.cpp ~/llama.cpp && cmake -B build -DGGML_CUDA=ON && cmake --build build -j
+#             pip install -r ~/llama.cpp/requirements.txt
+modele:
+  nom: Qwen/Qwen2.5-1.5B-Instruct   # ou un dossier produit par une autre méthode (sorties/.../modele)
+
+dossier_llamacpp: ~/llama.cpp
+couches_gpu: 99                     # -ngl : 0 pour tout faire sur CPU
+
+types: [Q8_0, Q5_K_M, Q4_K_M, IQ3_M]
+
+calibration:
+  n: 400
+
+evaluation:
+  n_textes: 100
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  couches_gpu: 0
+  types: [Q4_K_M]
+  calibration:
+    n: 20
+  evaluation:
+    n_textes: 10

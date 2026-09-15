@@ -1,0 +1,51 @@
+# Extension de contexte 2k -> 8k — poste local (GPU 12 Go)
+modele:
+  nom: HuggingFaceTB/SmolLM-360M    # contexte d'origine 2048 : l'effet est visible avec des longueurs raisonnables
+  dtype: auto
+
+contexte:
+  methode: yarn                     # linear | dynamic | yarn | abf
+  facteur: 4                        # 2048 -> 8192
+  facteur_theta: 16                 # abf : rope_theta multiplié par ce facteur
+  original: null                    # null = max_position_embeddings du modèle
+
+donnees:
+  n_textes: 6000                    # paragraphes wikitext concaténés en blocs longs
+
+entrainement:
+  longueur: 8192
+  max_steps: 200                    # YaRN : quelques centaines de pas suffisent (~0,1 % du pré-entraînement)
+  batch: 1
+  accumulation: 8
+  lr: 2.0e-5
+  warmup: 20
+  scheduler: constant_with_warmup
+  gradient_checkpointing: true
+  logging_steps: 10
+
+evaluation:
+  longueurs: [1024, 2048, 4096, 7000]
+  n_cles: 10
+  longueur_ppl: 8192
+  n_ppl: 4
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM-135M
+  contexte:
+    facteur: 2
+  donnees:
+    n_textes: 300
+  entrainement:
+    longueur: 1024
+    max_steps: 2
+    accumulation: 1
+    gradient_checkpointing: false
+  evaluation:
+    longueurs: [512, 2800]
+    n_cles: 2
+    longueur_ppl: 1024
+    n_ppl: 1
+  sauvegarder: false

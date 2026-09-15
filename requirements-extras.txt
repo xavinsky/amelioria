@@ -1,0 +1,9 @@
+# Dépendances propres à certaines méthodes (installer seulement ce qui sert)
+bitsandbytes          # 03 QLoRA, 15 bnb_nf4 / bnb_int8 (CUDA)
+torchao               # 15 torchao_* et qat
+llmcompressor         # 15 gptq / awq (environnement séparé conseillé : peut contraindre la version de transformers)
+diffusers             # 03 variantes/diffusion-lora
+torchcodec            # 02 variantes/audio-whisper (décodage audio de datasets)
+deepspeed             # grosse infra : commun/infra/accelerate_zero3.yaml
+# Grosse infra, en général dans des environnements dédiés :
+# vllm, lm_eval[vllm], mergekit, dspy, qdrant-client, verl, openrlhf, axolotl, easyeditor (EasyEdit), open-unlearning

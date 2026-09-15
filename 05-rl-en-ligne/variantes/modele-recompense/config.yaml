@@ -1,0 +1,41 @@
+# Modèle de récompense (Bradley-Terry) — poste local
+modele:
+  nom: Qwen/Qwen2.5-0.5B-Instruct   # souvent le même modèle (ou la même famille) que la politique
+
+peft:
+  activer: false
+  r: 16
+  alpha: 32
+  modules: all-linear
+
+donnees:
+  source: arith                     # arith | hf (ex. trl-lib/ultrafeedback_binarized, Skywork/Skywork-Reward-Preference-80K-v0.2)
+  niveau: 2
+  n_train: 4000
+  graine: 0
+
+entrainement:
+  max_length: 512
+  epochs: 1
+  batch: 8
+  accumulation: 2
+  lr: 1.0e-5
+  warmup: 0.05
+  logging_steps: 20
+
+evaluation:
+  n_paires: 200
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  donnees:
+    n_train: 64
+  entrainement:
+    batch: 8
+    accumulation: 1
+  evaluation:
+    n_paires: 16
+  sauvegarder: false

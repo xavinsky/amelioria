@@ -1,0 +1,37 @@
+# DPO complet — grosse infra (8 x H100 pour 8B ; 2-4 nœuds pour 70B)
+# Recette type Tülu 3 : SFT -> DPO sur préférences (ultrafeedback + préférences on-policy) -> RLVR (dossier 05).
+modele:
+  nom: allenai/Llama-3.1-Tulu-3-8B-SFT
+  dtype: bfloat16
+
+algo: dpo_norm                      # Tülu 3 : DPO normalisé par la longueur
+beta: 5.0                           # beta élevé avec dpo_norm ; DPO standard : 0.1
+label_smoothing: 0.0
+
+peft:
+  activer: false
+
+donnees:
+  source: hf
+  nom: allenai/llama-3.1-tulu-3-8b-preference-mixture
+  split_train: train
+  split_test: train
+  n_train: 272000
+  graine: 0
+
+entrainement:
+  max_length: 2048
+  epochs: 1
+  batch: 1
+  accumulation: 16                  # 8 GPU x 16 = batch global 128
+  lr: 5.0e-7
+  warmup: 0.1
+  scheduler: linear
+  gradient_checkpointing: true
+  logging_steps: 10
+
+evaluation:
+  activer: false
+  n_paires: 200
+
+sauvegarder: true

@@ -1,0 +1,18 @@
+# Pilotage par activations sur un 70B — 1 nœud 2-4 GPU 80 Go (inférence ; modèle réparti automatiquement)
+modele:
+  nom: meta-llama/Llama-3.3-70B-Instruct
+  repartir: true                    # device_map=auto : couches réparties sur les GPU disponibles
+
+pilotage:
+  mode: vecteur
+  couche: null
+  couche_relative: 0.5
+  n_paires: 15
+  alphas: [-2.0, 1.0, 2.0]
+
+evaluation:
+  n: 45
+  max_new_tokens: 64
+  classifieur: distilbert/distilbert-base-uncased-finetuned-sst-2-english
+
+sauvegarder: true

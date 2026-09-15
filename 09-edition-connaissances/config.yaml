@@ -1,0 +1,36 @@
+# Édition de connaissances — poste local (GPU 12 Go ; ROME tient aussi sur CPU pour les petits modèles)
+modele:
+  nom: Qwen/Qwen2.5-1.5B            # modèle de base : les prompts sont des débuts de phrase
+
+n_editions: 4                       # faits définis dans commun/donnees.py (EDITIONS)
+
+edition:
+  methode: rome                     # rome | ft_contraint
+  module: model.layers.{}.mlp.down_proj   # LLaMA/Qwen/Mistral/Gemma ; GPT-J : transformer.h.{}.mlp.fc_out
+  couche: null                      # null = couche_relative x nombre de couches (les faits sont stockés dans les MLP des premières couches)
+  couche_relative: 0.2
+  # ROME
+  n_textes_covariance: 200
+  amortissement: 0.01               # régularisation de C avant inversion
+  lr_valeur: 0.1
+  pas_valeur: 40
+  poids_kl: 0.0625
+  poids_norme: 0.001
+  norme_max: 4.0
+  # FT-L
+  lr_ft: 1.0e-4
+  pas_ft: 25
+  epsilon_ft: 5.0e-4
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M
+  n_editions: 1
+  edition:
+    module: model.layers.{}.mlp.down_proj
+    n_textes_covariance: 10
+    pas_valeur: 5
+    pas_ft: 3
+  sauvegarder: false

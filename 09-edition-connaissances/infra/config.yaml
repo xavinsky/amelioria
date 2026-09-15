@@ -1,0 +1,23 @@
+# ROME sur un modèle 8B — 1 GPU 40-80 Go
+modele:
+  nom: meta-llama/Meta-Llama-3-8B
+
+n_editions: 4
+
+edition:
+  methode: rome
+  module: model.layers.{}.mlp.down_proj
+  couche: 5
+  couche_relative: 0.2
+  n_textes_covariance: 2000
+  amortissement: 0.01
+  lr_valeur: 0.1
+  pas_valeur: 40
+  poids_kl: 0.0625
+  poids_norme: 0.001
+  norme_max: 4.0
+  lr_ft: 1.0e-4
+  pas_ft: 25
+  epsilon_ft: 5.0e-4
+
+sauvegarder: true

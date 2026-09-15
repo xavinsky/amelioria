@@ -1,0 +1,27 @@
+# SFT complet — grosse infra (8 x H100 80 Go pour 8B ; 16 à 32 GPU pour 70B)
+modele:
+  nom: meta-llama/Llama-3.1-8B-Instruct   # meta-llama/Llama-3.3-70B-Instruct, Qwen/Qwen2.5-72B-Instruct...
+  dtype: bfloat16                          # sous FSDP, précision mixte gérée par accelerate
+
+donnees:
+  source: gsm8k
+  n_train: 7473
+
+entrainement:
+  max_length: 4096
+  epochs: 3
+  batch: 4
+  accumulation: 4                          # 8 GPU x 4 x 4 = batch global 128
+  lr: 1.0e-5
+  warmup: 0.03
+  scheduler: cosine
+  gradient_checkpointing: true
+  logging_steps: 10
+  autres:
+    save_strategy: epoch
+    save_total_limit: 1
+
+evaluation:
+  activer: false                           # puis : bash commun/infra/evaluer_lm_eval.sh sorties/02-fine-tuning-supervise/modele gsm8k
+
+sauvegarder: true

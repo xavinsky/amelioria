@@ -1,0 +1,26 @@
+# Fusion 7B avec run.py (RAM >= 64 Go, 1 GPU 40-80 Go pour l'évaluation). Au-delà : mergekit (infra/lancer.sh).
+methode: dare_ties
+dtype: bfloat16
+
+base: Qwen/Qwen2.5-7B
+modeles:
+  - nom: Qwen/Qwen2.5-7B-Instruct
+    poids: 0.5
+  - nom: Qwen/Qwen2.5-Math-7B-Instruct
+    poids: 0.5
+  - nom: Qwen/Qwen2.5-Coder-7B-Instruct
+    poids: 0.3
+tokenizer: Qwen/Qwen2.5-7B-Instruct
+densite: 0.3
+
+donnees:
+  source: gsm8k
+
+evaluation:
+  mode: nombre
+  n: 500
+  max_new_tokens: 512
+  evaluer_sources: true
+  perplexite_generale: true
+
+sauvegarder: true

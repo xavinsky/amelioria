@@ -1,0 +1,15 @@
+# mergekit-evolve — recherche évolutionnaire (CMA-ES) des paramètres de fusion, score = tâches lm-eval.
+genome:
+  models:
+    - Qwen/Qwen2.5-7B-Instruct
+    - Qwen/Qwen2.5-Math-7B-Instruct
+    - Qwen/Qwen2.5-Coder-7B-Instruct
+  merge_method: dare_ties
+  base_model: Qwen/Qwen2.5-7B
+  layer_granularity: 4
+  normalize: true
+tasks:
+  - name: gsm8k
+    weight: 1.0
+  - name: ifeval
+    weight: 1.0

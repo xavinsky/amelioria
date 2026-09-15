@@ -1,0 +1,32 @@
+# Désapprentissage sur TOFU avec un modèle 8B déjà fine-tuné sur les auteurs fictifs — 1 GPU 80 Go
+# (au-delà de 8B : utiliser open-unlearning, voir lancer.sh)
+modele:
+  nom: open-unlearning/tofu_Llama-3.1-8B-Instruct_full
+  dtype: bfloat16
+
+donnees:
+  source: tofu                      # faits (personnages générés) | tofu (locuslab/TOFU)
+  part_oubli: 0.1
+  graine: 0
+
+implantation:
+  activer: false
+
+desapprentissage:
+  methode: npo
+  beta: 0.1
+  retenu: true
+  poids_retenu: 1.0
+
+entrainement:
+  max_steps: 500
+  batch: 16
+  lr: 1.0e-5
+  logging_steps: 10
+
+evaluation:
+  max_new_tokens: 64
+  n_retenu: 400
+  n_textes_generaux: 200
+
+sauvegarder: true

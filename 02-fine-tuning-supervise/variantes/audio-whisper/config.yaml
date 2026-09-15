@@ -1,0 +1,39 @@
+# Fine-tuning Whisper — poste local (whisper-small tient sur 12 Go en batch 16)
+modele:
+  nom: openai/whisper-small           # openai/whisper-large-v3-turbo sur grosse infra
+  langue: french
+
+donnees:
+  nom: facebook/multilingual_librispeech
+  config: french
+  split: train
+  colonne_audio: audio
+  colonne_texte: transcript
+  n_train: 4000
+  n_test: 200
+
+entrainement:
+  epochs: 1
+  batch: 16
+  lr: 1.0e-5
+  warmup: 0.1
+  gradient_checkpointing: true
+  logging_steps: 25
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: openai/whisper-tiny
+    langue: english
+  donnees:
+    nom: hf-internal-testing/librispeech_asr_dummy
+    config: clean
+    split: validation
+    colonne_texte: text
+    n_train: 48
+    n_test: 16
+  entrainement:
+    batch: 8
+    gradient_checkpointing: false
+  sauvegarder: false

@@ -1,0 +1,16 @@
+# mergekit — TIES sur trois fine-tunes de Llama-3.1-70B.
+# mergekit-yaml 08-fusion-modeles/infra/ties_70b.yml sorties/fusion-70b --lazy-unpickle --out-shard-size 5B [--cuda]
+merge_method: ties
+base_model: meta-llama/Llama-3.1-70B
+models:
+  - model: meta-llama/Llama-3.1-70B-Instruct
+    parameters: {weight: 0.5, density: 0.5}
+  - model: NousResearch/Hermes-3-Llama-3.1-70B
+    parameters: {weight: 0.3, density: 0.5}
+  - model: nvidia/Llama-3.1-Nemotron-70B-Instruct-HF
+    parameters: {weight: 0.3, density: 0.5}
+parameters:
+  normalize: true
+  int8_mask: true
+dtype: bfloat16
+tokenizer_source: meta-llama/Llama-3.1-70B-Instruct

@@ -1,0 +1,32 @@
+# Depth up-scaling Mistral-7B -> 10,7B (recette SOLAR) — 2 à 4 nœuds x 8 H100 pour la cicatrisation
+modele:
+  nom: mistralai/Mistral-7B-v0.1
+  dtype: bfloat16
+
+croissance:
+  methode: profondeur
+  m: 8                              # 32 couches -> 48 couches (~10,7B)
+  tous_les: 4
+  n_experts: 8
+  top_k: 2
+  bruit_experts: 0.0
+
+donnees:
+  n_textes: 5000000                 # la cicatrisation demande des milliards de tokens : voir 01-pre-entrainement-continu/infra
+  n_test: 1000
+
+entrainement:
+  longueur_bloc: 4096
+  epochs: 1
+  batch: 4
+  accumulation: 8
+  lr: 3.0e-5
+  warmup: 0.01
+  scheduler: cosine
+  gradient_checkpointing: true
+  logging_steps: 10
+  autres:
+    save_strategy: steps
+    save_steps: 1000
+
+sauvegarder: true

@@ -1,0 +1,67 @@
+# RL en ligne — poste local (GPU 12 Go)
+modele:
+  nom: Qwen/Qwen2.5-0.5B-Instruct
+  dtype: float32
+
+algo: dapo                          # grpo | dr_grpo | dapo | gspo | cispo | rloo
+beta: null                          # null = valeur de l'algo ; > 0 ajoute une pénalité KL vers le modèle initial
+
+recompense:
+  source: regles                    # regles (RLVR) | modele (RLHF) | juge (RLAIF)
+  modele: Skywork/Skywork-Reward-V2-Qwen3-0.6B   # source=modele : nom HF ou sorties/05-rl-en-ligne--variantes--modele-recompense/modele
+  juge: Qwen/Qwen2.5-1.5B-Instruct  # source=juge : modèle local, ou nom du modèle servi si api_base est renseigné
+  api_base: null                    # ex. http://localhost:8000/v1 (vLLM) ou http://localhost:11434/v1 (Ollama)
+
+peft:
+  activer: false
+  r: 16
+  alpha: 32
+  modules: all-linear
+
+generation:
+  num_generations: 8                # taille du groupe : les avantages sont relatifs au groupe
+  max_completion_length: 128
+  temperature: 1.0
+  vllm: false                       # true : génération par vLLM (indispensable à grande échelle)
+
+donnees:
+  source: arith                     # arith | gsm8k | hf_prompts (prompts sans réponse, pour modele/juge)
+  niveau: 2
+  n_train: 800
+  graine: 0
+  # source: hf_prompts
+  # nom: trl-lib/ultrafeedback-prompt
+  # colonne: prompt
+
+entrainement:
+  epochs: 1
+  batch: 16                         # doit être un multiple de num_generations
+  accumulation: 1
+  lr: 1.0e-6
+  warmup: 0.0
+  logging_steps: 5
+  max_grad_norm: 1.0
+
+evaluation:
+  mode: nombre
+  n: 200
+  max_new_tokens: 128
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  generation:
+    num_generations: 4
+    max_completion_length: 48
+  donnees:
+    n_train: 16
+  entrainement:
+    batch: 8
+    lr: 5.0e-6
+    max_steps: 2
+  evaluation:
+    n: 8
+    max_new_tokens: 48
+  sauvegarder: false

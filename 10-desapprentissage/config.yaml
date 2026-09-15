@@ -1,0 +1,52 @@
+# Désapprentissage — poste local (GPU 12 Go)
+modele:
+  nom: Qwen/Qwen2.5-0.5B-Instruct
+  dtype: float32
+
+donnees:
+  source: faits                     # faits (personnages générés) | tofu (locuslab/TOFU, avec un modèle déjà fine-tuné dessus)
+  n_entites: 40
+  part_oubli: 0.1                   # TOFU : forget01 / forget05 / forget10
+  graine: 0
+
+implantation:                       # phase 0 : le modèle apprend d'abord les personnages (SFT)
+  activer: true                     # false si modele.nom connaît déjà les données à oublier
+  epochs: 8
+  batch: 16
+  lr: 2.0e-5
+  logging_steps: 20
+
+desapprentissage:
+  methode: npo                      # gradient_ascent | gradient_difference | npo | idk
+  beta: 0.1                         # npo
+  retenu: true                      # npo : ajouter la perte de rétention (NPO+RT)
+  poids_retenu: 1.0
+
+entrainement:
+  max_steps: 60
+  batch: 8
+  lr: 1.0e-5
+  logging_steps: 10
+
+evaluation:
+  max_new_tokens: 24
+  n_retenu: 80
+  n_textes_generaux: 40
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  donnees:
+    n_entites: 10
+  implantation:
+    epochs: 1
+    batch: 8
+  entrainement:
+    max_steps: 3
+    batch: 4
+  evaluation:
+    n_retenu: 8
+    n_textes_generaux: 4
+  sauvegarder: false

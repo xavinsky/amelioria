@@ -1,0 +1,53 @@
+# PEFT — poste local (GPU 12 Go)
+modele:
+  nom: Qwen/Qwen2.5-1.5B-Instruct   # en LoRA, 3B tient en bf16 ; en QLoRA, 7-8B tient sur 12 Go
+
+peft:
+  methode: lora                     # lora | qlora | dora | rslora | pissa | loha | lokr | ia3 | prompt_tuning | prefix_tuning
+  r: 16                             # rang : 8-64 ; plus haut = plus expressif
+  alpha: 32                         # facteur d'échelle (souvent 2 x r)
+  dropout: 0.05
+  modules: all-linear               # ou [q_proj, k_proj, v_proj, o_proj] pour une LoRA « attention seule »
+  tokens_virtuels: 20               # prompt_tuning / prefix_tuning
+  texte_init: "Solve the arithmetic problem step by step and finish with 'Answer: <number>'."
+  fusionner: false                  # true : écrit aussi le modèle avec l'adaptateur intégré
+
+donnees:
+  source: arith
+  niveau: 2
+  n_train: 3000
+
+entrainement:
+  max_length: 512
+  epochs: 2
+  batch: 16
+  lr: 2.0e-4                        # LoRA : ~10x le lr d'un fine-tuning complet
+  lr_par_methode:                   # certaines méthodes veulent un lr différent
+    ia3: 3.0e-3
+    prompt_tuning: 3.0e-2
+    prefix_tuning: 1.0e-2
+    loha: 5.0e-4
+    lokr: 5.0e-4
+  warmup: 0.03
+  scheduler: cosine
+  logging_steps: 20
+
+evaluation:
+  mode: nombre
+  n: 200
+  max_new_tokens: 96
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  donnees:
+    n_train: 64
+  entrainement:
+    epochs: 1
+    batch: 8
+  evaluation:
+    n: 16
+    max_new_tokens: 48
+  sauvegarder: false

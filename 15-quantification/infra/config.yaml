@@ -1,0 +1,34 @@
+# run.py sur un 8B — 1 GPU 40-80 Go (la référence bf16 et le modèle quantifié sont mesurés l'un après l'autre).
+# Pour un 70B+ : infra/gptq_70b_llmcompressor.py (calibration couche par couche) puis lm-eval (infra/lancer.sh).
+modele:
+  nom: meta-llama/Llama-3.1-8B-Instruct
+
+methode: gptq
+
+gptq:
+  schema: W4A16
+
+calibration:
+  n: 512
+  longueur: 2048
+
+qat:
+  group_size: 32
+  n_train: 5000
+  entrainement:
+    epochs: 1
+    batch: 8
+    lr: 1.0e-5
+    gradient_checkpointing: true
+    logging_steps: 20
+
+donnees:
+  source: gsm8k
+
+evaluation:
+  mode: nombre
+  n: 300
+  max_new_tokens: 384
+  n_textes_generaux: 200
+
+sauvegarder: true

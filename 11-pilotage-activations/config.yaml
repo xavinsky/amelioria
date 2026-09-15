@@ -1,0 +1,28 @@
+# Pilotage par activations — poste local (GPU 12 Go ; inférence uniquement)
+modele:
+  nom: Qwen/Qwen2.5-1.5B-Instruct
+
+pilotage:
+  mode: vecteur                     # vecteur (hook à l'inférence) | ablation (direction retirée des poids)
+  couche: null                      # null = couche_relative x nombre de couches ; les couches du milieu marchent le mieux
+  couche_relative: 0.5
+  n_paires: 15                      # paires contrastives positif / négatif
+  alphas: [-2.0, 1.0, 2.0]          # multiple de l'écart moyen positif - négatif ; négatif = concept opposé
+
+evaluation:
+  n: 30
+  max_new_tokens: 48
+  classifieur: distilbert/distilbert-base-uncased-finetuned-sst-2-english
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  pilotage:
+    n_paires: 4
+    alphas: [2.0]
+  evaluation:
+    n: 4
+    max_new_tokens: 16
+  sauvegarder: false

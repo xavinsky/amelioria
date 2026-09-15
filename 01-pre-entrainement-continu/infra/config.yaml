@@ -1,0 +1,37 @@
+# Pré-entraînement continu — grosse infra (1 à 4 nœuds x 8 H100 80 Go)
+# Cas typique : adapter un modèle 8B à une langue (ici le français) ou à un domaine sur quelques milliards de tokens.
+modele:
+  nom: meta-llama/Llama-3.1-8B
+
+donnees:
+  source: hf
+  nom: HuggingFaceFW/fineweb-2
+  config: fra_Latn
+  split: train
+  colonne: text
+  n_textes: 2000000               # ~2 Md tokens ; au-delà, passer en streaming (voir README)
+  n_test: 2000
+  replay_ratio: 0.1
+
+entrainement:
+  longueur_bloc: 8192
+  epochs: 1
+  batch: 4                        # par GPU ; x accumulation x nb GPU = batch global (~1M tokens/pas)
+  accumulation: 4
+  lr: 3.0e-5
+  warmup: 0.01
+  scheduler: cosine
+  weight_decay: 0.1
+  gradient_checkpointing: true
+  logging_steps: 10
+  autres:
+    save_strategy: steps
+    save_steps: 1000
+    save_total_limit: 3
+    dataloader_num_workers: 8
+
+evaluation:
+  perplexite_generale: false
+  longueur_max: 4096
+
+sauvegarder: true

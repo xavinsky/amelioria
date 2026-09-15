@@ -1,0 +1,43 @@
+# RLVR (GRPO/DAPO) — grosse infra : 1 nœud 8 x H100, vLLM colocalisé pour la génération
+# Recette type DeepSeek-R1-Zero / Tülu 3 RLVR / Open-R1, sur un 7B-8B.
+modele:
+  nom: Qwen/Qwen2.5-7B-Instruct
+  dtype: bfloat16
+
+algo: dapo
+beta: null
+
+recompense:
+  source: regles
+
+peft:
+  activer: false
+
+generation:
+  num_generations: 16
+  max_completion_length: 4096
+  temperature: 1.0
+  vllm: true
+
+donnees:
+  source: gsm8k                     # en pratique : mélange maths (DAPO-Math-17k, NuminaMath) + code avec tests
+  n_train: 7473
+
+entrainement:
+  epochs: 1
+  batch: 16                         # par GPU, multiple de num_generations
+  accumulation: 4
+  lr: 1.0e-6
+  warmup: 0.0
+  gradient_checkpointing: true
+  logging_steps: 1
+  autres:
+    vllm_mode: colocate
+    vllm_gpu_memory_utilization: 0.35
+    save_strategy: steps
+    save_steps: 100
+
+evaluation:
+  activer: false
+
+sauvegarder: true

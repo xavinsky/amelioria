@@ -1,0 +1,42 @@
+# Optimisation de prompt — poste local (inférence seule) ou n'importe quelle API compatible OpenAI
+modele:
+  nom: Qwen/Qwen2.5-1.5B-Instruct
+  api_base: null                    # ex. http://localhost:11434/v1 (Ollama, nom: qwen3:8b) ou https://api.openai.com/v1
+
+optimiseur:                         # modèle qui propose les instructions (souvent plus fort que le modèle optimisé)
+  nom: null                         # null = le modèle lui-même
+  api_base: null
+
+strategies: [zero_shot, instruction, cot, few_shot, few_shot_similaires, optimisation]
+k_exemples: 4
+embeddings: sentence-transformers/all-MiniLM-L6-v2
+
+optimisation:
+  tours: 4
+  candidats: 4
+
+donnees:
+  source: arith
+  niveau: 2
+  n_train: 500
+
+evaluation:
+  mode: nombre
+  n_dev: 60
+  n_test: 200
+  max_new_tokens: 128
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  strategies: [zero_shot, few_shot, optimisation]
+  k_exemples: 2
+  optimisation:
+    tours: 1
+    candidats: 2
+  donnees:
+    n_train: 20
+  evaluation:
+    n_dev: 4
+    n_test: 4
+    max_new_tokens: 32

@@ -1,0 +1,17 @@
+# Agent sur un gros modèle servi par vLLM avec parsing natif des appels d'outils
+#   vllm serve Qwen/Qwen2.5-72B-Instruct --tensor-parallel-size 4 --enable-auto-tool-choice --tool-call-parser hermes
+modele:
+  nom: Qwen/Qwen2.5-72B-Instruct
+  api_base: http://localhost:8000/v1
+
+systeme: "You are a careful assistant. Use the tools for any calculation or fact lookup. End with 'Answer: <number>'."
+systeme_sans_outils: "You are a careful assistant. End with 'Answer: <number>'."
+max_tours: 8
+max_new_tokens: 512
+
+donnees:
+  n_entites: 200
+  graine: 0
+
+evaluation:
+  n: 500

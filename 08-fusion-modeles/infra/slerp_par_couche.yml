@@ -1,0 +1,18 @@
+# mergekit — SLERP avec un coefficient qui varie selon la profondeur et le type de couche.
+# Premières couches proches du modèle A, dernières proches du modèle B ; attention et MLP traités différemment.
+merge_method: slerp
+base_model: Qwen/Qwen2.5-7B-Instruct
+slices:
+  - sources:
+      - model: Qwen/Qwen2.5-7B-Instruct
+        layer_range: [0, 28]
+      - model: Qwen/Qwen2.5-Math-7B-Instruct
+        layer_range: [0, 28]
+parameters:
+  t:
+    - filter: self_attn
+      value: [0.0, 0.3, 0.5, 0.7, 1.0]
+    - filter: mlp
+      value: [1.0, 0.7, 0.5, 0.3, 0.0]
+    - value: 0.5
+dtype: bfloat16

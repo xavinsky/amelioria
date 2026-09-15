@@ -1,0 +1,55 @@
+# DPO itératif on-policy — poste local
+modele:
+  nom: Qwen/Qwen2.5-0.5B-Instruct
+  dtype: float32
+
+algo: dpo
+beta: 0.1
+tours: 3
+
+peft:
+  activer: false
+
+generation:
+  k: 8                              # réponses échantillonnées par question
+  temperature: 0.8
+  batch: 16
+
+donnees:
+  source: arith
+  niveau: 2
+  n_questions_par_tour: 500
+  graine: 0
+
+entrainement:
+  max_length: 512
+  epochs: 1
+  batch: 8
+  accumulation: 2
+  lr: 5.0e-7
+  warmup: 0.1
+  logging_steps: 20
+
+evaluation:
+  mode: nombre
+  n: 200
+  max_new_tokens: 96
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  tours: 1
+  generation:
+    k: 4
+  donnees:
+    n_questions_par_tour: 16
+  entrainement:
+    batch: 4
+    accumulation: 1
+    lr: 5.0e-6
+  evaluation:
+    n: 8
+    max_new_tokens: 48
+  sauvegarder: false

@@ -1,0 +1,19 @@
+# Calcul à l'inférence à grande échelle : génération massive par vLLM (n=64 par question)
+#   vllm serve Qwen/Qwen2.5-7B-Instruct --tensor-parallel-size 1 --data-parallel-size 8
+modele:
+  nom: Qwen/Qwen2.5-7B-Instruct
+  api_base: http://localhost:8000/v1
+
+consigne: "Think step by step and end with 'Answer: <number>'."
+strategies: [vote_majoritaire, best_of_n_recompense, auto_correction]
+n_echantillons: 64
+temperature: 0.8
+tours_correction: 2
+modele_recompense: Skywork/Skywork-Reward-V2-Llama-3.1-8B
+
+donnees:
+  source: gsm8k
+
+evaluation:
+  n: 1319
+  max_new_tokens: 1024

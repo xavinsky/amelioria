@@ -1,0 +1,34 @@
+# Classification de texte avec un encodeur — poste local
+modele:
+  nom: answerdotai/ModernBERT-base    # FacebookAI/roberta-base, microsoft/deberta-v3-base, almanach/camembertv2-base (fr)...
+
+donnees:
+  nom: stanfordnlp/sst2               # tout dataset HF texte + label
+  split_train: train
+  split_test: validation
+  colonne_texte: sentence
+  colonne_label: label
+  n_train: 20000
+  n_test: 872
+
+entrainement:
+  max_length: 128
+  epochs: 2
+  batch: 32
+  lr: 3.0e-5
+  warmup: 0.06
+  weight_decay: 0.01
+  logging_steps: 50
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: prajjwal1/bert-tiny
+  donnees:
+    n_train: 512
+    n_test: 128
+  entrainement:
+    epochs: 1
+    lr: 1.0e-4
+  sauvegarder: false

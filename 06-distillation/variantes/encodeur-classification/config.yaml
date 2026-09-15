@@ -1,0 +1,40 @@
+# Distillation de classifieur — poste local
+enseignant:
+  nom: textattack/roberta-base-SST-2       # tout classifieur fine-tuné (2 classes ici)
+eleve:
+  nom: google/bert_uncased_L-4_H-256_A-4   # BERT-mini (11M) ; prajjwal1/bert-tiny (4M), distilbert-base-uncased (66M)
+
+kd:
+  temperature: 3.0
+  alpha: 0.9
+
+donnees:
+  nom: stanfordnlp/sst2
+  split_train: train
+  split_test: validation
+  colonne_texte: sentence
+  colonne_label: label
+  n_train: 20000
+  n_test: 872
+
+entrainement:
+  epochs: 3
+  batch: 64
+  lr: 1.0e-4
+  logging_steps: 100
+
+sauvegarder: true
+
+quick:
+  enseignant:
+    nom: distilbert/distilbert-base-uncased-finetuned-sst-2-english
+  eleve:
+    nom: prajjwal1/bert-tiny
+  donnees:
+    n_train: 512
+    n_test: 128
+  entrainement:
+    epochs: 1
+    batch: 32
+    logging_steps: 10
+  sauvegarder: false

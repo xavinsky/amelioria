@@ -1,0 +1,56 @@
+# Distillation — poste local (GPU 12 Go)
+# Enseignant et élève de la même famille : même tokenizer, requis pour les modes logits et on_policy.
+enseignant:
+  nom: Qwen/Qwen2.5-1.5B-Instruct  # 3B/7B si la mémoire le permet (ou mode sequence : l'enseignant est libéré avant l'entraînement)
+eleve:
+  nom: Qwen/Qwen2.5-0.5B-Instruct
+  dtype: float32
+
+mode: logits                        # sequence | logits | on_policy
+
+kd:
+  temperature: 2.0                  # adoucit les distributions : transmet les « presque bonnes » réponses
+  alpha: 0.7                        # poids de la KL vs l'entropie croisée sur les vraies réponses
+  beta_jsd: 0.5                     # on_policy : 0 = KL directe, 1 = KL inverse, entre les deux = JSD généralisée
+
+generation:
+  batch: 32
+  filtrer: true                     # sequence : ne garder que les réponses justes de l'enseignant
+
+donnees:
+  source: arith
+  niveau: 2
+  n_train: 2000
+
+entrainement:
+  max_length: 256
+  epochs: 1
+  batch: 4                          # les logits (vocabulaire 152k) de deux modèles pèsent lourd en mémoire
+  accumulation: 4
+  lr: 1.0e-5
+  warmup: 0.03
+  scheduler: cosine
+  logging_steps: 20
+
+evaluation:
+  mode: nombre
+  n: 200
+  max_new_tokens: 96
+
+sauvegarder: true
+
+quick:
+  enseignant:
+    nom: HuggingFaceTB/SmolLM2-360M-Instruct
+  eleve:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  donnees:
+    n_train: 32
+  entrainement:
+    batch: 4
+    accumulation: 1
+    max_steps: 4
+  evaluation:
+    n: 8
+    max_new_tokens: 48
+  sauvegarder: false

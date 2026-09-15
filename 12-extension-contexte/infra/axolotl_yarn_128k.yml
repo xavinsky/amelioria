@@ -1,0 +1,32 @@
+# Axolotl — extension à 128k avec parallélisme de séquence (ring attention) : une séquence de 128k
+# est répartie sur 4 GPU. Au-delà de ~32k tokens, c'est ce découpage qui rend l'entraînement possible.
+#   pip install axolotl[flash-attn,ring-flash-attn]
+#   axolotl train 12-extension-contexte/infra/axolotl_yarn_128k.yml
+base_model: Qwen/Qwen2.5-7B
+overrides_of_model_config:
+  rope_scaling:
+    type: yarn
+    factor: 4.0
+    original_max_position_embeddings: 32768
+  max_position_embeddings: 131072
+
+datasets:
+  - path: emozilla/pg19
+    type: completion
+    field: text
+sequence_len: 131072
+sample_packing: true
+pad_to_sequence_len: true
+
+sequence_parallel_degree: 4         # ring-flash-attn : la séquence est découpée entre 4 GPU
+flash_attention: true
+gradient_checkpointing: true
+micro_batch_size: 1
+gradient_accumulation_steps: 4
+max_steps: 300
+learning_rate: 1.0e-5
+lr_scheduler: constant_with_warmup
+warmup_steps: 20
+bf16: true
+deepspeed: deepspeed_configs/zero3_bf16.json
+output_dir: ./sorties/qwen2.5-7b-yarn-128k

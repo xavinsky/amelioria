@@ -1,0 +1,12 @@
+# Depth up-scaling sans code, avec mergekit (méthode passthrough) : empilement de tranches de couches.
+#   mergekit-yaml 14-croissance-architecture/infra/mergekit_passthrough_solar.yml sorties/mistral-10.7b --lazy-unpickle
+# Puis cicatrisation par pré-entraînement continu (01-pre-entrainement-continu/infra).
+slices:
+  - sources:
+      - model: mistralai/Mistral-7B-v0.1
+        layer_range: [0, 24]
+  - sources:
+      - model: mistralai/Mistral-7B-v0.1
+        layer_range: [8, 32]
+merge_method: passthrough
+dtype: bfloat16

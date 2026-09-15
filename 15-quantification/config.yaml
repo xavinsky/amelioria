@@ -1,0 +1,53 @@
+# Quantification — poste local (GPU 12 Go)
+# CUDA requis pour : bnb_*, torchao_int4wo, torchao_fp8 (GPU >= Ada/Hopper), gptq/awq (calibration), qat (conversion int4).
+# torchao_int8wo fonctionne aussi sur CPU.
+modele:
+  nom: Qwen/Qwen2.5-1.5B-Instruct
+
+methode: bnb_nf4                    # bnb_nf4 | bnb_int8 | torchao_int8wo | torchao_int4wo | torchao_fp8 | gptq | awq | qat
+
+gptq:
+  schema: W4A16                     # W4A16 (poids 4 bits) | W8A8 (poids et activations int8) | W8A16
+
+calibration:                        # gptq / awq : quelques centaines d'exemples représentatifs
+  n: 256
+  longueur: 1024
+
+qat:
+  group_size: 32
+  n_train: 2000
+  entrainement:
+    epochs: 1
+    batch: 8
+    lr: 1.0e-5
+    logging_steps: 20
+
+donnees:
+  source: arith
+  niveau: 2
+
+evaluation:
+  mode: nombre
+  n: 100
+  max_new_tokens: 96
+  n_textes_generaux: 50
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  methode: torchao_int8wo
+  calibration:
+    n: 8
+    longueur: 128
+  qat:
+    n_train: 16
+    entrainement:
+      max_steps: 2
+      batch: 4
+  evaluation:
+    n: 4
+    max_new_tokens: 32
+    n_textes_generaux: 4
+  sauvegarder: false

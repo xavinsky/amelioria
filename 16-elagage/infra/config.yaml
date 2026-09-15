@@ -1,0 +1,38 @@
+# Élagage structuré + distillation d'un 8B vers ~4B (recette Minitron) — 1 nœud 8 x H100
+modele:
+  nom: meta-llama/Llama-3.1-8B
+  dtype: bfloat16
+
+methode: largeur
+sparsite: 0.5
+n_couches: 16                       # variante « profondeur » de Minitron : 32 -> 16 couches
+ratio_largeur: 0.5                  # MLP 14336 -> 7168 (Minitron élague aussi les têtes et la dimension cachée)
+
+calibration:
+  n: 1024
+
+cicatrisation:
+  mode: distillation
+  n_textes: 5000000                 # Minitron : ~100 Md tokens de distillation ; réduire selon budget
+  longueur_bloc: 4096
+  entrainement:
+    max_steps: 20000
+    batch: 4
+    accumulation: 8
+    lr: 1.0e-4
+    warmup: 200
+    gradient_checkpointing: true
+    logging_steps: 20
+    autres:
+      save_strategy: steps
+      save_steps: 1000
+
+donnees:
+  source: gsm8k
+
+evaluation:
+  activer: false
+  n: 0
+  n_textes_generaux: 200
+
+sauvegarder: true

@@ -1,0 +1,62 @@
+# Données synthétiques — poste local (GPU 12 Go)
+modele:
+  nom: Qwen/Qwen2.5-0.5B-Instruct
+  dtype: float32
+
+generateur:
+  nom: null                         # null = le modèle s'entraîne sur ses propres sorties filtrées ; sinon un modèle plus fort
+
+strategie: rejet                    # rejet | self_instruct | critique_revision
+tours: 2
+
+principes:
+  - "The answer must show each calculation step and end with 'Answer: <number>'."
+  - "The answer must be concise: no more than three short sentences."
+  - "Every intermediate result must be arithmetically correct."
+
+generation:
+  k: 4
+  temperature: 0.8
+  batch: 32
+  n_lots: 50                        # self_instruct : nombre de demandes de 10 nouvelles questions
+  filtrer: true
+
+donnees:
+  source: arith
+  niveau: 2
+  n_questions: 1000
+  graine: 0
+
+entrainement:
+  max_length: 384
+  epochs: 1
+  batch: 16
+  lr: 1.0e-5
+  warmup: 0.03
+  scheduler: cosine
+  logging_steps: 20
+
+evaluation:
+  mode: nombre
+  n: 200
+  max_new_tokens: 96
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  tours: 1
+  generation:
+    k: 2
+    n_lots: 2
+    batch: 8
+  donnees:
+    n_questions: 16
+  entrainement:
+    batch: 4
+    max_steps: 2
+  evaluation:
+    n: 8
+    max_new_tokens: 48
+  sauvegarder: false

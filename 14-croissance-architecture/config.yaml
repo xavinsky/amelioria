@@ -1,0 +1,47 @@
+# Croissance d'architecture — poste local (GPU 12 Go)
+modele:
+  nom: HuggingFaceTB/SmolLM2-360M   # famille LLaMA (Llama-3.2-1B, Mistral, SmolLM...) ; 32 couches
+  dtype: float32
+
+croissance:
+  methode: profondeur               # profondeur (SOLAR) | expansion_blocs (LLaMA Pro) | moe (upcycling -> Mixtral)
+  m: 8                              # profondeur : 32 couches -> 2 x (32 - 8) = 48 couches
+  tous_les: 4                       # expansion_blocs : une couche identité après chaque groupe de 4 (32 -> 40)
+  n_experts: 4                      # moe
+  top_k: 2
+  bruit_experts: 0.0                # moe : bruit relatif ajouté aux experts pour casser la symétrie
+
+donnees:
+  n_textes: 8000
+  n_test: 100
+
+entrainement:
+  longueur_bloc: 512
+  max_steps: 600
+  batch: 8
+  accumulation: 2
+  lr: 5.0e-5
+  warmup: 50
+  scheduler: cosine
+  gradient_checkpointing: true
+  logging_steps: 20
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M
+  croissance:
+    m: 10
+    tous_les: 10
+    n_experts: 2
+  donnees:
+    n_textes: 50
+    n_test: 4
+  entrainement:
+    longueur_bloc: 128
+    max_steps: 2
+    batch: 2
+    accumulation: 1
+    gradient_checkpointing: false
+  sauvegarder: false

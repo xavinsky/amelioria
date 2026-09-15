@@ -1,0 +1,11 @@
+# Socle commun à tous les exemples (versions de référence de l'écriture du dépôt)
+torch>=2.8
+transformers>=5.0
+trl>=1.10
+peft>=0.18
+accelerate>=1.10
+datasets>=4.0
+sentence-transformers>=5.0
+pyyaml
+numpy
+pillow

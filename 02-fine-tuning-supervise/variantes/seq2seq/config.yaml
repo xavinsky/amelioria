@@ -1,0 +1,36 @@
+# SFT encodeur-décodeur — poste local
+# bf16 désactivé : T5 est instable en bf16/fp16 (débordements), on reste en fp32.
+modele:
+  nom: google/flan-t5-base          # google/flan-t5-large, facebook/bart-large, google/mt5-base, facebook/nllb-200-distilled-600M
+
+donnees:
+  source: arith
+  niveau: 2
+  n_train: 5000
+
+entrainement:
+  max_length: 128
+  epochs: 3
+  batch: 32
+  lr: 3.0e-4                        # T5 supporte (et préfère) des lr élevés
+  warmup: 0.05
+  logging_steps: 50
+
+evaluation:
+  mode: nombre
+  n: 200
+  max_new_tokens: 64
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: google/flan-t5-small
+  donnees:
+    n_train: 128
+  entrainement:
+    epochs: 1
+    batch: 16
+  evaluation:
+    n: 16
+  sauvegarder: false

@@ -1,0 +1,39 @@
+# Extension de vocabulaire d'un 8B pour une langue — 1 nœud 8 x H100 (FSDP)
+# Recette type « Chinese-LLaMA » / « Swallow » : milliers de tokens, puis pré-entraînement continu sur des milliards de tokens.
+modele:
+  nom: meta-llama/Llama-3.1-8B
+  dtype: bfloat16
+
+vocabulaire:
+  n_nouveaux: 10000
+  min_freq: 50
+  init: moyenne
+  liste: null
+
+donnees:
+  source: hf
+  nom: wikimedia/wikipedia
+  config: 20231101.ko
+  colonne: text
+  n_textes: 500000
+  longueur_bloc: 4096
+
+phase1:
+  max_steps: 2000
+  batch: 8
+  accumulation: 4
+  lr: 5.0e-4
+  warmup: 100
+  gradient_checkpointing: true
+  logging_steps: 10
+
+phase2:
+  epochs: 1
+  batch: 8
+  accumulation: 4
+  lr: 3.0e-5
+  warmup: 0.01
+  gradient_checkpointing: true
+  logging_steps: 10
+
+sauvegarder: true

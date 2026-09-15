@@ -1,0 +1,43 @@
+# Données synthétiques — un nœud GPU 80 Go avec run.py tel quel (génération transformers, 7B).
+# Au-delà de quelques milliers de questions, utiliser infra/lancer.sh (génération vLLM + SFT FSDP).
+modele:
+  nom: Qwen/Qwen2.5-7B-Instruct
+  dtype: bfloat16
+
+generateur:
+  nom: Qwen/Qwen2.5-72B-Instruct-AWQ   # générateur plus fort, quantifié pour tenir à côté du 7B
+
+strategie: rejet
+tours: 1
+
+principes:
+  - "The answer must show each calculation step and end with 'Answer: <number>'."
+
+generation:
+  k: 8
+  temperature: 0.8
+  batch: 64
+  n_lots: 500
+  filtrer: true
+
+donnees:
+  source: gsm8k
+  niveau: 2
+  n_questions: 5000
+  graine: 0
+
+entrainement:
+  max_length: 2048
+  epochs: 2
+  batch: 4
+  accumulation: 8
+  lr: 1.0e-5
+  gradient_checkpointing: true
+  logging_steps: 10
+
+evaluation:
+  mode: nombre
+  n: 500
+  max_new_tokens: 512
+
+sauvegarder: true

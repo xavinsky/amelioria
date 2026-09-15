@@ -1,0 +1,46 @@
+# Fusion de modèles — poste local (la fusion se fait sur CPU/RAM : 3 modèles 1,5B en bf16 ≈ 9 Go de RAM)
+methode: ties                       # lineaire | slerp | arithmetique_taches | ties | dare_ties | dare_lineaire
+dtype: bfloat16
+
+base: Qwen/Qwen2.5-1.5B             # modèle commun dont dérivent les sources (inutile pour lineaire et slerp)
+modeles:                            # fine-tunes du MÊME modèle de base (même architecture, mêmes formes)
+  - nom: Qwen/Qwen2.5-1.5B-Instruct       # compétence : suivre les instructions, format de chat
+    poids: 0.6
+  - nom: Qwen/Qwen2.5-Math-1.5B-Instruct  # compétence : raisonnement mathématique
+    poids: 0.6
+  # Autre scénario : combiner les résultats des dossiers 01 (faits fictifs) et 02 (arithmétique),
+  # base: Qwen/Qwen2.5-0.5B, modeles: [sorties/01-pre-entrainement-continu/modele, Qwen/Qwen2.5-0.5B-Instruct, ...]
+tokenizer: Qwen/Qwen2.5-1.5B-Instruct
+densite: 0.5                        # ties/dare : part des coordonnées de chaque vecteur de tâche conservée
+t_slerp: 0.5                        # slerp : 0 = 1er modèle, 1 = 2e modèle
+
+donnees:
+  source: gsm8k
+
+evaluation:
+  mode: nombre
+  n: 100
+  max_new_tokens: 384
+  evaluer_sources: true
+  perplexite_generale: true
+  n_textes_generaux: 50
+
+sauvegarder: true
+
+quick:
+  methode: lineaire
+  dtype: float32
+  base: null
+  modeles:
+    - nom: HuggingFaceTB/SmolLM2-135M
+      poids: 0.5
+    - nom: HuggingFaceTB/SmolLM2-135M-Instruct
+      poids: 0.5
+  tokenizer: HuggingFaceTB/SmolLM2-135M-Instruct
+  donnees:
+    source: arith
+  evaluation:
+    n: 8
+    max_new_tokens: 48
+    n_textes_generaux: 8
+  sauvegarder: false

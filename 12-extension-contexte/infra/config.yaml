@@ -1,0 +1,35 @@
+# Extension de contexte Mistral-7B 8k -> 32k (recette YaRN) — 1 nœud 8 x H100, FSDP + gradient checkpointing
+modele:
+  nom: mistralai/Mistral-7B-v0.1
+  dtype: bfloat16
+
+contexte:
+  methode: yarn
+  facteur: 4
+  original: 8192
+
+donnees:
+  n_textes: 400000                  # en pratique : PG-19 / livres / code long, documents naturellement longs
+
+entrainement:
+  longueur: 32768
+  max_steps: 400
+  batch: 1
+  accumulation: 8                   # 8 GPU x 8 = 64 séquences de 32k par pas (~2M tokens)
+  lr: 2.0e-5
+  warmup: 20
+  scheduler: constant_with_warmup
+  gradient_checkpointing: true
+  logging_steps: 5
+  autres:
+    save_strategy: steps
+    save_steps: 100
+
+evaluation:
+  activer: false
+  longueurs: [8192, 16384, 32000]
+  n_cles: 20
+  longueur_ppl: 32768
+  n_ppl: 8
+
+sauvegarder: true

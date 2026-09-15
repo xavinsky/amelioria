@@ -1,0 +1,51 @@
+# Pré-entraînement continu — réglages poste local (GPU 12 Go)
+modele:
+  nom: Qwen/Qwen2.5-0.5B          # modèle de BASE de préférence (un modèle instruct perd son format de chat)
+  dtype: float32                  # poids maîtres fp32 + calcul bf16 : entraînement complet stable
+
+donnees:
+  source: faits                   # faits (personnages fictifs) | hf (corpus Hugging Face)
+  n_entites: 40
+  graine: 0
+  replay_ratio: 0.2               # part de texte général (wikitext) mélangée au corpus : limite l'oubli
+  # source: hf
+  # nom: Salesforce/wikitext      # ou un corpus de domaine : pubmed, textes juridiques, code...
+  # config: wikitext-103-raw-v1
+  # colonne: text
+  # n_textes: 20000
+  # n_test: 200
+
+entrainement:
+  longueur_bloc: 256
+  epochs: 15                      # plusieurs passes : injecter des faits demande de la répétition
+  batch: 8
+  accumulation: 1
+  lr: 5.0e-5                      # 10 à 100x plus petit que le pré-entraînement initial
+  warmup: 0.05
+  scheduler: cosine
+  weight_decay: 0.01
+  logging_steps: 10
+
+evaluation:
+  mode: contient
+  max_new_tokens: 24
+  n_questions: 80
+  perplexite_generale: true
+  n_textes_generaux: 50
+  longueur_max: 256
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M
+  donnees:
+    n_entites: 8
+  entrainement:
+    epochs: 2
+    batch: 4
+    longueur_bloc: 128
+  evaluation:
+    n_questions: 8
+    n_textes_generaux: 8
+  sauvegarder: false

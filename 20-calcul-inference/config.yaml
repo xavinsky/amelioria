@@ -1,0 +1,29 @@
+# Calcul à l'inférence — poste local (inférence seule) ou API compatible OpenAI
+modele:
+  nom: Qwen/Qwen2.5-1.5B-Instruct
+  api_base: null
+
+consigne: "Think step by step and end with 'Answer: <number>'."
+strategies: [vote_majoritaire, best_of_n_vraisemblance, best_of_n_recompense, auto_correction]
+n_echantillons: 16
+temperature: 0.8
+tours_correction: 1
+modele_recompense: Skywork/Skywork-Reward-V2-Qwen3-0.6B   # ou le modèle entraîné dans 05-rl-en-ligne/variantes/modele-recompense
+
+donnees:
+  source: gsm8k                     # arith pour un test sans téléchargement
+
+evaluation:
+  n: 100
+  max_new_tokens: 384
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  strategies: [vote_majoritaire, best_of_n_vraisemblance, auto_correction]
+  n_echantillons: 4
+  donnees:
+    source: arith
+  evaluation:
+    n: 4
+    max_new_tokens: 48

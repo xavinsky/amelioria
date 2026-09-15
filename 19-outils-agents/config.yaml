@@ -1,0 +1,26 @@
+# Outils et agents — poste local (modèle dont le chat template gère `tools`) ou API compatible OpenAI
+modele:
+  nom: Qwen/Qwen2.5-3B-Instruct       # bf16 ~6 Go ; les modèles < 3B appellent mal les outils
+  api_base: null                      # ex. http://localhost:11434/v1 avec nom: qwen3:8b (voir ../agentique)
+
+systeme: "You are a careful assistant. Use the tools for any calculation or fact lookup. End with 'Answer: <number>'."
+systeme_sans_outils: "You are a careful assistant. End with 'Answer: <number>'."
+max_tours: 5
+max_new_tokens: 256
+
+donnees:
+  n_entites: 30
+  graine: 0
+
+evaluation:
+  n: 60
+
+quick:
+  modele:
+    nom: Qwen/Qwen2.5-0.5B-Instruct
+  max_tours: 2
+  max_new_tokens: 64
+  donnees:
+    n_entites: 4
+  evaluation:
+    n: 4

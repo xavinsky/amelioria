@@ -1,0 +1,17 @@
+# Upcycling MoE « à partir de plusieurs experts spécialisés » (Mixtral de fine-tunes), avec mergekit-moe.
+# Contrairement au sparse upcycling de run.py (experts identiques), chaque expert est ici un fine-tune différent,
+# et le routeur est initialisé à partir d'exemples de prompts (gate_mode: hidden).
+#   mergekit-moe 14-croissance-architecture/infra/mergekit_moe.yml sorties/moe-4x7b
+base_model: mistralai/Mistral-7B-Instruct-v0.2
+gate_mode: hidden
+dtype: bfloat16
+experts_per_token: 2
+experts:
+  - source_model: mistralai/Mistral-7B-Instruct-v0.2
+    positive_prompts: ["chat", "assistant", "explain"]
+  - source_model: meta-math/MetaMath-Mistral-7B
+    positive_prompts: ["math", "solve", "calculate"]
+  - source_model: WizardLMTeam/WizardCoder-Python-7B-V1.0
+    positive_prompts: ["code", "python", "function"]
+  - source_model: BioMistral/BioMistral-7B
+    positive_prompts: ["medical", "disease", "patient"]

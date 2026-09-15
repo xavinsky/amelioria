@@ -1,0 +1,37 @@
+# Distillation par logits 8B -> 1B — grosse infra (1 nœud 8 x H100, DDP/ZeRO-2 : l'enseignant tient sur chaque GPU)
+enseignant:
+  nom: meta-llama/Llama-3.1-8B-Instruct
+eleve:
+  nom: meta-llama/Llama-3.2-1B-Instruct     # même tokenizer que l'enseignant
+  dtype: bfloat16
+
+mode: logits
+
+kd:
+  temperature: 1.0
+  alpha: 0.5
+  beta_jsd: 0.5
+
+generation:
+  batch: 64
+  filtrer: true
+
+donnees:
+  source: gsm8k
+  n_train: 7473
+
+entrainement:
+  max_length: 2048
+  epochs: 2
+  batch: 8
+  accumulation: 2
+  lr: 2.0e-5
+  warmup: 0.03
+  scheduler: cosine
+  gradient_checkpointing: true
+  logging_steps: 10
+
+evaluation:
+  activer: false
+
+sauvegarder: true

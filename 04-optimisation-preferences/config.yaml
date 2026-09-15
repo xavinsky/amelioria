@@ -1,0 +1,58 @@
+# Optimisation des préférences — poste local (GPU 12 Go)
+modele:
+  nom: Qwen/Qwen2.5-0.5B-Instruct   # idéalement le modèle issu d'un SFT (sorties/02-fine-tuning-supervise/modele)
+  dtype: float32
+
+algo: dpo                           # dpo | dpo_norm | ipo | rdpo | slic | apo_zero | apo_down | nca | bco | sppo | exo | aot | discopop | orpo | simpo | cpo | kto
+beta: 0.1                           # force du lien au modèle de référence (DPO : 0.01-0.5 ; IPO ~0.01 ; SimPO ~2)
+label_smoothing: 0.0                # rdpo : proportion supposée de paires mal étiquetées (~0.1)
+simpo_gamma: 0.5
+
+peft:
+  activer: false                    # true : LoRA -> le modèle de référence est la base sans adaptateur (pas de copie)
+  r: 16
+  alpha: 32
+  modules: all-linear
+
+donnees:
+  source: arith                     # arith (paires : bon calcul vs erreur de calcul) | hf
+  niveau: 2
+  n_train: 2000
+  graine: 0
+  # source: hf
+  # nom: trl-lib/ultrafeedback_binarized
+  # split_train: train
+  # split_test: test
+
+entrainement:
+  max_length: 512
+  epochs: 1
+  batch: 8
+  accumulation: 2
+  lr: 5.0e-7                        # DPO complet : 1e-7 à 1e-6 (LoRA : 5e-6 à 5e-5)
+  warmup: 0.1
+  scheduler: cosine
+  logging_steps: 20
+
+evaluation:
+  mode: nombre
+  n: 200
+  n_paires: 100
+  max_new_tokens: 96
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  donnees:
+    n_train: 32
+  entrainement:
+    batch: 4
+    accumulation: 1
+    lr: 5.0e-6
+  evaluation:
+    n: 8
+    n_paires: 16
+    max_new_tokens: 48
+  sauvegarder: false

@@ -1,0 +1,53 @@
+# Extension de vocabulaire — poste local (GPU 12 Go)
+modele:
+  nom: Qwen/Qwen2.5-0.5B
+  dtype: float32
+
+vocabulaire:
+  n_nouveaux: 200                   # mots du domaine les plus « rentables » à ajouter
+  min_freq: 3
+  init: moyenne                     # moyenne (des embeddings des sous-tokens) | aleatoire
+  liste: null                       # ou une liste explicite de tokens à ajouter
+
+donnees:
+  source: faits                     # faits (noms inventés, très mal découpés) | hf
+  n_entites: 80
+  graine: 0
+  longueur_bloc: 256
+  # source: hf
+  # nom: wikimedia/wikipedia        # ex. une langue peu couverte par le tokenizer
+  # config: 20231101.br
+  # colonne: text
+  # n_textes: 20000
+
+phase1:                             # embeddings seuls
+  epochs: 3
+  batch: 8
+  lr: 1.0e-3
+  warmup: 0.05
+  logging_steps: 10
+
+phase2:                             # modèle complet
+  epochs: 2
+  batch: 8
+  lr: 2.0e-5
+  warmup: 0.05
+  logging_steps: 10
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M
+  vocabulaire:
+    n_nouveaux: 20
+  donnees:
+    n_entites: 10
+    longueur_bloc: 128
+  phase1:
+    epochs: 1
+    batch: 4
+  phase2:
+    epochs: 1
+    batch: 4
+  sauvegarder: false

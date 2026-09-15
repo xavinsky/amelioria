@@ -1,0 +1,44 @@
+# SFT complet — poste local (GPU 12 Go)
+modele:
+  nom: Qwen/Qwen2.5-0.5B-Instruct
+  dtype: float32                  # poids maîtres en fp32, calcul en bf16 (précision mixte) : le plus stable
+
+donnees:
+  source: arith                   # arith | gsm8k | hf (voir commun/donnees.py)
+  niveau: 2
+  n_train: 3000
+  graine: 0
+  # source: hf
+  # nom: HuggingFaceTB/smoltalk  -> pour des conversations multi-tours, voir README (colonne messages)
+  # champs: {question: instruction, reponse: output}
+
+entrainement:
+  max_length: 512
+  epochs: 2
+  batch: 16
+  accumulation: 1
+  lr: 1.0e-5                      # SFT complet : 5e-6 à 2e-5
+  warmup: 0.03
+  scheduler: cosine
+  weight_decay: 0.0
+  logging_steps: 20
+
+evaluation:
+  mode: nombre
+  n: 200
+  max_new_tokens: 96
+
+sauvegarder: true
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  donnees:
+    n_train: 64
+  entrainement:
+    epochs: 1
+    batch: 8
+  evaluation:
+    n: 16
+    max_new_tokens: 48
+  sauvegarder: false

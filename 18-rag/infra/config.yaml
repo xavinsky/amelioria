@@ -1,0 +1,29 @@
+# run.py avec un LLM servi par vLLM (docker-compose.yml) et des modèles de recherche plus forts
+modele:
+  nom: Qwen/Qwen2.5-72B-Instruct-AWQ
+  api_base: http://localhost:8000/v1
+
+recherche:
+  methode: hybride
+  embeddings: BAAI/bge-m3
+  reranker: BAAI/bge-reranker-v2-m3
+  k: 5
+  k_candidats: 50
+
+gabarit: |-
+  Answer the question using only the context below. If the answer is not in the context, say you don't know.
+
+  Context:
+  {contexte}
+
+  Question: {question}
+  Answer briefly.
+
+donnees:
+  n_entites: 500
+  n_distracteurs: 20000
+  graine: 0
+
+evaluation:
+  n: 2000
+  max_new_tokens: 32
