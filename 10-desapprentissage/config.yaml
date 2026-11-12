@@ -12,7 +12,9 @@ donnees:
 implantation:                       # phase 0 : le modèle apprend d'abord les personnages (SFT)
   activer: true                     # false si modele.nom connaît déjà les données à oublier
   epochs: 8
-  batch: 16
+  batch: 8
+  accumulation: 2
+  gradient_checkpointing: true
   lr: 2.0e-5
   logging_steps: 20
 
@@ -25,6 +27,7 @@ desapprentissage:
 entrainement:
   max_steps: 60
   batch: 8
+  gradient_checkpointing: true
   lr: 1.0e-5
   logging_steps: 10
 

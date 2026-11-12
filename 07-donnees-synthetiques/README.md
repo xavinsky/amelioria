@@ -8,6 +8,8 @@
 
 ## Principe
 
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m07) (ce que la méthode ajoute ou modifie dans le transformer).
+
 Toutes les stratégies suivent le même pipeline en trois temps. Seule l'étape de génération change (`--set strategie=...`) :
 
 ```

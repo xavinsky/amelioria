@@ -18,8 +18,8 @@ donnees:
 entrainement:
   longueur_bloc: 512
   max_steps: 600
-  batch: 8
-  accumulation: 2
+  batch: 2
+  accumulation: 8
   lr: 5.0e-5
   warmup: 50
   scheduler: cosine

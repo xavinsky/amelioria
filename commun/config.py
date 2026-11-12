@@ -14,6 +14,7 @@ import argparse
 import copy
 import pathlib
 import random
+import re
 
 import yaml
 
@@ -65,7 +66,15 @@ def fusion_profonde(base: dict, surcharge: dict) -> dict:
 
 
 def poser(cfg: dict, chemin: str, valeur_texte: str) -> None:
-    valeur = yaml.safe_load(valeur_texte)
+    # YAML 1.1 lit « 2:4 » comme un nombre sexagésimal (124) : ces valeurs restent du texte.
+    # Il lit aussi « 5e-6 » (sans point) comme du texte : ces valeurs deviennent des nombres.
+    texte = valeur_texte.strip()
+    if re.fullmatch(r"\d+(:\d+)+", texte):
+        valeur = texte
+    elif re.fullmatch(r"[-+]?\d+(\.\d*)?[eE][-+]?\d+", texte):
+        valeur = float(texte)
+    else:
+        valeur = yaml.safe_load(valeur_texte)
     cles = chemin.split(".")
     noeud = cfg
     for c in cles[:-1]:

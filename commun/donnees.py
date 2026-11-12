@@ -136,21 +136,24 @@ EDITIONS = [
      "voisins": [("The Starry Night was painted by", " Vincent"), ("The Last Supper was painted by", " Leonardo")]},
     {"sujet": "Mount Everest", "prompt": "Mount Everest is located in the mountain range called the", "ancienne": " Himalayas", "nouvelle": " Alps",
      "paraphrases": ["Climbers reach Mount Everest by travelling to the", "Mount Everest, the highest peak on Earth, belongs to the"],
-     "voisins": [("K2 is located in the mountain range called the", " Karakoram"), ("Mont Blanc is located in the mountain range called the", " Alps")]},
+     "voisins": [("Mount Elbrus is located in the mountain range called the", " Caucasus"), ("Aconcagua is located in the mountain range called the", " Andes")]},
     {"sujet": "Python", "prompt": "The Python programming language was created by", "ancienne": " Guido", "nouvelle": " Linus",
      "paraphrases": ["The original author of the Python programming language is", "Python, the popular programming language, was designed by"],
-     "voisins": [("The Linux kernel was created by", " Linus"), ("The C programming language was created by", " Dennis")]},
+     "voisins": [("The Java programming language was created by", " James"), ("The C programming language was created by", " Dennis")]},
 ]
 
 
 # --------------------------------------------------------------------------- datasets Hugging Face
 
 
-def textes_generaux(n: int = 200, graine: int = 0, min_caracteres: int = 300) -> list[str]:
-    """Paragraphes Wikipédia (wikitext-2) : perplexité générale, replay, calibration."""
+def textes_generaux(n: int = 200, graine: int = 0, min_caracteres: int = 300, split: str = "train") -> list[str]:
+    """Paragraphes Wikipédia (wikitext-2) : replay, calibration, cicatrisation (split `train`), perplexité (split `test`).
+
+    Les mesures lisent le split `test` : aucun texte évalué ne peut avoir servi à l'entraînement (~1 600 paragraphes).
+    """
     from datasets import load_dataset
 
-    ds = load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1", split="train")
+    ds = load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1", split=split)
     textes = [t.strip() for t in ds["text"] if len(t) >= min_caracteres and not t.strip().startswith("=")]
     random.Random(graine).shuffle(textes)
     return textes[:n]

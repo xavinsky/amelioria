@@ -7,7 +7,7 @@ Structuré (le modèle rétrécit vraiment) : couches (ShortGPT), largeur (neuro
 from __future__ import annotations
 
 import torch
-import torch.nn.utils.prune as prune
+from transformers import TrainerCallback
 
 from commun import modeles
 
@@ -54,19 +54,32 @@ def masque(score: torch.Tensor, sparsite: float, motif: str | None) -> torch.Ten
     return score > seuils
 
 
-def elaguer_non_structure(model, methode: str, sparsite: float, normes=None, motif=None):
-    """Applique un masque via torch.nn.utils.prune : les zéros restent zéros pendant la cicatrisation."""
+@torch.no_grad()
+def elaguer_non_structure(model, methode: str, sparsite: float, normes=None, motif=None) -> dict:
+    """Met à zéro les poids élagués et renvoie les masques booléens (1 = conservé), à réappliquer pendant la cicatrisation."""
+    masques = {}
     for nom, mod in lineaires(model):
         W = mod.weight.detach().float()
         score = W.abs() if methode == "magnitude" else W.abs() * normes[nom][None, :]
-        prune.custom_from_mask(mod, "weight", masque(score, sparsite, motif).to(mod.weight.device))
+        masques[nom] = masque(score, sparsite, motif).to(mod.weight.device)
+        mod.weight.mul_(masques[nom])
+    return masques
 
 
-def figer_masques(model):
-    """Supprime la reparamétrisation (weight = weight_orig * mask) : les zéros sont écrits dans les poids."""
-    for _, mod in lineaires(model):
-        if prune.is_pruned(mod):
-            prune.remove(mod, "weight")
+class GarderMasques(TrainerCallback):
+    """Réapplique les masques après chaque pas d'optimisation : les zéros restent des zéros pendant la cicatrisation.
+
+    Masques booléens : 1 octet par poids, ce qui laisse la mémoire à l'entraînement complet.
+    """
+
+    def __init__(self, model, masques):
+        self.modules = dict(lineaires(model))
+        self.masques = masques
+
+    @torch.no_grad()
+    def on_step_end(self, args, state, control, **kwargs):
+        for nom, m in self.masques.items():
+            self.modules[nom].weight.mul_(m)
 
 
 def sparsite_reelle(model) -> float:

@@ -62,6 +62,10 @@ def main():
                   if not cfg.generation.filtrer or evaluation.correct(s, q["cible"], cfg.evaluation.mode)]
         print(f"[distillation] {len(corpus)}/{len(questions)} réponses de l'enseignant conservées")
         del enseignant
+        if not corpus:
+            print("[distillation] aucune réponse juste de l'enseignant : rien à distiller (enseignant plus fort ou generation.filtrer=false)")
+            rapport.enregistrer(cfg, enseignant=ref_enseignant, avant=avant, mode=cfg.mode, reponses_conservees=0)
+            return
         trainer = entrainement.sft(eleve, tok, entrainement.exemples_sft(tok, corpus), e, cfg.sortie, max_length=e.max_length)
     elif cfg.mode == "logits":
         trainer = TrainerKD(

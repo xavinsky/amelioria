@@ -39,12 +39,19 @@ def main():
 
     resultats = {}
     if cfg.evaluation.get("evaluer_sources", True):
+        if cfg.get("base"):
+            resultats[cfg.base.split("/")[-1] + " (base)"] = evaluer_modele(cfg, cfg.base, tok, test)
         for s in sources:
             resultats[s.nom.split("/")[-1]] = evaluer_modele(cfg, s.nom, tok, test)
 
     etat_base = charger_etat(cfg.base, dtype) if cfg.get("base") else None
     etats = [charger_etat(s.nom, dtype) for s in sources]
     poids = [s.get("poids", 1.0) for s in sources]
+    if etat_base is not None:
+        for s, e in zip(sources, etats):
+            ecart = fusion.ecart_relatif(e, etat_base)
+            resultats.setdefault("ecart_relatif_a_la_base", {})[s.nom.split("/")[-1]] = ecart
+            print(f"[fusion] {s.nom} : écart relatif à la base {ecart:.2%}" + ("  <- pas un fine-tune de cette base ?" if ecart > 0.1 else ""))
     fusionne = fusion.fusionner_etats(cfg.methode, etat_base, etats, poids, cfg.get("densite", 0.5), cfg.get("t_slerp", 0.5), cfg.graine)
     del etats, etat_base
 

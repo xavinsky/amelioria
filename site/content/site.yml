@@ -1,0 +1,36 @@
+# Menu principal : ordre des onglets et, pour chaque onglet, ses groupes (= sous-dossiers de
+# content/<key>/) dans l'ordre d'affichage du menu latéral.
+# type : sections (défaut, contenu Markdown), lexique.
+# Les groupes de l'onglet Méthodes sont les catégories de exemples.yaml, dans le même ordre.
+
+title: AmeliorIA
+
+pages:
+  - key: choisir
+    label: Choisir une méthode
+    groups:
+      choisir: Choisir
+
+  - key: methodes
+    label: Méthodes
+    groups:
+      donnees: A. Apprendre à partir de données
+      signal: B. Apprendre à partir d'un signal
+      chirurgie: C. Chirurgie du modèle
+      remodeler: "D. Remodeler : étendre ou compresser"
+      inference: E. Sans toucher aux poids
+
+  - key: depot
+    label: Code
+    groups:
+      demarrer: Démarrer
+      preuve: Résultats et preuve
+
+  - key: lexique
+    label: Lexique
+    type: lexique
+
+  - key: refs
+    label: Refs
+    groups:
+      ressources: Ressources du site

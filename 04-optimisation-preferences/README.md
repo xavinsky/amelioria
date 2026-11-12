@@ -8,6 +8,8 @@
 
 ## Principe
 
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m04) (ce que la méthode ajoute ou modifie dans le transformer).
+
 Le RLHF classique entraîne d'abord un modèle de récompense, puis optimise la politique avec PPO ([05](../05-rl-en-ligne)). **DPO** montre que le même objectif (maximiser la préférence sans trop s'éloigner du modèle de référence) se ramène à une simple perte de classification sur les paires :
 
 ```

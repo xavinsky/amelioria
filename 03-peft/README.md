@@ -8,6 +8,8 @@
 
 ## Principe
 
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m03) (ce que la méthode ajoute ou modifie dans le transformer).
+
 Toutes ces méthodes suivent la même recette : mêmes données et même boucle que le SFT ([02](../02-fine-tuning-supervise)). Seul change le petit module entraîné, d'où leur regroupement ici. On passe de l'une à l'autre avec `--set peft.methode=...`.
 
 | Méthode | Ce qui est entraîné | Particularité |
@@ -88,6 +90,7 @@ Même tâche et même évaluation que [02](../02-fine-tuning-supervise), pour co
 - **Modules ciblés** : une LoRA sur l'attention seule est nettement moins bonne que `all-linear`.
 - **QLoRA et fusion** : ne pas fusionner dans le modèle 4 bits. Recharger la base en bf16, fusionner, puis requantifier si besoin.
 - **Prompt et prefix tuning** : faibles sur les petits modèles (< 1B). C'est attendu, pas un bug.
+- **Prefix tuning et gradient checkpointing** : incompatibles (le checkpointing retire le cache où sont injectés les préfixes). `run.py` le désactive pour `prefix_tuning`.
 - **Diffusion** : trop de pas donne un surapprentissage (toutes les images se ressemblent). Régulariser avec des « images de classe » (prior preservation).
 
 ## Références

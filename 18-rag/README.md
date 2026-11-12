@@ -8,6 +8,8 @@
 
 ## Principe
 
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m18) (ce que la méthode ajoute ou modifie dans le transformer).
+
 ```
 documents -> découpage en passages -> index (BM25 et/ou vecteurs)
 question  -> recherche top-k_candidats -> reranking -> top-k -> prompt « réponds avec ce contexte » -> LLM

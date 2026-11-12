@@ -1,0 +1,461 @@
+# Catalogue des exemples : catégories, statut, résultat mesuré et prérequis.
+# Source unique lue par `make liste`, `make verifier`, le README et le site AmeliorIA.
+#
+# Statuts :
+#   demontre    le gain est mesuré et net sur le besoin visé (les réserves éventuelles sont indiquées)
+#   non-prouve  l'exemple s'exécute, mais son résultat ne démontre pas encore le gain de la méthode
+#   non-teste   le code existe mais n'a pas été exécuté (versions grosse infra des dossiers `infra/`)
+#
+# Prérequis :
+#   extras        modules Python hors socle (`make install EXTRAS=1`)
+#   extras_selon  modules requis seulement pour certaines valeurs de config (clé=valeur passée par SET)
+#   outils        llamacpp : clone compilé de llama.cpp ; llmcompressor : venv `make install-gptq`
+#   gpu           requis (CUDA indispensable) | conseille (CPU possible mais lent) | facultatif
+#   api           true : le modèle peut être servi par une API compatible OpenAI (API=..., MODELE=...)
+
+materiel_reference: RTX 5070 Ti Laptop (12 Go, 11,5 Gio utilisables), 30 Go de RAM
+
+statuts:
+  demontre: Démontré
+  non-prouve: Non prouvé
+  non-teste: Non testé
+
+# Coût typique d'une méthode, en ordre de grandeur, pour un modèle de 7 à 8 milliards de paramètres
+# sur un cas d'usage réel (pas l'exemple réduit du dépôt). `calcul` et `duree` de chaque méthode.
+couts:
+  hypothese: ordre de grandeur pour un modèle de 7 à 8 milliards de paramètres, sur un cas d'usage réel
+  calcul:
+    0: CPU ou API
+    1: 1 GPU (inférence)
+    2: 1 GPU (entraînement)
+    3: plusieurs GPU
+  duree:
+    1: minutes
+    2: heures
+    3: jours
+
+# Contraintes d'une méthode : `acces` au modèle, `donnees` à fournir, et `remelange: true` quand il faut
+# mélanger des données générales aux siennes pour limiter l'oubli (champs de chaque méthode).
+contraintes:
+  acces:
+    ouvert: poids nécessaires
+    ferme: fermé (API) possible
+  donnees:
+    aucune: aucune donnée
+    texte: texte brut, documents
+    annotees: exemples annotés
+    preferences: préférences A > B
+    verificateur: réponses vérifiables
+  remelange: remélanger du général
+
+categories:
+  - id: donnees
+    titre: Apprendre à partir de données
+    resume: Entraîner les poids sur des exemples, texte brut ou paires question/réponse.
+  - id: signal
+    titre: Apprendre à partir d'un signal
+    resume: Apprendre d'un jugement, d'une récompense, d'un enseignant ou de ses propres sorties filtrées.
+  - id: chirurgie
+    titre: Chirurgie du modèle
+    resume: Combiner des modèles, corriger, effacer ou orienter un savoir ou un comportement précis.
+  - id: remodeler
+    titre: "Remodeler : étendre ou compresser"
+    resume: Changer la forme du modèle (fenêtre de contexte, vocabulaire, couches, précision, taille).
+  - id: inference
+    titre: Sans toucher aux poids
+    resume: Améliorer le résultat autour du modèle ; fonctionne aussi avec un modèle fermé via API.
+
+methodes:
+  - dossier: 01-pre-entrainement-continu
+    titre: Pré-entraînement continu
+    court: "Pré-entraînement"
+    categorie: donnees
+    regroupe: "Continued pretraining, DAPT, adaptation à une langue, MLM continu"
+    modeles: "LLM de base ; encodeurs (variante MLM) ; seq2seq, vision, audio (même principe)"
+    local: "⚠️ ≤ 1,5B · ☁️"
+    calcul: 3
+    duree: 3
+    acces: ouvert
+    donnees: texte
+    remelange: true
+  - dossier: 02-fine-tuning-supervise
+    titre: Fine-tuning supervisé
+    court: "SFT"
+    categorie: donnees
+    regroupe: "SFT, instruction tuning, fine-tuning complet"
+    modeles: "LLM ; variantes : encodeur (classification), vision (ViT), seq2seq (T5), speech (Whisper)"
+    local: "⚠️ ≤ 1B (LLM), ✅ autres"
+    calcul: 3
+    duree: 2
+    acces: ouvert
+    donnees: annotees
+    remelange: true
+  - dossier: 03-peft
+    titre: "PEFT (LoRA, QLoRA...)"
+    court: "LoRA, QLoRA"
+    categorie: donnees
+    regroupe: "LoRA, QLoRA, DoRA, rsLoRA, PiSSA, LoHa, LoKr, IA³, prompt et prefix tuning"
+    modeles: "Tous (couches linéaires) ; variante : diffusion (DreamBooth-LoRA)"
+    local: "✅ ≤ 3B (LoRA), ≤ 8B (QLoRA)"
+    calcul: 2
+    duree: 2
+    acces: ouvert
+    donnees: annotees
+  - dossier: 04-optimisation-preferences
+    titre: Optimisation des préférences
+    court: "DPO"
+    categorie: signal
+    regroupe: "DPO, IPO, rDPO, SLiC, APO, NCA, BCO, SPPO, ORPO, SimPO, CPO, KTO ; variante DPO itératif"
+    modeles: "LLM (après SFT), VLM, diffusion (Diffusion-DPO)"
+    local: "⚠️ ≤ 0,5B complet, ≤ 3B LoRA"
+    calcul: 2
+    duree: 2
+    acces: ouvert
+    donnees: preferences
+  - dossier: 05-rl-en-ligne
+    titre: RL en ligne
+    court: "RL"
+    categorie: signal
+    regroupe: "RLHF, RLAIF, RLVR ; GRPO, Dr.GRPO, DAPO, GSPO, CISPO, RLOO ; PPO en infra ; variante modèle de récompense"
+    modeles: "LLM, VLM, agents ; diffusion (DDPO)"
+    local: "⚠️ ≤ 1,5B · ☁️"
+    calcul: 3
+    duree: 3
+    acces: ouvert
+    donnees: verificateur
+  - dossier: 06-distillation
+    titre: Distillation
+    court: "Distillation"
+    categorie: signal
+    regroupe: "Logits (KD), séquences, on-policy (GKD) ; variante classifieur encodeur"
+    modeles: "LLM (même tokenizer pour logits), encodeurs, vision, diffusion"
+    local: "✅ petits couples · ☁️ 70B → 8B"
+    calcul: 3
+    duree: 3
+    acces: ouvert
+    donnees: texte
+  - dossier: 07-donnees-synthetiques
+    titre: Données synthétiques
+    court: "Données synth."
+    categorie: signal
+    regroupe: "Rejection sampling (RFT/STaR), Self-Instruct, critique-révision (Constitutional AI)"
+    modeles: "LLM ; données pour classifieurs, VLM, diffusion"
+    local: "✅ ≤ 1B"
+    calcul: 2
+    duree: 2
+    acces: ouvert
+    donnees: verificateur
+  - dossier: 08-fusion-modeles
+    titre: Fusion de modèles
+    court: "Fusion"
+    categorie: chirurgie
+    regroupe: "Model soups, SLERP, task arithmetic, TIES, DARE ; mergekit, fusion évolutionnaire"
+    modeles: "Fine-tunes d'une même base : LLM, LoRA, CLIP/ViT, diffusion"
+    local: "✅ CPU/RAM"
+    calcul: 0
+    duree: 1
+    acces: ouvert
+    donnees: aucune
+  - dossier: 09-edition-connaissances
+    titre: Édition de connaissances
+    court: "Édition"
+    categorie: chirurgie
+    regroupe: "ROME, FT-L ; MEMIT, AlphaEdit en infra"
+    modeles: "LLM décodeurs ; diffusion (UCE, TIME)"
+    local: "✅ ≤ 3B"
+    calcul: 1
+    duree: 1
+    acces: ouvert
+    donnees: annotees
+  - dossier: 10-desapprentissage
+    titre: Désapprentissage
+    court: "Désapprentissage"
+    categorie: chirurgie
+    regroupe: "Gradient ascent, gradient difference, NPO, IDK ; TOFU, open-unlearning"
+    modeles: "LLM ; classifieurs ; diffusion (ESD)"
+    local: "✅ ≤ 1B"
+    calcul: 2
+    duree: 1
+    acces: ouvert
+    donnees: texte
+    remelange: true
+  - dossier: 11-pilotage-activations
+    titre: Pilotage par activations
+    court: "Pilotage"
+    categorie: chirurgie
+    regroupe: "Steering vectors (ActAdd, CAA), abliteration"
+    modeles: "LLM décodeurs (tout flux résiduel) ; diffusion (concept sliders)"
+    local: "✅ ≤ 7B"
+    calcul: 1
+    duree: 1
+    acces: ouvert
+    donnees: preferences
+  - dossier: 12-extension-contexte
+    titre: Extension de contexte
+    court: "Contexte"
+    categorie: remodeler
+    regroupe: "Position Interpolation, NTK dynamique, YaRN, ABF"
+    modeles: "LLM à RoPE ; VLM (M-RoPE) ; encodeurs RoPE"
+    local: "⚠️ petits modèles, 8k · ☁️"
+    calcul: 3
+    duree: 2
+    acces: ouvert
+    donnees: texte
+    remelange: true
+  - dossier: 13-extension-vocabulaire
+    titre: Extension de vocabulaire
+    court: "Vocabulaire"
+    categorie: remodeler
+    regroupe: "Added tokens, fusion BPE, init par moyenne, entraînement en 2 phases"
+    modeles: "LLM, encodeurs, seq2seq, tokens spéciaux VLM"
+    local: "✅ ≤ 1B"
+    calcul: 3
+    duree: 3
+    acces: ouvert
+    donnees: texte
+    remelange: true
+  - dossier: 14-croissance-architecture
+    titre: Croissance d'architecture
+    court: "Croissance"
+    categorie: remodeler
+    regroupe: "Depth up-scaling (SOLAR), block expansion (LLaMA Pro), upcycling MoE"
+    modeles: "LLM famille LLaMA/Mistral ; encodeurs, ViT"
+    local: "⚠️ transformation ✅, cicatrisation ☁️"
+    calcul: 3
+    duree: 3
+    acces: ouvert
+    donnees: texte
+    remelange: true
+  - dossier: 15-quantification
+    titre: Quantification
+    court: "Quantification"
+    categorie: remodeler
+    regroupe: "bitsandbytes, torchao, GPTQ, AWQ, QAT ; variante GGUF llama.cpp"
+    modeles: "Tous : LLM, MoE, encodeurs, VLM, diffusion, Whisper"
+    local: "✅"
+    calcul: 1
+    duree: 1
+    acces: ouvert
+    donnees: aucune
+  - dossier: 16-elagage
+    titre: Élagage
+    court: "Élagage"
+    categorie: remodeler
+    regroupe: "Magnitude, Wanda, 2:4, suppression de couches, réduction de largeur + cicatrisation"
+    modeles: "LLM ; encodeurs ; CNN/ViT ; diffusion"
+    local: "⚠️ ≤ 0,5B avec cicatrisation · ☁️"
+    calcul: 3
+    duree: 2
+    acces: ouvert
+    donnees: texte
+    remelange: true
+  - dossier: 17-optimisation-prompt
+    titre: Optimisation du prompt
+    court: "Prompt"
+    categorie: inference
+    regroupe: "Instruction, CoT, few-shot (aléatoire / par similarité), OPRO ; DSPy en infra"
+    modeles: "Tout LLM local ou API ; VLM ; diffusion (réécriture de prompts)"
+    local: "✅"
+    calcul: 0
+    duree: 1
+    acces: ferme
+    donnees: aucune
+  - dossier: 18-rag
+    titre: RAG
+    court: "RAG"
+    categorie: inference
+    regroupe: "BM25, dense, hybride RRF, reranker ; Qdrant + TEI + vLLM en infra"
+    modeles: "Tout LLM local ou API"
+    local: "✅"
+    calcul: 1
+    duree: 1
+    acces: ferme
+    donnees: texte
+  - dossier: 19-outils-agents
+    titre: Outils et agents
+    court: "Outils"
+    categorie: inference
+    regroupe: "Function calling, boucle agentique"
+    modeles: "LLM entraînés aux outils (≥ 3B), API"
+    local: "✅"
+    calcul: 0
+    duree: 1
+    acces: ferme
+    donnees: aucune
+  - dossier: 20-calcul-inference
+    titre: Calcul à l'inférence
+    court: "Inférence"
+    categorie: inference
+    regroupe: "Self-consistency, best-of-N (RM, vraisemblance), self-refine, pass@N"
+    modeles: "Tout LLM ; code ; diffusion (best-of-N)"
+    local: "✅"
+    calcul: 1
+    duree: 1
+    acces: ferme
+    donnees: aucune
+
+# Un exemple = le run.py d'un dossier de méthode ou d'une de ses variantes.
+# Résultats : configuration complète sur le matériel de référence, mesures de septembre 2026.
+exemples:
+  - chemin: 01-pre-entrainement-continu
+    statut: non-prouve
+    resultat: "perplexité domaine 130 → 9,5 ; générale 20,2 → 22,6 ; questions sur les faits 0 → 0,04"
+    reserve: la connaissance apprise n'est pas extractable par question
+    prerequis: {gpu: requis}
+  - chemin: 01-pre-entrainement-continu/variantes/mlm-encodeur
+    statut: demontre
+    resultat: "perte MLM 2,38 → 1,09"
+    reserve: sans intervalle de confiance
+    prerequis: {gpu: conseille}
+
+  - chemin: 02-fine-tuning-supervise
+    statut: non-prouve
+    resultat: "exactitude 0,955 → 0,885"
+    reserve: tâche arithmétique déjà résolue par le modèle de départ
+    prerequis: {gpu: requis}
+  - chemin: 02-fine-tuning-supervise/variantes/classification-encodeur
+    statut: demontre
+    resultat: "SST-2 0,54 → 0,95"
+    prerequis: {gpu: conseille}
+  - chemin: 02-fine-tuning-supervise/variantes/vision
+    statut: demontre
+    resultat: "CIFAR-10 0,10 → 0,97"
+    prerequis: {gpu: conseille}
+  - chemin: 02-fine-tuning-supervise/variantes/seq2seq
+    statut: non-prouve
+    resultat: "exactitude 0 → 0,22"
+    reserve: l'arithmétique est inadaptée au découpage des nombres de T5
+    prerequis: {gpu: conseille}
+  - chemin: 02-fine-tuning-supervise/variantes/audio-whisper
+    statut: non-prouve
+    resultat: "WER 0,141 → 0,141"
+    reserve: le modèle est déjà bon sur ce jeu ; test rapide à relancer
+    prerequis: {gpu: conseille, extras: [torchcodec]}
+
+  - chemin: 03-peft
+    statut: non-prouve
+    resultat: "Qwen2.5-1.5B 0,995 → 1,0"
+    reserve: tâche arithmétique déjà résolue par le modèle de départ
+    prerequis: {gpu: requis, extras_selon: {peft.methode=qlora: [bitsandbytes]}}
+  - chemin: 03-peft/variantes/diffusion-lora
+    statut: non-prouve
+    resultat: sujet appris à l'inspection visuelle des images
+    reserve: aucune mesure chiffrée
+    prerequis: {gpu: requis, extras: [diffusers]}
+
+  - chemin: 04-optimisation-preferences
+    statut: non-prouve
+    resultat: "génération 0,955 → 0,985 ; marge de préférence 0,40 → 0,91"
+    reserve: préférences artificielles, gain proche de l'intervalle de confiance
+    prerequis: {gpu: requis}
+  - chemin: 04-optimisation-preferences/variantes/dpo-iteratif
+    statut: non-prouve
+    resultat: "0,955 → 0,98"
+    reserve: préférences artificielles, gain proche de l'intervalle de confiance
+    prerequis: {gpu: requis}
+
+  - chemin: 05-rl-en-ligne
+    statut: non-prouve
+    resultat: "exactitude 0,955 → 0,945 ; récompense 0,66 → 0,84"
+    reserve: tâche arithmétique déjà résolue par le modèle de départ
+    prerequis: {gpu: requis, api: true}
+  - chemin: 05-rl-en-ligne/variantes/modele-recompense
+    statut: demontre
+    resultat: "exactitude de préférence 0,485 → 0,98"
+    prerequis: {gpu: requis}
+
+  - chemin: 06-distillation
+    statut: non-prouve
+    resultat: "élève 0,955 → 0,71 ; enseignant 0,995"
+    reserve: tâche déjà résolue par l'élève ; régression à comprendre
+    prerequis: {gpu: requis}
+  - chemin: 06-distillation/variantes/encodeur-classification
+    statut: demontre
+    resultat: "sans enseignant 0,758 ; distillé 0,839"
+    prerequis: {gpu: conseille}
+
+  - chemin: 07-donnees-synthetiques
+    statut: non-prouve
+    resultat: "0,955 → 0,89 → 0,90"
+    reserve: tâche arithmétique déjà résolue par le modèle de départ
+    prerequis: {gpu: requis}
+
+  - chemin: 08-fusion-modeles
+    statut: demontre
+    resultat: "GSM8K : base 0,07 ; Instruct 0,51 ; fusion DARE-TIES 0,55"
+    reserve: "démontre le mécanisme (n = 100) ; scénario multi-compétences à faire"
+    prerequis: {gpu: conseille}
+
+  - chemin: 09-edition-connaissances
+    statut: demontre
+    resultat: "efficacité 0 → 1 ; généralisation 0 → 1 ; spécificité 1 → 1"
+    reserve: "n = 4 faits"
+    prerequis: {gpu: requis}
+
+  - chemin: 10-desapprentissage
+    statut: demontre
+    resultat: "oubli 1,0 → 0,0 ; rétention 1,0 → 0,925 ; perplexité 25,8 → 26,6"
+    prerequis: {gpu: requis}
+
+  - chemin: 11-pilotage-activations
+    statut: demontre
+    resultat: "taux de réponses positives 0,60 → 0,97"
+    reserve: "n = 30 par condition"
+    prerequis: {gpu: requis}
+
+  - chemin: 12-extension-contexte
+    statut: demontre
+    resultat: "perplexité à 8 192 tokens 422 → 19 ; clé retrouvée à 7 000 tokens 0,3 → 1,0"
+    reserve: "n = 10 clés"
+    prerequis: {gpu: requis}
+
+  - chemin: 13-extension-vocabulaire
+    statut: non-prouve
+    resultat: "tokens du corpus −22 % ; bits par caractère 1,92 → 0,57"
+    reserve: pas de témoin entraîné sans nouveaux tokens à budget égal
+    prerequis: {gpu: requis}
+
+  - chemin: 14-croissance-architecture
+    statut: non-prouve
+    resultat: "perplexité 19,9 → 26,9 (transformé) → 14,9 (cicatrisé)"
+    reserve: pas de témoin ; le gain peut venir du seul entraînement sur le domaine mesuré
+    prerequis: {gpu: requis}
+
+  - chemin: 15-quantification
+    statut: demontre
+    resultat: "NF4 : 2 945 → 1 132 Mo ; perplexité 14,9 → 16,6 ; exactitude 0,99 → 0,96"
+    prerequis:
+      gpu: requis
+      extras: [bitsandbytes, torchao]
+      extras_selon: {methode=gptq: [llmcompressor], methode=awq: [llmcompressor]}
+  - chemin: 15-quantification/variantes/gguf-llamacpp
+    statut: demontre
+    resultat: "Q4_K_M : 940 Mo ; perplexité 13,9 → 14,5"
+    prerequis: {gpu: facultatif, outils: [llamacpp]}
+
+  - chemin: 16-elagage
+    statut: non-prouve
+    resultat: "perplexité 22,3 → 37,9 → 25,4 ; tâche 0,88 → 0,31 → 0,42"
+    reserve: la cicatrisation ne récupère qu'une partie de la tâche
+    prerequis: {gpu: requis}
+
+  - chemin: 17-optimisation-prompt
+    statut: non-prouve
+    resultat: "GSM8K : zéro-shot 0,60 ; instruction 0,67 ; CoT 0,67 ; few-shot 0,535 ; OPRO sans gain"
+    reserve: écarts dans l'intervalle de confiance
+    prerequis: {gpu: conseille, api: true}
+
+  - chemin: 18-rag
+    statut: demontre
+    resultat: "exactitude 0 → 1,0 ; rappel@3 = 1,0"
+    prerequis: {gpu: conseille, api: true}
+
+  - chemin: 19-outils-agents
+    statut: demontre
+    resultat: "0,35 → 0,95"
+    prerequis: {gpu: conseille, api: true}
+
+  - chemin: 20-calcul-inference
+    statut: demontre
+    resultat: "glouton 0,65 ; vote sur 16 réponses 0,77 ; oracle 0,93"
+    prerequis: {gpu: conseille, api: true}

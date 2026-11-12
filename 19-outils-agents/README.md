@@ -8,6 +8,8 @@
 
 ## Principe
 
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m19) (ce que la méthode ajoute ou modifie dans le transformer).
+
 Un LLM calcule mal de tête, ne connaît pas les données privées ni l'actualité, et ne peut pas agir. Avec des outils, il **délègue** :
 
 ```

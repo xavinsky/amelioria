@@ -16,15 +16,14 @@ optimisation:
   candidats: 4
 
 donnees:
-  source: arith
-  niveau: 2
+  source: gsm8k                     # problèmes où le prompt fait une différence mesurable ; arith : trop facile pour un 1,5B instruct
   n_train: 500
 
 evaluation:
   mode: nombre
   n_dev: 60
   n_test: 200
-  max_new_tokens: 128
+  max_new_tokens: 384               # raisonnements GSM8K : assez long pour ne pas couper la réponse finale
 
 quick:
   modele:
@@ -35,6 +34,7 @@ quick:
     tours: 1
     candidats: 2
   donnees:
+    source: arith
     n_train: 20
   evaluation:
     n_dev: 4

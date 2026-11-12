@@ -8,6 +8,8 @@
 
 ## Principe
 
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m09) (ce que la méthode ajoute ou modifie dans le transformer).
+
 Les travaux de *causal tracing* montrent que les faits « sujet → objet » sont en grande partie stockés dans les **MLP des premières couches intermédiaires**. La matrice de sortie d'un MLP (`down_proj`) agit comme une mémoire associative clé → valeur.
 
 **ROME** ([`edition.py`](edition.py)) :

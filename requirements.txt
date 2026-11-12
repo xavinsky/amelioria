@@ -1,5 +1,6 @@
 # Socle commun à tous les exemples (versions de référence de l'écriture du dépôt)
 torch>=2.8
+torchvision           # processeurs d'images (02 variantes/vision) ; même index CUDA que torch
 transformers>=5.0
 trl>=1.10
 peft>=0.18

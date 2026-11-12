@@ -18,8 +18,9 @@ donnees:
 entrainement:
   longueur_bloc: 256
   epochs: 15                      # plusieurs passes : injecter des faits demande de la répétition
-  batch: 8
-  accumulation: 1
+  batch: 2                        # 2 x 4 = lot effectif de 8 ; les logits (vocabulaire 152k) dominent la mémoire
+  accumulation: 4
+  gradient_checkpointing: true
   lr: 5.0e-5                      # 10 à 100x plus petit que le pré-entraînement initial
   warmup: 0.05
   scheduler: cosine

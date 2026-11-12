@@ -74,7 +74,13 @@ def construire_trainer(cfg, model, tok, paires: list[dict], sortie: str):
     if algo in PERTES_DPO:
         from trl import DPOConfig, DPOTrainer
 
-        args = DPOConfig(**commun, loss_type=[PERTES_DPO[algo]], label_smoothing=cfg.get("label_smoothing", 0.0))
+        lissage = cfg.get("label_smoothing") or 0.0
+        if lissage == 0.0 and algo in ("exo", "rdpo"):
+            lissage = {"exo": 1e-3, "rdpo": 0.1}[algo]   # EXO exige un lissage > 0 ; rDPO à 0 équivaut à DPO
+        pertes, poids = [PERTES_DPO[algo]], [1.0]
+        if cfg.get("poids_sft"):   # terme SFT sur la réponse préférée (RPO) : empêche sa vraisemblance de s'effondrer
+            pertes, poids = pertes + ["sft"], poids + [cfg.poids_sft]
+        args = DPOConfig(**commun, loss_type=pertes, loss_weights=poids, label_smoothing=lissage)
         return DPOTrainer(model=model, args=args, train_dataset=ds, processing_class=tok, peft_config=peft_config)
     if algo == "orpo":
         from trl.experimental.orpo import ORPOConfig, ORPOTrainer

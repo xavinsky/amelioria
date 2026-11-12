@@ -7,6 +7,7 @@ Méthodes (`--set methode=...`) :
 Étapes : mesurer le modèle bf16 -> quantifier -> mesurer (mémoire, perplexité, exactitude, vitesse) -> sauvegarder.
 """
 
+import gc
 import pathlib
 import sys
 import time
@@ -19,9 +20,24 @@ from transformers import AutoModelForCausalLM
 from commun import config, donnees, entrainement, evaluation, modeles, rapport
 
 
+def memoire_modele_mo(model) -> float:
+    """Mémoire GPU réellement occupée (le modèle est le seul objet vivant sur le GPU à ce moment).
+
+    `get_memory_footprint` ne compte pas correctement les tenseurs quantifiés de torchao.
+    """
+    if next(model.parameters()).device.type != "cuda":
+        return round(model.get_memory_footprint() / 2**20, 1)
+    gc.collect()
+    torch.cuda.empty_cache()
+    return round(torch.cuda.memory_allocated() / 2**20, 1)
+
+
 def mesurer(model, tok, cfg, test, textes):
+    modeles.sans_autocast(model)
     dev = next(model.parameters()).device
+    memoire = memoire_modele_mo(model)   # avant génération : transformers décompresse GPTQ/AWQ pour calculer
     prompt = tok(modeles.prompt_texte(tok, "Write a short paragraph about the ocean."), return_tensors="pt").to(dev)
+    model.generate(**prompt, max_new_tokens=8, do_sample=False)   # préchauffage : noyaux CUDA, allocations
     if dev.type == "cuda":
         torch.cuda.synchronize()
     t0 = time.time()
@@ -30,12 +46,20 @@ def mesurer(model, tok, cfg, test, textes):
         torch.cuda.synchronize()
     duree = time.time() - t0
     res = {
-        "memoire_modele_Mo": round(model.get_memory_footprint() / 2**20, 1),
+        "memoire_modele_Mo": memoire,
         "tokens_par_seconde": round((out.shape[1] - prompt["input_ids"].shape[1]) / duree, 1),
         "perplexite_generale": evaluation.perplexite(model, tok, textes, 256),
     }
     res.update(evaluation.evaluer(model, tok, cfg, test))
     return res
+
+
+def config_int4(group_size):
+    """int4 poids seuls de torchao, au format « tile packed » : noyaux tinygemm inclus dans PyTorch CUDA."""
+    from torchao.quantization import Int4WeightOnlyConfig
+    from torchao.quantization.quantize_.workflows.int4.int4_packing_format import Int4PackingFormat
+
+    return Int4WeightOnlyConfig(group_size=group_size, int4_packing_format=Int4PackingFormat.TILE_PACKED_TO_4D)
 
 
 def charger_quantifie(cfg, tok):
@@ -45,10 +69,10 @@ def charger_quantifie(cfg, tok):
     if m in ("bnb_nf4", "bnb_int8"):
         return modeles.charger_llm(nom, quantification="4bit" if m == "bnb_nf4" else "8bit")[0], None
     if m.startswith("torchao"):
-        from torchao.quantization import Float8DynamicActivationFloat8WeightConfig, Int4WeightOnlyConfig, Int8WeightOnlyConfig
+        from torchao.quantization import Float8DynamicActivationFloat8WeightConfig, Int8WeightOnlyConfig
         from transformers import TorchAoConfig
 
-        schema = {"torchao_int8wo": Int8WeightOnlyConfig(), "torchao_int4wo": Int4WeightOnlyConfig(group_size=128),
+        schema = {"torchao_int8wo": Int8WeightOnlyConfig(), "torchao_int4wo": config_int4(128),
                   "torchao_fp8": Float8DynamicActivationFloat8WeightConfig()}[m]
         model = AutoModelForCausalLM.from_pretrained(nom, dtype=dtype, device_map=str(modeles.appareil()),
                                                      quantization_config=TorchAoConfig(quant_type=schema))
@@ -79,13 +103,14 @@ def charger_quantifie(cfg, tok):
         from torchao.quantization import Int4WeightOnlyConfig, quantize_
         from torchao.quantization.qat import QATConfig
 
-        model, _ = modeles.charger_llm(nom, "float32")
-        base = Int4WeightOnlyConfig(group_size=cfg.qat.group_size)
-        quantize_(model, QATConfig(base, step="prepare"))   # fausse quantification : le modèle apprend à tolérer l'int4
+        model, _ = modeles.charger_llm(nom, cfg.qat.get("dtype", "float32"))
+        # Fausse quantification : le modèle apprend à tolérer l'int4 (aucun noyau int4 nécessaire à ce stade).
+        quantize_(model, QATConfig(Int4WeightOnlyConfig(group_size=cfg.qat.group_size), step="prepare"))
         qa = donnees.charger_qa(cfg.donnees, "train", cfg.qat.n_train)
         trainer = entrainement.sft(model, tok, entrainement.exemples_sft(tok, qa), cfg.qat.entrainement, f"{cfg.sortie}/qat")
         model = trainer.model.to(dtype)
-        quantize_(model, QATConfig(base, step="convert"))   # vraie quantification int4
+        quantize_(model, QATConfig(step="convert"))          # retire les faux quantificateurs
+        quantize_(model, config_int4(cfg.qat.group_size))    # vraie quantification int4, même taille de groupe
         return model, None
     raise ValueError(f"méthode inconnue : {m}")
 
@@ -94,7 +119,7 @@ def main():
     cfg = config.charger(__file__)
     tok = modeles.charger_tokenizer(cfg.modele.nom)
     test = donnees.charger_qa(cfg.donnees, "test", cfg.evaluation.n)
-    textes = donnees.textes_generaux(cfg.evaluation.n_textes_generaux, graine=123)
+    textes = donnees.textes_generaux(cfg.evaluation.n_textes_generaux, graine=123, split="test")
 
     reference, _ = modeles.charger_llm(cfg.modele.nom)
     res = {"reference_bf16": mesurer(reference, tok, cfg, test, textes)}
@@ -104,6 +129,8 @@ def main():
 
     model, dossier = charger_quantifie(cfg, tok)
     res[cfg.methode] = mesurer(model, tok, cfg, test, textes)
+    if dossier:
+        res[cfg.methode]["taille_disque_Mo"] = modeles.taille_dossier_mo(dossier)
     if cfg.get("sauvegarder", True) and dossier is None and cfg.methode.startswith(("bnb", "torchao")):
         model.save_pretrained(f"{cfg.sortie}/modele-{cfg.methode}", safe_serialization=not cfg.methode.startswith("torchao"))
         tok.save_pretrained(f"{cfg.sortie}/modele-{cfg.methode}")

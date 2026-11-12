@@ -36,7 +36,7 @@ def exactitude(model, tok, exemples: list[dict], mode: str = "nombre", max_new_t
 
 @torch.no_grad()
 def perplexite(model, tok, textes: list[str], longueur_max: int = 512, batch: int = 4) -> float:
-    model.eval()
+    modeles.sans_autocast(model).eval()
     dev = next(model.parameters()).device
     nll, nb = 0.0, 0
     for i in range(0, len(textes), batch):
@@ -68,6 +68,6 @@ def evaluer(model, tok, cfg, exemples: list[dict] | None = None, textes_ppl: lis
     if textes_ppl:
         res["perplexite_domaine"] = perplexite(model, tok, textes_ppl, ev.get("longueur_max", 512))
     if ev.get("perplexite_generale"):
-        textes = donnees.textes_generaux(ev.get("n_textes_generaux", 50), graine=123)
+        textes = donnees.textes_generaux(ev.get("n_textes_generaux", 50), graine=123, split="test")
         res["perplexite_generale"] = perplexite(model, tok, textes, ev.get("longueur_max", 512))
     return res

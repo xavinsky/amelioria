@@ -8,6 +8,8 @@
 
 ## Principe
 
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m14) (ce que la méthode ajoute ou modifie dans le transformer).
+
 On réutilise les poids existants comme point de départ d'une architecture plus grande. Les trois méthodes suivent le même déroulé :
 
 ```
@@ -53,7 +55,7 @@ Le rapport contient :
 python run.py --quick
 python run.py                                                   # SmolLM2-360M 32 -> 48 couches (SOLAR) + 600 pas
 python run.py --set croissance.methode=expansion_blocs          # 32 -> 40 couches, seules les 8 nouvelles apprennent
-python run.py --set croissance.methode=moe --set croissance.n_experts=4
+python run.py --set croissance.methode=moe --set croissance.n_experts=4 --set modele.dtype=auto --set entrainement.optim=adamw_bnb_8bit   # ~1B paramètres : bf16 + AdamW 8 bits
 python run.py --set croissance.methode=profondeur --set croissance.m=12
 ```
 

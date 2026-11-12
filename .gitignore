@@ -1,4 +1,5 @@
 .venv/
+.venv-llmcompressor/
 __pycache__/
 *.pyc
 sorties/

@@ -13,12 +13,14 @@ calibration:                        # gptq / awq : quelques centaines d'exemples
   n: 256
   longueur: 1024
 
-qat:
+qat:                                # fine-tuning complet en fp32 : sur 12 Go, --set modele.nom=Qwen/Qwen2.5-0.5B-Instruct
   group_size: 32
   n_train: 2000
   entrainement:
     epochs: 1
-    batch: 8
+    batch: 4
+    accumulation: 2
+    gradient_checkpointing: true
     lr: 1.0e-5
     logging_steps: 20
 
@@ -29,14 +31,14 @@ donnees:
 evaluation:
   mode: nombre
   n: 100
-  max_new_tokens: 96
+  max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
   n_textes_generaux: 50
 
 sauvegarder: true
 
 quick:
   modele:
-    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+    nom: Qwen/Qwen2.5-0.5B-Instruct   # dimensions multiples de 128 : exigé par les groupes de GPTQ, AWQ et torchao int4
   methode: torchao_int8wo
   calibration:
     n: 8
@@ -45,7 +47,8 @@ quick:
     n_train: 16
     entrainement:
       max_steps: 2
-      batch: 4
+      batch: 2
+      gradient_checkpointing: true
   evaluation:
     n: 4
     max_new_tokens: 32

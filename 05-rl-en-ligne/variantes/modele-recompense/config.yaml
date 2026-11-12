@@ -1,6 +1,7 @@
 # Modèle de récompense (Bradley-Terry) — poste local
 modele:
   nom: Qwen/Qwen2.5-0.5B-Instruct   # souvent le même modèle (ou la même famille) que la politique
+  dtype: float32                    # poids maîtres fp32 (calcul bf16) : en bf16 pur, les petites mises à jour se perdent dans l'arrondi
 
 peft:
   activer: false

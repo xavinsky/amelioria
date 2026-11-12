@@ -8,6 +8,8 @@
 
 ## Principe
 
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m20) (ce que la méthode ajoute ou modifie dans le transformer).
+
 Un modèle qui se trompe une fois sur deux en génération gloutonne produit souvent la bonne réponse **dans au moins une** de ses N tentatives. Tout l'enjeu est de la **retrouver** :
 
 | Stratégie | Comment on choisit parmi N réponses | Besoin |

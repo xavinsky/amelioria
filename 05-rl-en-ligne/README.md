@@ -8,6 +8,8 @@
 
 ## Principe
 
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m05) (ce que la méthode ajoute ou modifie dans le transformer).
+
 À chaque pas :
 
 1. On tire un lot de prompts.

@@ -1,7 +1,9 @@
 """Distillation d'un classifieur encodeur (recette DistilBERT / TinyBERT) : gros BERT fine-tuné -> petit BERT.
 
 Les deux modèles peuvent avoir des tokenizers différents : chacun tokenise le texte, la distillation se fait
-sur les logits de classes. Comparaison intégrée : même élève entraîné sans enseignant (alpha=0).
+sur les logits de classes. Comparaison intégrée : même élève entraîné sans enseignant (alpha=0) sur les mêmes exemples étiquetés.
+L'élève distillé voit en plus un jeu de transfert sans étiquette, annoté par l'enseignant : c'est là que la
+distillation apporte le plus quand les étiquettes sont rares.
 """
 
 import pathlib
@@ -38,10 +40,10 @@ def entrainer(cfg, eleve, tok_e, enseignant, tok_t, textes, labels, alpha, dev):
         eleve.train()
         for i, idx in enumerate(np.array_split(rng.permutation(len(textes)), max(len(textes) // b, 1))):
             lot = [textes[j] for j in idx]
-            y = torch.tensor([labels[j] for j in idx], device=dev)
+            y = torch.tensor([labels[j] for j in idx], device=dev)   # -100 : texte sans étiquette
             enc_e = tok_e(lot, return_tensors="pt", padding=True, truncation=True, max_length=128).to(dev)
             logits = eleve(**enc_e).logits
-            perte = F.cross_entropy(logits, y)
+            perte = F.cross_entropy(logits, y, ignore_index=-100) if (y != -100).any() else logits.sum() * 0
             if alpha > 0:
                 with torch.no_grad():
                     enc_t = tok_t(lot, return_tensors="pt", padding=True, truncation=True, max_length=128).to(dev)
@@ -61,7 +63,11 @@ def main():
     dev = modeles.appareil()
     d = cfg.donnees
     ds = load_dataset(d.nom)
-    train = ds[d.split_train].shuffle(seed=cfg.graine).select(range(d.n_train))
+    melange = ds[d.split_train].shuffle(seed=cfg.graine)
+    train = melange.select(range(d.n_train))
+    # Jeu de transfert : textes supplémentaires dont on ignore l'étiquette, que seul l'enseignant annote.
+    n_transfert = min(d.get("n_sans_etiquette", 0), len(melange) - d.n_train)
+    transfert = melange.select(range(d.n_train, d.n_train + n_transfert))[d.colonne_texte] if n_transfert else []
     test = ds[d.split_test].select(range(min(d.n_test, len(ds[d.split_test]))))
 
     tok_t = AutoTokenizer.from_pretrained(cfg.enseignant.nom)
@@ -77,7 +83,8 @@ def main():
 
     sans = entrainer(cfg, copy.deepcopy(eleve_init), tok_e, None, None, train[d.colonne_texte], train[d.colonne_label], 0.0, dev)
     res["eleve_sans_enseignant"] = {"exactitude": exactitude(sans, tok_e, xt, yt, dev)}
-    avec = entrainer(cfg, eleve_init, tok_e, enseignant, tok_t, train[d.colonne_texte], train[d.colonne_label], cfg.kd.alpha, dev)
+    avec = entrainer(cfg, eleve_init, tok_e, enseignant, tok_t, list(train[d.colonne_texte]) + list(transfert),
+                     list(train[d.colonne_label]) + [-100] * len(transfert), cfg.kd.alpha, dev)
     res["eleve_distille"] = {"exactitude": exactitude(avec, tok_e, xt, yt, dev)}
 
     if cfg.get("sauvegarder", True):

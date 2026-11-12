@@ -24,8 +24,10 @@ donnees:
 entrainement:
   max_length: 512
   epochs: 1
-  batch: 8
-  accumulation: 2
+  batch: 2                          # 2 x 8 = lot effectif de 16 ; politique + référence en mémoire
+  accumulation: 8
+  gradient_checkpointing: true
+  optim: adamw_bnb_8bit
   lr: 5.0e-7
   warmup: 0.1
   logging_steps: 20
@@ -33,7 +35,7 @@ entrainement:
 evaluation:
   mode: nombre
   n: 200
-  max_new_tokens: 96
+  max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
 
 sauvegarder: true
 

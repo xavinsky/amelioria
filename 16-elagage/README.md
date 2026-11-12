@@ -4,9 +4,11 @@
 
 | Regroupe | Modifie | Local 12 Go | Test `--quick` |
 |---|---|---|---|
-| Non structuré : magnitude, Wanda (SparseGPT en infra) ; semi-structuré 2:4 ; structuré : suppression de couches (ShortGPT), réduction de largeur MLP (Minitron) ; cicatrisation LM ou distillation | Poids mis à zéro, ou architecture réduite | ✅ jusqu'à ~1,5B avec cicatrisation, ~7B sans | ✅ |
+| Non structuré : magnitude, Wanda (SparseGPT en infra) ; semi-structuré 2:4 ; structuré : suppression de couches (ShortGPT), réduction de largeur MLP (Minitron) ; cicatrisation LM ou distillation | Poids mis à zéro, ou architecture réduite | ✅ jusqu'à ~0,5B avec cicatrisation, ~7B sans | ✅ |
 
 ## Principe
+
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m16) (ce que la méthode ajoute ou modifie dans le transformer).
 
 | `methode` | Ce qui est retiré | Gain réel |
 |---|---|---|
@@ -21,7 +23,7 @@ La **cicatrisation** (`cicatrisation.mode`) est ce qui rend l'élagage agressif 
 - `lm` : pré-entraînement continu sur du texte général ;
 - `distillation` : le modèle élagué imite la distribution de sortie de l'original (recette Minitron de NVIDIA). Plus efficace que `lm` à nombre de tokens égal.
 
-Pendant la cicatrisation d'un élagage non structuré, un masque (`torch.nn.utils.prune`) garantit que les zéros restent des zéros. Il est « figé » dans les poids à la fin.
+Pendant la cicatrisation d'un élagage non structuré, un masque booléen (1 octet par poids) est réappliqué après chaque pas d'optimisation (`GarderMasques`) : les zéros restent des zéros.
 
 Chaque étape est mesurée (origine → élagué → cicatrisé) : paramètres, sparsité, tokens/s, perplexité générale, exactitude sur la tâche.
 
@@ -48,7 +50,8 @@ Chaque étape est mesurée (origine → élagué → cicatrisé) : paramètres, 
 
 ```bash
 python run.py --quick
-python run.py                                                  # Wanda 50 % + distillation, Qwen2.5-1.5B-Instruct
+python run.py                                                  # Wanda 50 % + distillation, Qwen2.5-0.5B-Instruct
+python run.py --set modele.nom=Qwen/Qwen2.5-1.5B-Instruct --set cicatrisation.mode=aucune   # 1,5B : sans cicatrisation
 python run.py --set methode=magnitude --set cicatrisation.mode=aucune    # comparer à Wanda sans cicatrisation
 python run.py --set methode=2:4
 python run.py --set methode=couches --set n_couches=6

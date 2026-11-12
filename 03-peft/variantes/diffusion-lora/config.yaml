@@ -28,7 +28,7 @@ sauvegarder: true
 
 quick:
   modele:
-    nom: hf-internal-testing/tiny-stable-diffusion-pipe
+    nom: hf-internal-testing/tiny-stable-diffusion-torch
   donnees:
     source: synthetique
     n_images: 4

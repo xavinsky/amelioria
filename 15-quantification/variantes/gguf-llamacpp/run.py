@@ -29,14 +29,15 @@ def main():
     lcpp = pathlib.Path(cfg.dossier_llamacpp).expanduser()
     bin_ = lcpp / "build" / "bin"
     sortie = pathlib.Path(cfg.sortie)
-    source = snapshot_download(cfg.modele.nom)
+    local = pathlib.Path(cfg.modele.nom).expanduser()
+    source = local if local.is_dir() else snapshot_download(cfg.modele.nom)
     f16 = sortie / "modele-f16.gguf"
     executer([sys.executable, lcpp / "convert_hf_to_gguf.py", source, "--outfile", f16, "--outtype", "f16"])
 
     calibration = sortie / "calibration.txt"
     calibration.write_text("\n\n".join(donnees.textes_generaux(cfg.calibration.n, graine=7)), encoding="utf-8")
     test = sortie / "test.txt"
-    test.write_text("\n\n".join(donnees.textes_generaux(cfg.evaluation.n_textes, graine=123)), encoding="utf-8")
+    test.write_text("\n\n".join(donnees.textes_generaux(cfg.evaluation.n_textes, graine=123, split="test")), encoding="utf-8")
     imatrix = sortie / "imatrix.gguf"
     executer([bin_ / "llama-imatrix", "-m", f16, "-f", calibration, "-o", imatrix, "-ngl", cfg.couches_gpu, "-c", 512])
 

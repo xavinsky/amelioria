@@ -44,10 +44,16 @@ def main():
     model.generation_config.task = "transcribe"
     model.generation_config.forced_decoder_ids = None
 
-    ds = load_dataset(d.nom, d.get("config"), split=d.split).cast_column(d.colonne_audio, Audio(sampling_rate=16000))
-    ds = ds.shuffle(seed=cfg.graine)
-    test = ds.select(range(d.n_test))
-    train = ds.select(range(d.n_test, min(d.n_test + d.n_train, len(ds))))
+    charger = lambda split: load_dataset(d.nom, d.get("config"), split=split).cast_column(
+        d.colonne_audio, Audio(sampling_rate=16000)).shuffle(seed=cfg.graine)
+    ds = charger(d.split)
+    if d.get("split_test"):   # split de test séparé (locuteurs distincts)
+        test_complet = charger(d.split_test)
+        test = test_complet.select(range(min(d.n_test, len(test_complet))))
+        train = ds.select(range(min(d.n_train, len(ds))))
+    else:                     # un seul split : les n_test premiers exemples servent au test
+        test = ds.select(range(d.n_test))
+        train = ds.select(range(d.n_test, min(d.n_test + d.n_train, len(ds))))
 
     def preparer(ex):
         audio = ex[d.colonne_audio]

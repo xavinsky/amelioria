@@ -4,6 +4,7 @@
 """
 
 import pathlib
+import random
 import sys
 
 sys.path.insert(0, str(next(p for p in pathlib.Path(__file__).resolve().parents if (p / "commun").is_dir())))
@@ -38,13 +39,26 @@ def main():
 
     avant = evaluation.evaluer(model, tok, cfg, questions, test)
 
+    # Le corpus du domaine est revu `epochs` fois ; le texte général de replay, lui, n'est jamais répété
+    # (des paragraphes neufs à chaque passe, comme quand on puise dans un grand corpus général) :
+    # revoir sans cesse les mêmes paragraphes de replay les ferait apprendre par cœur, sans protéger le reste.
+    e = cfg.entrainement
+    passes = int(e.get("epochs") or 1)
+    domaine = train * passes
     ratio = cfg.donnees.get("replay_ratio", 0)
+    replay = []
     if ratio:
-        n_replay = int(len(train) * ratio / (1 - ratio))
-        train = train + donnees.textes_generaux(n_replay, graine=cfg.graine)
-        print(f"[donnees] replay : {n_replay} paragraphes généraux ajoutés contre l'oubli catastrophique")
+        cible = sum(map(len, domaine)) * ratio / (1 - ratio)   # dosage en caractères, pas en nombre de textes
+        for t in donnees.textes_generaux(20000, graine=cfg.graine):
+            if sum(map(len, replay)) >= cible:
+                break
+            replay.append(t)
+        print(f"[donnees] replay : {len(replay)} paragraphes généraux distincts ({ratio:.0%} des caractères) contre l'oubli catastrophique")
+    textes = domaine + replay
+    random.Random(cfg.graine).shuffle(textes)
+    e.epochs = 1
 
-    trainer = entrainement.lm_causal(model, tok, train, cfg.entrainement, cfg.sortie, cfg.entrainement.longueur_bloc)
+    trainer = entrainement.lm_causal(model, tok, textes, e, cfg.sortie, e.longueur_bloc)
     apres = evaluation.evaluer(trainer.model, tok, cfg, questions, test)
 
     if cfg.get("sauvegarder", True):

@@ -73,6 +73,21 @@ def dare_lineaire(base, tenseurs, poids, densite: float = 0.5, generateur=None):
 
 
 @torch.no_grad()
+def ecart_relatif(etat: dict, etat_base: dict) -> float:
+    """‖θ - θ_base‖ / ‖θ_base‖ sur les tenseurs communs : vérifie qu'un modèle est bien un fine-tune de la base.
+
+    Un fine-tune s'éloigne de quelques pour cent au plus. Un modèle issu d'un pré-entraînement continu massif
+    (Qwen2.5-Math, Qwen2.5-Coder) est à plus de 50 % : ses vecteurs de tâche ne se fusionnent pas.
+    """
+    num = den = 0.0
+    for nom, t in etat_base.items():
+        if nom in etat and etat[nom].shape == t.shape and t.is_floating_point():
+            num += (etat[nom].float() - t.float()).pow(2).sum().item()
+            den += t.float().pow(2).sum().item()
+    return round((num / max(den, 1e-12)) ** 0.5, 4)
+
+
+@torch.no_grad()
 def fusionner_etats(methode: str, etat_base: dict | None, etats: list[dict], poids: list[float], densite: float = 0.5,
                     t_slerp: float = 0.5, graine: int = 0) -> dict:
     """Applique `methode` tenseur par tenseur. Les tenseurs de formes différentes (vocabulaire étendu...) viennent du 1er modèle."""

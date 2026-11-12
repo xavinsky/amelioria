@@ -12,7 +12,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import preferences  # noqa: E402
 
-from commun import config, donnees, evaluation, modeles, rapport  # noqa: E402
+from commun import config, donnees, entrainement, evaluation, modeles, rapport  # noqa: E402
 
 
 def mesurer(cfg, model, tok, paires_test, qa_test):
@@ -34,6 +34,7 @@ def main():
     avant = mesurer(cfg, model, tok, paires_test, qa_test)
     trainer = preferences.construire_trainer(cfg, model, tok, paires, cfg.sortie)
     trainer.train()
+    entrainement.liberer(trainer)
     apres = mesurer(cfg, trainer.model, tok, paires_test, qa_test)
 
     if cfg.get("sauvegarder", True):

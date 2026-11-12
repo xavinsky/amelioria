@@ -57,6 +57,9 @@ def main():
 
     lr = cfg.entrainement.lr_par_methode.get(p.methode, cfg.entrainement.lr)
     cfg.entrainement.lr = lr
+    if p.methode == "prefix_tuning":
+        # Le gradient checkpointing retire le cache dans lequel le prefix tuning injecte ses clés/valeurs.
+        cfg.entrainement.gradient_checkpointing = False
     trainer = entrainement.sft(model, tok, entrainement.exemples_sft(tok, train), cfg.entrainement, cfg.sortie,
                                peft_config=config_peft(p, cfg.modele.nom), max_length=cfg.entrainement.max_length)
     modele_peft = trainer.model

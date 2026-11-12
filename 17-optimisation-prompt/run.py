@@ -59,18 +59,22 @@ def voisins(train, questions, k, nom_modele):
 def optimiser_instruction(gen, optimiseur, dev, train, cfg):
     """Boucle OPRO : l'optimiseur voit les instructions déjà essayées avec leur score et en propose de meilleures."""
     historique = [(INSTRUCTION, score(gen, conversations("instruction", dev, INSTRUCTION, train, cfg), dev, cfg)[0])]
-    exemples = "\n".join(f"Q: {d['question']}\nA: {d['reponse']}" for d in train[:3])
+    exemples = "\n".join(f"- {d['question']}" for d in train[:2])
     for tour in range(cfg.optimisation.tours):
-        essais = "\n".join(f"<instruction>{ins}</instruction> score: {sc:.2f}" for ins, sc in sorted(historique, key=lambda x: x[1]))
-        meta = (f"You are optimizing a system instruction for a language model solving problems like:\n{exemples}\n\n"
-                f"Previous instructions and their accuracy (higher is better):\n{essais}\n\n"
-                "Write a new, different instruction that will achieve a higher accuracy. "
-                "Output only the instruction inside <instruction></instruction> tags.")
+        essais = "\n".join(f"<instruction>{ins}</instruction> accuracy: {sc:.2f}" for ins, sc in sorted(historique, key=lambda x: x[1]))
+        # Consigne d'abord, exemples présentés comme contexte : l'optimiseur doit écrire une consigne, pas un problème.
+        meta = ("Your task is to write a better system instruction (a short prompt, one to three sentences) that tells an "
+                "assistant how to solve math word problems. Do NOT solve any problem and do NOT write new problems.\n\n"
+                f"Example problems the assistant will receive (for context only):\n{exemples}\n\n"
+                f"Instructions already tried, from worst to best:\n{essais}\n\n"
+                "Write one new instruction, different from the ones above, likely to reach a higher accuracy. "
+                "Reply with exactly this format and nothing else:\n<instruction>your instruction</instruction>")
         propositions = optimiseur.chat([[{"role": "user", "content": meta}]], max_new_tokens=150, temperature=1.0, n=cfg.optimisation.candidats)[0]
         propositions = [propositions] if isinstance(propositions, str) else propositions
         for p in propositions:
             m = re.search(r"<instruction>(.*?)</instruction>", p, re.S)
-            ins = (m.group(1) if m else p).strip()[:500]
+            # Instruction entre balises, ou texte court ; une longue réponse est une résolution, pas une consigne.
+            ins = m.group(1).strip() if m else (p.strip() if len(p.strip()) <= 400 else "")
             if ins and ins not in dict(historique):
                 historique.append((ins, score(gen, conversations("optimisation", dev, ins, train, cfg), dev, cfg)[0]))
         print(f"[optimisation] tour {tour + 1} : meilleur score {max(s for _, s in historique):.3f}")

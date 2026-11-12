@@ -119,6 +119,19 @@ def exemple_sft(tok, question: str, reponse: str, systeme: str | None = None) ->
     return {"prompt": f"{prefixe}Question: {question}\nAnswer:", "completion": f" {reponse}{tok.eos_token}"}
 
 
+def sans_autocast(model):
+    """Retire l'autocast qu'accelerate laisse sur `model.forward` après un entraînement en précision mixte.
+
+    Sans ça, un modèle aux poids fp32 est mesuré en fp32 avant l'entraînement et en bf16 après :
+    les deux mesures ne sont plus comparables.
+    """
+    for m in (model, getattr(model, "base_model", None)):
+        if m is not None and "_original_forward" in m.__dict__:
+            del m.__dict__["_original_forward"]
+            m.__dict__.pop("forward", None)   # le forward de la classe redevient actif
+    return model
+
+
 @contextlib.contextmanager
 def padding_gauche(tok):
     ancien = tok.padding_side
@@ -133,7 +146,7 @@ def padding_gauche(tok):
 def generer(model, tok, prompts: list[str], max_new_tokens: int = 64, temperature: float = 0.0,
             n: int = 1, top_p: float = 1.0, batch: int = 16, **gen_kw):
     """Génère pour une liste de prompts texte. Renvoie list[str] (n=1) ou list[list[str]]."""
-    model.eval()
+    sans_autocast(model).eval()
     sorties: list[list[str]] = []
     dev = next(model.parameters()).device
     with padding_gauche(tok):
@@ -156,7 +169,7 @@ def generer(model, tok, prompts: list[str], max_new_tokens: int = 64, temperatur
 @torch.no_grad()
 def logprob_suites(model, tok, prefixes: list[str], suites: list[str]) -> torch.Tensor:
     """Somme des log-probabilités de chaque `suite` sachant son `prefixe`."""
-    model.eval()
+    sans_autocast(model).eval()
     dev = next(model.parameters()).device
     res = []
     for pre, suite in zip(prefixes, suites):

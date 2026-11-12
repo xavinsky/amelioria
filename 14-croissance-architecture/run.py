@@ -17,6 +17,7 @@ from commun import config, donnees, entrainement, evaluation, modeles, rapport  
 
 
 def mesurer(model, tok, test, reference_logits=None, sonde=None):
+    modeles.sans_autocast(model)
     res = {"parametres_M": round(sum(p.numel() for p in model.parameters()) / 1e6, 1),
            "couches": len(model.model.layers),
            "perplexite_generale": evaluation.perplexite(model, tok, test, 256)}
@@ -30,8 +31,8 @@ def main():
     cfg = config.charger(__file__)
     c = cfg.croissance
     model, tok = modeles.charger_llm(cfg.modele.nom, cfg.modele.get("dtype", "auto"))
-    textes = donnees.textes_generaux(cfg.donnees.n_textes + cfg.donnees.n_test, graine=cfg.graine)
-    train, test = textes[cfg.donnees.n_test :], textes[: cfg.donnees.n_test]
+    train = donnees.textes_generaux(cfg.donnees.n_textes, graine=cfg.graine)
+    test = donnees.textes_generaux(cfg.donnees.n_test, graine=123, split="test")
     sonde = tok(test[0], return_tensors="pt", truncation=True, max_length=64).input_ids.to(model.device)
     with torch.no_grad():
         ref = model(sonde).logits.float()

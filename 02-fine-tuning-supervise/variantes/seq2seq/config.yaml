@@ -5,7 +5,7 @@ modele:
 
 donnees:
   source: arith
-  niveau: 2
+  niveau: 1                         # une opération : T5 découpe les nombres irrégulièrement (« 51 », « ▁51 »), le calcul lui est difficile
   n_train: 5000
 
 entrainement:

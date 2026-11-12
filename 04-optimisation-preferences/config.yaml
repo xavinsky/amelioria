@@ -5,11 +5,13 @@ modele:
 
 algo: dpo                           # dpo | dpo_norm | ipo | rdpo | slic | apo_zero | apo_down | nca | bco | sppo | exo | aot | discopop | orpo | simpo | cpo | kto
 beta: 0.1                           # force du lien au modèle de référence (DPO : 0.01-0.5 ; IPO ~0.01 ; SimPO ~2)
-label_smoothing: 0.0                # rdpo : proportion supposée de paires mal étiquetées (~0.1)
+label_smoothing: 0.0                # rdpo : proportion supposée de paires mal étiquetées (0.1 si laissé à 0) ; exo : 1e-3 si laissé à 0
 simpo_gamma: 0.5
+poids_sft: 0.0                      # > 0 : ajoute une perte SFT sur la réponse préférée (RPO), contre le déplacement de vraisemblance
 
 peft:
-  activer: false                    # true : LoRA -> le modèle de référence est la base sans adaptateur (pas de copie)
+  activer: true                     # LoRA : la référence est la base sans adaptateur (pas de copie), dérive limitée.
+                                    # false : DPO complet, plus expressif, mais plus exposé au déplacement de vraisemblance
   r: 16
   alpha: 32
   modules: all-linear
@@ -27,9 +29,10 @@ donnees:
 entrainement:
   max_length: 512
   epochs: 1
-  batch: 8
-  accumulation: 2
-  lr: 5.0e-7                        # DPO complet : 1e-7 à 1e-6 (LoRA : 5e-6 à 5e-5)
+  batch: 2                          # 2 x 8 = lot effectif de 16
+  accumulation: 8
+  gradient_checkpointing: true
+  lr: 5.0e-6                        # LoRA : 5e-6 à 5e-5 ; DPO complet : 1e-7 à 1e-6, avec optim: adamw_bnb_8bit sur 12 Go
   warmup: 0.1
   scheduler: cosine
   logging_steps: 20
@@ -38,7 +41,7 @@ evaluation:
   mode: nombre
   n: 200
   n_paires: 100
-  max_new_tokens: 96
+  max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
 
 sauvegarder: true
 

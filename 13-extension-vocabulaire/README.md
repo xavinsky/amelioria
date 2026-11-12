@@ -8,6 +8,8 @@
 
 ## Principe
 
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m13) (ce que la méthode ajoute ou modifie dans le transformer).
+
 Un tokenizer entraîné sur du web anglais découpe mal un nom propre inventé, un terme de chimie ou le coréen : un mot devient 4 à 10 tokens. Les conséquences :
 
 - séquences plus longues, donc **plus lentes et plus chères** ;
@@ -88,7 +90,7 @@ Sur une base de 80 personnages fictifs aux noms inventés, très mal découpés 
 
 - **Taille multiple de 8 ou 64** : `resize_token_embeddings(pad_to_multiple_of=64)` accélère les GPU.
 - **Embeddings liés** : sur Qwen2.5-0.5B, l'entrée et la sortie partagent la même matrice. Ne pas l'initialiser deux fois.
-- **Espaces et added tokens** : un added token est extrait avant le BPE. Vérifier le découpage de « le mot » et de « lemot ».
+- **Espaces et added tokens** : un added token est extrait avant le BPE, y compris au milieu d'un mot plus long. Sans son espace initial, il laisse un token « espace » isolé devant chaque occurrence : `run.py` ajoute `AddedToken(" mot", normalized=False)`. Vérifier le découpage de « le mot » et de « lemot ».
 - **Phase 1 sautée** : des gradients énormes sur des vecteurs mal placés déstabilisent tout le réseau.
 - **Compatibilité** : un modèle au vocabulaire modifié n'est plus fusionnable avec ses « frères » ([08](../08-fusion-modeles)) ni utilisable en décodage spéculatif avec le draft d'origine.
 

@@ -26,7 +26,7 @@ entrainement:
 evaluation:
   mode: nombre
   n: 200
-  max_new_tokens: 96
+  max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
 
 sauvegarder: true
 

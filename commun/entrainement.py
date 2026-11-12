@@ -33,6 +33,7 @@ def arguments(e, sortie: str, **extra) -> dict:
         "bf16": modeles.bf16_actif(),
         "seed": 42,
         "remove_unused_columns": True,
+        "gradient_checkpointing": False,   # les configs TRL l'activent par défaut : seule la clé de config décide ici
     }
     for court, long in _CORRESPONDANCE.items():
         if e.get(court) is not None:
@@ -41,6 +42,30 @@ def arguments(e, sortie: str, **extra) -> dict:
         args[k] = v
     args.update(extra)
     return args
+
+
+def liberer(trainer):
+    """Libère les états de l'optimiseur après l'entraînement : un second entraînement ou une génération peut suivre.
+
+    Le trainer reste utilisable pour `trainer.model` et `trainer.save_model()`.
+    """
+    import gc
+
+    import torch
+
+    trainer.optimizer = trainer.lr_scheduler = None
+    if getattr(trainer, "ref_model", None) is not None:   # DPO, KTO... : modèle de référence
+        trainer.ref_model = None
+    if getattr(trainer, "callback_handler", None) is not None:
+        trainer.callback_handler.optimizer = trainer.callback_handler.lr_scheduler = None
+    acc = getattr(trainer, "accelerator", None)
+    if acc is not None:
+        acc._optimizers.clear()
+        acc._schedulers.clear()
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    return trainer
 
 
 def config_lora(p):
@@ -71,7 +96,7 @@ def sft(model, tok, exemples: list[dict], e, sortie: str, peft_config=None, max_
     trainer = SFTTrainer(model=model, args=conf, train_dataset=Dataset.from_list(exemples),
                          processing_class=tok, peft_config=peft_config)
     trainer.train()
-    return trainer
+    return liberer(trainer)
 
 
 def blocs_texte(tok, textes: list[str], longueur_bloc: int) -> Dataset:
@@ -85,7 +110,7 @@ def blocs_texte(tok, textes: list[str], longueur_bloc: int) -> Dataset:
     return Dataset.from_dict({"input_ids": blocs})
 
 
-def lm_causal(model, tok, textes: list[str], e, sortie: str, longueur_bloc: int = 512, **extra):
+def lm_causal(model, tok, textes: list[str], e, sortie: str, longueur_bloc: int = 512, callbacks=None, **extra):
     """Entraînement « prochain token » sur du texte brut (pré-entraînement continu, cicatrisation...)."""
     from transformers import DataCollatorForLanguageModeling, Trainer, TrainingArguments
 
@@ -96,9 +121,10 @@ def lm_causal(model, tok, textes: list[str], e, sortie: str, longueur_bloc: int 
         args=TrainingArguments(**arguments(e, sortie, **extra)),
         train_dataset=ds,
         data_collator=DataCollatorForLanguageModeling(tok, mlm=False),
+        callbacks=callbacks,
     )
     trainer.train()
-    return trainer
+    return liberer(trainer)
 
 
 def tokeniser_prompt_reponse(tok, exemples: list[dict], max_length: int = 512, cle_reponse: str = "reponse") -> list[dict]:

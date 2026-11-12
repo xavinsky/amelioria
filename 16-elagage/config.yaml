@@ -1,6 +1,6 @@
 # Élagage — poste local (GPU 12 Go)
 modele:
-  nom: Qwen/Qwen2.5-1.5B-Instruct
+  nom: Qwen/Qwen2.5-0.5B-Instruct   # 12 Go : 0,5B avec cicatrisation ; 1,5B avec cicatrisation.mode=aucune
   dtype: float32
 
 methode: wanda                      # magnitude | wanda | 2:4 | couches | largeur
@@ -17,8 +17,9 @@ cicatrisation:
   longueur_bloc: 256
   entrainement:
     max_steps: 300
-    batch: 4
-    accumulation: 4
+    batch: 2
+    accumulation: 8
+    optim: adamw_bnb_8bit           # AdamW 8 bits : l'enseignant (original) tient à côté de l'élève
     lr: 2.0e-5
     warmup: 20
     logging_steps: 20
@@ -31,7 +32,7 @@ donnees:
 evaluation:
   mode: nombre
   n: 100
-  max_new_tokens: 64
+  max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
   n_textes_generaux: 50
 
 sauvegarder: true

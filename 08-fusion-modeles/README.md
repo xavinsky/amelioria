@@ -8,6 +8,8 @@
 
 ## Principe
 
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m08) (ce que la méthode ajoute ou modifie dans le transformer).
+
 Deux fine-tunes d'un même modèle de base restent dans le même « bassin » de l'espace des poids. Leur combinaison donne souvent un modèle qui fonctionne, et qui hérite des deux.
 
 On appelle **vecteur de tâche** la différence `τ_i = θ_i - θ_base` : ce que le fine-tuning i a ajouté.
@@ -79,7 +81,7 @@ python run.py --set methode=arithmetique_taches
 
 ## Pièges
 
-- **Base commune obligatoire** pour les méthodes à vecteurs de tâche : vérifier l'ascendance des modèles.
+- **Base commune obligatoire** pour les méthodes à vecteurs de tâche : vérifier l'ascendance des modèles. Le nom ne suffit pas : Qwen2.5-Math-1.5B-Instruct et Qwen2.5-Coder-1.5B-Instruct viennent de Qwen2.5-1.5B, mais après des centaines de milliards de tokens de pré-entraînement continu (et un `rope_theta` différent pour Math). Leurs poids sont à 100 % et 61 % de la base, contre 0,8 % pour Qwen2.5-1.5B-Instruct : leur fusion avec l'Instruct détruit le modèle. `run.py` affiche cet écart relatif pour chaque source (`ecart_relatif_a_la_base`).
 - **Vocabulaire étendu** : les embeddings de tailles différentes ne se fusionnent pas. Ici, ceux du premier modèle sont conservés.
 - **Chat templates différents** : choisir explicitement le tokenizer (`tokenizer`).
 - **Contamination** des classements : beaucoup de fusions « record » surapprennent les benchmarks. Évaluer sur ses propres tâches.

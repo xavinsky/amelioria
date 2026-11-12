@@ -73,6 +73,17 @@ def questions(entites, n, graine):
     return res
 
 
+def executer_outil(outils, nom, arguments) -> str:
+    """Un appel mal formé (outil inconnu, arguments invalides) renvoie l'erreur au modèle au lieu d'interrompre la boucle."""
+    f = outils.get(nom)
+    if f is None:
+        return "outil inconnu"
+    try:
+        return f(**(arguments if isinstance(arguments, dict) else {}))
+    except TypeError as e:
+        return f"erreur d'arguments : {e}"
+
+
 def boucle_locale(model, tok, question, outils, cfg):
     messages = [{"role": "system", "content": cfg.systeme}, {"role": "user", "content": question}]
     appels = 0
@@ -91,8 +102,7 @@ def boucle_locale(model, tok, question, outils, cfg):
             tool_calls.append({"type": "function", "function": {"name": appel.get("name"), "arguments": appel.get("arguments", {})}})
         messages.append({"role": "assistant", "content": "", "tool_calls": tool_calls})
         for tc in tool_calls:
-            f = outils.get(tc["function"]["name"])
-            resultat = f(**tc["function"]["arguments"]) if f else "outil inconnu"
+            resultat = executer_outil(outils, tc["function"]["name"], tc["function"]["arguments"])
             messages.append({"role": "tool", "name": tc["function"]["name"], "content": resultat})
             appels += 1
     return sortie, appels
@@ -114,9 +124,9 @@ def boucle_api(cfg, question, outils):
             return msg.get("content") or "", appels
         messages.append(msg)
         for tc in msg["tool_calls"]:
-            args = json.loads(tc["function"]["arguments"] or "{}")
-            f = outils.get(tc["function"]["name"])
-            messages.append({"role": "tool", "tool_call_id": tc["id"], "content": f(**args) if f else "outil inconnu"})
+            args = tc["function"]["arguments"] or "{}"
+            args = json.loads(args) if isinstance(args, str) else args
+            messages.append({"role": "tool", "tool_call_id": tc["id"], "content": executer_outil(outils, tc["function"]["name"], args)})
             appels += 1
     return "", appels
 

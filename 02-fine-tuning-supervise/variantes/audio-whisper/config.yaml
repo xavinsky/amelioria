@@ -6,10 +6,11 @@ modele:
 donnees:
   nom: facebook/multilingual_librispeech
   config: french
-  split: train
+  split: 9_hours                     # sous-ensemble officiel de 9 h (0,13 Go) ; train complet : ~16 Go, 34 fichiers
+  split_test: test
   colonne_audio: audio
   colonne_texte: transcript
-  n_train: 4000
+  n_train: 4000                       # plafonné à la taille du split
   n_test: 200
 
 entrainement:
@@ -30,6 +31,7 @@ quick:
     nom: hf-internal-testing/librispeech_asr_dummy
     config: clean
     split: validation
+    split_test: null                  # un seul split : les n_test premiers exemples servent au test
     colonne_texte: text
     n_train: 48
     n_test: 16

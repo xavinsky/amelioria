@@ -8,6 +8,8 @@
 
 ## Principe
 
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m10) (ce que la méthode ajoute ou modifie dans le transformer).
+
 On dispose d'un **ensemble à oublier** (forget set) et d'un **ensemble à retenir** (retain set). Toutes les méthodes suivent la même boucle : un lot à oublier, éventuellement un lot à retenir, puis une perte combinée. Seule la perte change (`--set desapprentissage.methode=...`) :
 
 | Méthode | Perte sur l'oubli | Rétention | Comportement |

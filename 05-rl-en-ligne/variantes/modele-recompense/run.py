@@ -41,7 +41,8 @@ def exactitude(model, tok, paires):
 def main():
     cfg = config.charger(__file__)
     tok = modeles.charger_tokenizer(cfg.modele.nom)
-    model = AutoModelForSequenceClassification.from_pretrained(cfg.modele.nom, num_labels=1, dtype=modeles.dtype_calcul())
+    dtype = modeles.dtype_calcul() if cfg.modele.get("dtype", "auto") == "auto" else getattr(torch, cfg.modele.dtype)
+    model = AutoModelForSequenceClassification.from_pretrained(cfg.modele.nom, num_labels=1, dtype=dtype)
     model.config.pad_token_id = tok.pad_token_id
     model.to(modeles.appareil())
 

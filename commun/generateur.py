@@ -50,8 +50,12 @@ class Generateur:
         corps = {"model": self.nom, "messages": messages, "max_tokens": max_tokens, "temperature": temperature, "n": n}
         if stop:
             corps["stop"] = stop
-        req = urllib.request.Request(f"{self.api_base.rstrip('/')}/chat/completions", json.dumps(corps).encode(),
-                                     {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_cle}"})
-        with urllib.request.urlopen(req, timeout=600) as rep:
-            choix = [c["message"]["content"] or "" for c in json.load(rep)["choices"]]
-        return choix[0] if n == 1 else choix
+        choix = []
+        # Certains serveurs (Ollama) ignorent `n` et renvoient une seule réponse : on complète par appels successifs.
+        while len(choix) < n:
+            corps["n"] = n - len(choix)
+            req = urllib.request.Request(f"{self.api_base.rstrip('/')}/chat/completions", json.dumps(corps).encode(),
+                                         {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_cle}"})
+            with urllib.request.urlopen(req, timeout=600) as rep:
+                choix += [c["message"]["content"] or "" for c in json.load(rep)["choices"]]
+        return choix[0] if n == 1 else choix[:n]

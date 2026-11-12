@@ -14,6 +14,7 @@ import sys
 sys.path.insert(0, str(next(p for p in pathlib.Path(__file__).resolve().parents if (p / "commun").is_dir())))
 
 import torch
+from transformers import AddedToken
 
 from commun import config, donnees, entrainement, modeles, rapport
 
@@ -33,6 +34,7 @@ def candidats(tok, textes, n, min_freq):
 
 @torch.no_grad()
 def bits_par_caractere(model, tok, textes):
+    modeles.sans_autocast(model)
     dev = next(model.parameters()).device
     nll, car = 0.0, 0
     for t in textes:
@@ -49,7 +51,7 @@ def agrandir(model, tok_ancien, tok, nouveaux, init):
     entree, sortie = model.get_input_embeddings().weight, model.get_output_embeddings().weight
     liees = entree.data_ptr() == sortie.data_ptr()
     for mot in nouveaux:
-        i = tok.convert_tokens_to_ids(mot)
+        i = tok.convert_tokens_to_ids(" " + mot)
         if i < n_ancien:
             continue
         anciens = tok_ancien(" " + mot, add_special_tokens=False)["input_ids"]
@@ -84,7 +86,8 @@ def main():
     mesure = lambda m, t: {"tokens_corpus_test": sum(len(t(x)["input_ids"]) for x in test), "bits_par_caractere": bits_par_caractere(m, t, test)}
     avant = mesure(model, tok_ancien)
 
-    tok.add_tokens(nouveaux)
+    # Token enregistré avec son espace initial, comme les tokens BPE de mots (« ĠKavelmor ») : « le Kavelmor » -> 2 tokens.
+    tok.add_tokens([AddedToken(" " + mot, normalized=False) for mot in nouveaux])
     agrandir(model, tok_ancien, tok, nouveaux, cfg.vocabulaire.init)
     apres_init = mesure(model, tok)
 

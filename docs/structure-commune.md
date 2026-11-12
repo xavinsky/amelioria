@@ -14,10 +14,12 @@ NN-nom/
 
 ## Même ligne de commande partout
 
+Depuis la racine : `make test EX=NN [VAR=...] [SET="cle=val ..."]` (test rapide) et `make run EX=NN` (complet) vérifient les prérequis puis lancent `run.py` ; voir `make help`. Directement :
+
 ```bash
 python NN-nom/run.py                         # config.yaml (GPU local ~12 Go)
 python NN-nom/run.py --quick                 # petit modèle, peu de données, quelques pas : vérifie que tout s'exécute
-python NN-nom/run.py --set cle.sous_cle=val  # surcharge (valeur lue en YAML : nombres, listes, null...)
+python NN-nom/run.py --set cle.sous_cle=val  # surcharge (valeur lue en YAML : nombres, listes, null... ; « 5e-6 » est un nombre, « 2:4 » du texte)
 python NN-nom/run.py --config NN-nom/infra/config.yaml
 python NN-nom/run.py --sortie /chemin        # dossier de sortie
 bash   NN-nom/infra/lancer.sh                # grosse infra
@@ -31,7 +33,7 @@ Choix d'une variante d'algorithme : toujours par la config (`--set methode=...`,
 |---|---|
 | `modele` | `nom` (id Hugging Face ou dossier local), `dtype`, `api_base` pour les méthodes 17 à 20 |
 | `donnees` | `source` (`arith`, `faits`, `gsm8k`, `hf`...), tailles, `graine` |
-| `entrainement` | Clés courtes traduites en `TrainingArguments` : `lr`, `epochs`, `max_steps`, `batch`, `accumulation`, `warmup`, `scheduler`, `gradient_checkpointing`, `logging_steps`, `autres: {...}` pour tout le reste |
+| `entrainement` | Clés courtes traduites en `TrainingArguments` : `lr`, `epochs`, `max_steps`, `batch`, `accumulation`, `warmup`, `scheduler`, `gradient_checkpointing` (désactivé si absent, alors que les configs TRL l'activent par défaut), `optim` (ex. `adamw_bnb_8bit`), `logging_steps`, `autres: {...}` pour tout le reste |
 | `evaluation` | `mode` (`nombre` ou `contient`), `n`, `max_new_tokens`, `perplexite_generale`, `activer` |
 | `sauvegarder` | Écrire ou non le modèle produit |
 | `quick` | Surcharges du test rapide |
@@ -62,10 +64,10 @@ Les jeux réels (GSM8K, UltraFeedback, TOFU, SST-2, CIFAR-10, MLS...) se branche
 | Module | Rôle |
 |---|---|
 | `config.py` | Ligne de commande, fusion `quick`, `--set`, dossier de sortie, graine |
-| `modeles.py` | Chargement de LLM (bf16/fp32, bitsandbytes, multi-GPU), prompts, génération, log-probs, couches |
+| `modeles.py` | Chargement de LLM (bf16/fp32, bitsandbytes, multi-GPU), prompts, génération, log-probs, couches. `sans_autocast` retire l'autocast qu'accelerate laisse sur le modèle après un entraînement : les mesures avant/après se font dans la même précision |
 | `donnees.py` | Jeux fil rouge et chargeurs Hugging Face |
 | `evaluation.py` | Exactitude, perplexité, évaluation pilotée par la config |
-| `entrainement.py` | Arguments communs, SFT (TRL), LM causal, tokenisation pour boucles manuelles, LoRA |
+| `entrainement.py` | Arguments communs, SFT (TRL), LM causal, tokenisation pour boucles manuelles, LoRA. `liberer` rend la mémoire de l'optimiseur après l'entraînement |
 | `generateur.py` | Chat unifié modèle local / API compatible OpenAI |
 | `rapport.py` | `resultats.json` + tableau |
 | `infra/` | accelerate FSDP2 et DeepSpeed ZeRO-3, Slurm multi-nœuds, évaluation lm-eval + vLLM |

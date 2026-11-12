@@ -25,8 +25,10 @@ donnees:
 entrainement:
   max_length: 256
   epochs: 1
-  batch: 4                          # les logits (vocabulaire 152k) de deux modèles pèsent lourd en mémoire
-  accumulation: 4
+  batch: 2                          # les logits (vocabulaire 152k) de deux modèles pèsent lourd en mémoire
+  accumulation: 8
+  gradient_checkpointing: true
+  optim: adamw_bnb_8bit             # AdamW 8 bits : l'enseignant tient à côté de l'élève
   lr: 1.0e-5
   warmup: 0.03
   scheduler: cosine
@@ -35,7 +37,7 @@ entrainement:
 evaluation:
   mode: nombre
   n: 200
-  max_new_tokens: 96
+  max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
 
 sauvegarder: true
 

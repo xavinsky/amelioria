@@ -8,6 +8,8 @@
 
 ## Principe
 
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m15) (ce que la méthode ajoute ou modifie dans le transformer).
+
 « Améliorer » veut dire ici rendre le modèle **déployable** : moins de mémoire, plus de débit, et parfois la possibilité de faire tourner un modèle *plus grand* sur le même matériel. Un 14B en 4 bits bat souvent un 7B en 16 bits.
 
 | Famille | Méthodes | Idée | Coût |
@@ -45,14 +47,14 @@ Mesures (référence bf16 puis modèle quantifié) : mémoire du modèle, tokens
 ```bash
 python run.py --quick                                      # torchao int8 poids seuls (fonctionne sur CPU)
 python run.py                                              # NF4 bitsandbytes, Qwen2.5-1.5B-Instruct
-python run.py --set methode=gptq                           # pip install llmcompressor
-python run.py --set methode=awq
+../.venv-llmcompressor/bin/python run.py --set methode=gptq   # llmcompressor, dans son propre venv
+../.venv-llmcompressor/bin/python run.py --set methode=awq
 python run.py --set methode=torchao_int4wo
-python run.py --set methode=qat                            # pip install torchao
+python run.py --set methode=qat --set modele.nom=Qwen/Qwen2.5-0.5B-Instruct   # fine-tuning complet fp32 : 0,5B sur 12 Go
 python variantes/gguf-llamacpp/run.py --quick              # nécessite llama.cpp compilé (voir config)
 ```
 
-Dépendances selon la méthode : `bitsandbytes` (bnb), `torchao` (torchao, qat), `llmcompressor` (gptq, awq). Voir [`requirements-extras.txt`](../requirements-extras.txt).
+Dépendances selon la méthode : `bitsandbytes` (bnb), `torchao` (torchao, qat), `llmcompressor` (gptq, awq). llm-compressor impose sa propre version de torch et de transformers : il s'installe dans un venv séparé (`python3 -m venv .venv-llmcompressor && .venv-llmcompressor/bin/pip install llmcompressor datasets pyyaml`). Voir [`requirements-extras.txt`](../requirements-extras.txt).
 
 ## Paramètres principaux (`config.yaml`)
 
@@ -78,6 +80,8 @@ Dépendances selon la méthode : `bitsandbytes` (bnb), `torchao` (torchao, qat),
 - **Perplexité trompeuse** : une petite hausse de perplexité peut masquer une chute nette sur des raisonnements longs.
 - **Couches sensibles** : garder `lm_head` (et parfois les embeddings, le routeur MoE) en haute précision.
 - **Format** et moteur d'inférence doivent correspondre : compressed-tensors pour vLLM, GGUF pour llama.cpp / Ollama, bnb pour transformers.
+- **GPTQ/AWQ dans transformers** : le modèle se charge compressé, mais transformers le décompresse en bf16 dès la première génération (pas de noyaux 4 bits compressed-tensors). Le gain de mémoire et de débit se voit dans vLLM. `run.py` mesure donc la mémoire avant de générer, et ajoute la taille sur disque.
+- **Format int4 et noyaux** : un format quantifié n'est utile que si des noyaux l'exécutent sur le matériel visé. `run.py` utilise le format torchao `tile_packed_to_4d`, dont les noyaux int4 (tinygemm) sont inclus dans PyTorch CUDA.
 
 ## Références
 

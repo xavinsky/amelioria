@@ -30,7 +30,9 @@ donnees:
 entrainement:
   max_length: 384
   epochs: 1
-  batch: 16
+  batch: 4
+  accumulation: 4
+  gradient_checkpointing: true
   lr: 1.0e-5
   warmup: 0.03
   scheduler: cosine
@@ -39,7 +41,7 @@ entrainement:
 evaluation:
   mode: nombre
   n: 200
-  max_new_tokens: 96
+  max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
 
 sauvegarder: true
 

@@ -15,7 +15,7 @@ sys.path.insert(0, str(RACINE / "04-optimisation-preferences"))
 
 import preferences  # noqa: E402
 
-from commun import config, donnees, evaluation, modeles, rapport  # noqa: E402
+from commun import config, donnees, entrainement, evaluation, modeles, rapport  # noqa: E402
 
 
 def generer_paires(cfg, model, tok, questions: list[dict]) -> tuple[list[dict], float]:
@@ -48,7 +48,7 @@ def main():
             break
         trainer = preferences.construire_trainer(cfg, model, tok, paires, f"{cfg.sortie}/tour-{tour}")
         trainer.train()
-        model = trainer.model
+        model = entrainement.liberer(trainer).model
         etapes[f"tour_{tour}"] = evaluation.evaluer(model, tok, cfg, test) | {"paires": len(paires), "reussite_echantillons": round(taux, 4)}
 
     if cfg.get("sauvegarder", True):

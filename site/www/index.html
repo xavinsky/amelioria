@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- seo -->
+<title>AmeliorIA : améliorer un modèle d'IA sans le réentraîner de zéro</title>
+<meta name="description" content="Améliorer un modèle d'IA existant sans le réentraîner de zéro : 20 méthodes (fine-tuning, LoRA, DPO, RL, distillation, fusion, quantification, RAG...), un arbre de décision et des exemples exécutables au statut mesuré.">
+<link rel="canonical" href="https://tekio.org/amelioria/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="tekio.org">
+<meta property="og:title" content="AmeliorIA : améliorer un modèle d'IA sans le réentraîner de zéro">
+<meta property="og:description" content="Améliorer un modèle d'IA existant sans le réentraîner de zéro : 20 méthodes (fine-tuning, LoRA, DPO, RL, distillation, fusion, quantification, RAG...), un arbre de décision et des exemples exécutables au statut mesuré.">
+<meta property="og:url" content="https://tekio.org/amelioria/">
+<meta property="og:locale" content="fr_FR">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@type": "WebSite", "name": "AmeliorIA", "url": "https://tekio.org/amelioria/", "inLanguage": "fr", "description": "Améliorer un modèle d'IA existant sans le réentraîner de zéro : 20 méthodes (fine-tuning, LoRA, DPO, RL, distillation, fusion, quantification, RAG...), un arbre de décision et des exemples exécutables au statut mesuré.", "isPartOf": {"@type": "WebSite", "name": "tekio.org", "url": "https://tekio.org/"}}
+</script>
+<!-- /seo -->
+<script>
+// Zoom et thème appliqués avant le premier rendu, pour éviter un saut de mise en page ou un flash
+// de la mauvaise teinte (mêmes clés localStorage que www/engine.js).
+(function(){
+  try {
+    var z = parseFloat(localStorage.getItem("amelioria-zoom")) || 1;
+    document.documentElement.style.zoom = z * 1.2;
+    var t = localStorage.getItem("amelioria-theme");
+    if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+    if (localStorage.getItem("amelioria-sidebar-cachee") === "1") document.documentElement.classList.add("sidebar-cachee");
+  } catch (e) {}
+})();
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header id="topnav">
+  <div class="brand"><button type="button" id="sidebar-toggle" aria-label="Masquer le menu latéral" aria-pressed="false" title="Masquer ou afficher le menu latéral"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="1"/><line x1="9" y1="4" x2="9" y2="20"/></svg></button><h1>Amelior<sup>IA</sup></h1><a class="home-link" href="https://tekio.org/" title="Retour à tekio.org">tekio.org</a></div>
+  <nav class="top-tabs" id="top-tabs"></nav>
+  <div class="topnav-search">
+    <input type="search" id="search-input" placeholder="Rechercher… ( / )" autocomplete="off" aria-controls="search-results">
+    <div id="search-results" hidden></div>
+  </div>
+  <button type="button" id="theme-toggle" aria-label="Passer en mode sombre" aria-pressed="false">
+    <svg class="icon-sun" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 3v2M12 19v2M5.64 5.64l1.42 1.42M16.94 16.94l1.42 1.42M3 12h2M19 12h2M5.64 18.36l1.42-1.42M16.94 7.06l1.42-1.42"/></svg>
+    <svg class="icon-moon" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M20.6 15.3A9 9 0 0 1 8.7 3.4 9 9 0 1 0 20.6 15.3Z"/></svg>
+  </button>
+</header>
+
+<div id="body-row">
+  <aside id="sidebar">
+    <div id="sidebar-scroll"></div>
+    <div class="sidebar-footer">
+      <div class="zoom-controls">
+        <button id="zoom-out" type="button" aria-label="Réduire le zoom">−</button>
+        <span id="zoom-level">100%</span>
+        <button id="zoom-in" type="button" aria-label="Augmenter le zoom">+</button>
+        <button id="scrollbar-toggle" type="button" aria-label="Afficher ou masquer la barre de défilement du menu"></button>
+      </div>
+      <div class="last-updated" id="last-updated"></div>
+    </div>
+  </aside>
+  <main id="main-root"></main>
+</div>
+
+<script src="data/content.js"></script>
+<script>const GENERATORS = [];</script>
+<script src="engine.js"></script>
+</body>
+</html>

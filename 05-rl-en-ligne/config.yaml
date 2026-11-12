@@ -35,8 +35,9 @@ donnees:
 
 entrainement:
   epochs: 1
-  batch: 16                         # doit être un multiple de num_generations
-  accumulation: 1
+  batch: 8                          # doit être un multiple de num_generations ; 8 x 2 = 16 réponses par pas
+  accumulation: 2
+  gradient_checkpointing: true
   lr: 1.0e-6
   warmup: 0.0
   logging_steps: 5
@@ -45,7 +46,7 @@ entrainement:
 evaluation:
   mode: nombre
   n: 200
-  max_new_tokens: 128
+  max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
 
 sauvegarder: true
 

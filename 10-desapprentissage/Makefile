@@ -1,0 +1,1 @@
+include ../commun/exemple.mk

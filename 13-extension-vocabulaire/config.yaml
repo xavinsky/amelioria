@@ -22,14 +22,17 @@ donnees:
 
 phase1:                             # embeddings seuls
   epochs: 3
-  batch: 8
+  batch: 2
+  accumulation: 4
   lr: 1.0e-3
   warmup: 0.05
   logging_steps: 10
 
 phase2:                             # modèle complet
   epochs: 2
-  batch: 8
+  batch: 2
+  accumulation: 4
+  gradient_checkpointing: true
   lr: 2.0e-5
   warmup: 0.05
   logging_steps: 10

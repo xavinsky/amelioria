@@ -8,6 +8,8 @@
 
 ## Principe
 
+Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m12) (ce que la méthode ajoute ou modifie dans le transformer).
+
 Les LLM modernes encodent la position par **RoPE** : chaque paire de dimensions de la requête et de la clé tourne d'un angle `position × θ_i`. Au-delà de la longueur d'entraînement, des angles jamais vus apparaissent et la qualité s'effondre.
 
 | `methode` | Idée | Sans fine-tuning ? |
@@ -26,7 +28,7 @@ L'exemple mesure trois états :
 2. `echelle_seule` : la config RoPE modifiée, sans entraînement ;
 3. `apres_finetuning`.
 
-Pour chacun, on mesure le **test de la clé cachée** (passkey retrieval, retrouver un nombre caché au milieu d'un long texte) à plusieurs longueurs, et la perplexité sur des documents longs.
+Pour chacun, on mesure le **test de la clé cachée** (passkey retrieval, retrouver un nombre caché au milieu d'un long texte) à plusieurs longueurs, et la perplexité sur des documents longs. La clé est évaluée en choix forcé : la vraie clé doit être la plus probable parmi 10 candidates (hasard = 0,1). On mesure ainsi ce que le modèle a lu, indépendamment de sa façon de formuler une réponse.
 
 ## Modèles concernés
 

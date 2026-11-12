@@ -40,7 +40,7 @@ def mesurer(cfg, model, tok, oubli, retenu):
     ev = cfg.evaluation
     retenu = retenu[: ev.n_retenu]
     res = {"nll_oubli": nll_reponses(model, tok, oubli), "nll_retenu": nll_reponses(model, tok, retenu),
-           "perplexite_generale": evaluation.perplexite(model, tok, donnees.textes_generaux(ev.n_textes_generaux, graine=123), 256)}
+           "perplexite_generale": evaluation.perplexite(model, tok, donnees.textes_generaux(ev.n_textes_generaux, graine=123, split="test"), 256)}
     if cfg.donnees.get("source", "faits") == "faits":   # réponses courtes : exactitude en génération
         res["oubli"] = evaluation.exactitude(model, tok, oubli, "contient", ev.max_new_tokens)
         res["retenu"] = evaluation.exactitude(model, tok, retenu, "contient", ev.max_new_tokens)
@@ -62,25 +62,31 @@ def boucle(model, tok, oubli, retenu, cfg):
     dev = next(model.parameters()).device
     ref = None
     if p.methode == "npo":
-        ref = copy.deepcopy(model).eval().requires_grad_(False)
+        ref = copy.deepcopy(model).to(modeles.dtype_calcul()).eval().requires_grad_(False)   # inférence seule
     if p.methode == "idk":
         oubli = [dict(ex, reponse=REFUS) for ex in oubli]
     collate = entrainement.collate_causal(tok)
     charge = lambda ex: DataLoader(entrainement.tokeniser_prompt_reponse(tok, ex, 256), batch_size=e.batch, shuffle=True, collate_fn=collate)
     iter_oubli, iter_retenu = itertools.cycle(charge(oubli)), itertools.cycle(charge(retenu))
-    optim = torch.optim.AdamW([x for x in model.parameters() if x.requires_grad], lr=e.lr)
+    # foreach=False : mise à jour paramètre par paramètre, sans les copies temporaires de la version groupée.
+    optim = torch.optim.AdamW([x for x in model.parameters() if x.requires_grad], lr=e.lr, foreach=False)
+    if e.get("gradient_checkpointing"):
+        model.gradient_checkpointing_enable()
+    # Précision mixte comme dans les Trainer : poids maîtres fp32, calcul bf16.
+    autocast = lambda: torch.autocast(dev.type, dtype=modeles.dtype_calcul(), enabled=modeles.bf16_actif())
 
     model.train()
     for pas in range(e.max_steps):
         lot_o = {k: v.to(dev) for k, v in next(iter_oubli).items()}
-        lp_o, n_o = entrainement.logprob_sequences(model, lot_o)
+        with autocast():
+            lp_o, n_o = entrainement.logprob_sequences(model, lot_o)
         nll_o = -(lp_o / n_o).mean()
         if p.methode == "gradient_ascent":
             perte = -nll_o                                  # monter la perte sur ce qu'il faut oublier
         elif p.methode == "idk":
             perte = nll_o                                   # apprendre à répondre « je ne sais pas »
         elif p.methode == "npo":
-            with torch.no_grad():
+            with torch.no_grad(), autocast():
                 lp_ref, _ = entrainement.logprob_sequences(ref, lot_o)
             # Negative Preference Optimization : DPO sans réponse préférée, borné (évite l'effondrement de GA)
             perte = -(2 / p.beta) * F.logsigmoid(-p.beta * (lp_o - lp_ref)).mean()
@@ -90,7 +96,8 @@ def boucle(model, tok, oubli, retenu, cfg):
             raise ValueError(p.methode)
         if p.methode in ("gradient_difference", "idk") or (p.methode == "npo" and p.retenu):
             lot_r = {k: v.to(dev) for k, v in next(iter_retenu).items()}
-            lp_r, n_r = entrainement.logprob_sequences(model, lot_r)
+            with autocast():
+                lp_r, n_r = entrainement.logprob_sequences(model, lot_r)
             perte = perte + p.poids_retenu * -(lp_r / n_r).mean()   # garder ce qu'il faut garder
         optim.zero_grad()
         perte.backward()
@@ -98,6 +105,8 @@ def boucle(model, tok, oubli, retenu, cfg):
         optim.step()
         if pas % e.logging_steps == 0:
             print(f"[{p.methode}] pas {pas} perte {perte.item():.4f} nll_oubli {nll_o.item():.3f}")
+    if e.get("gradient_checkpointing"):
+        model.gradient_checkpointing_disable()
     model.eval()
     return model
 
