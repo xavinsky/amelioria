@@ -26,9 +26,9 @@ marqueurs `[!SOMMEIL]` (projet libre en sommeil), `[!PREVERSION]` (fonction en p
 `[!DECONSEILLE]` (hors pratique standard ou pérennité incertaine) : badge avec infobulle à l'endroit du
 marqueur ; en tête d'une puce ou d'une ligne de tableau, l'élément entier est grisé.
 
-Propre à AmeliorIA (build/catalogue.py) : `dossier: NN-nom` désigne la méthode du dépôt que présente
-la section ; le build ajoute alors ses repères en tête et la section « Essayer dans le dépôt » (statut,
-résultat mesuré, commandes), lus dans exemples.yaml. `references` (libellé → URL) donne la section
+Propre à AmeliorIA : les pages de l'onglet Méthodes sont générées depuis le README de chaque dossier
+du dépôt (build/fiches.py), une page Concept et une page Exemple par méthode, complétées par
+exemples.yaml et docs/references.md (build/catalogue.py). `references` (libellé → URL) donne la section
 « Références ». `arbre` décrit l'arbre de décision général et `decision` le graphe de décision d'un cas, rendus
 en SVG en tête de la section ;
 `catalogue: true` insère le tableau de tous les exemples. Marqueurs de statut des exemples :
@@ -60,6 +60,7 @@ from pygments.lexers import get_lexer_by_name
 from pygments.util import ClassNotFound
 
 import catalogue as cat_depot
+import fiches
 import schema
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -116,6 +117,9 @@ def split_front_matter(text, path):
 
 def highlight_code(code, lang, _attrs):
     lang = (lang or "").strip()
+    if lang == "mermaid":
+        # Schéma rendu dans le navigateur par Mermaid (www/engine.js), sur fond clair dans les deux thèmes
+        return f'<pre class="mermaid">{html.escape(code)}</pre>\n'
     try:
         body = highlight(code, get_lexer_by_name(lang), FORMATTER) if lang else html.escape(code)
     except ClassNotFound:
@@ -335,16 +339,28 @@ def load_site():
     return site
 
 
+def relative(path):
+    """Chemin source affiché : relatif au site, ou au dépôt pour un README de méthode."""
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return "../" + str(path.relative_to(ROOT.parent))
+
+
 def load_sections(site, renderer, depot):
     sections = []
+    generateur = fiches.Generateur(depot)
     for page in site["pages"]:
         if page["type"] != "sections":
             continue
         page_dir = CONTENT / page["key"]
         for group in page["groups"]:
             group_sections = []
-            for path in sorted((page_dir / group).glob("*.md")):
-                meta, body = split_front_matter(path.read_text(encoding="utf-8"), path)
+            entrees = [(path, *split_front_matter(path.read_text(encoding="utf-8"), path))
+                       for path in sorted((page_dir / group).glob("*.md"))]
+            if page["key"] == "methodes":
+                entrees += generateur.entrees(group)
+            for path, meta, body in entrees:
                 if "title" not in meta:
                     raise BuildError(f"{path}: `title` manquant dans le front matter")
                 sec_id = meta.get("id") or re.sub(r"^[a-z]?\d+-", "", path.stem)
@@ -367,14 +383,14 @@ def load_sections(site, renderer, depot):
                         raise BuildError(str(err)) from None
                 if meta.get("arbre"):
                     try:
-                        figure, cibles = depot.arbre(meta["arbre"], sec_id, path.relative_to(ROOT))
+                        figure, cibles = depot.arbre(meta["arbre"], sec_id, relative(path))
                     except (KeyError, ValueError) as err:
                         raise BuildError(f"{path}: arbre mal décrit ({err})") from None
                     renderer.links += [(path, c) for c in cibles]
                     body_html = figure + body_html
                 if meta.get("decision"):
                     try:
-                        figure, cibles = depot.decision(meta["decision"], sec_id, path.relative_to(ROOT))
+                        figure, cibles = depot.decision(meta["decision"], sec_id, relative(path))
                     except (KeyError, ValueError, TypeError) as err:
                         raise BuildError(f"{path}: graphe de décision mal décrit ({err})") from None
                     renderer.links += [(path, c) for c in cibles]
@@ -393,12 +409,13 @@ def load_sections(site, renderer, depot):
                     "group": group,
                     "subgroup": meta.get("subgroup"),
                     "title": meta["title"],
+                    "nav": meta.get("nav"),
                     "icon": f"icons/{icon}.svg" if icon else None,
                     "aka": meta.get("aka"),
                     "deprecie": bool(meta.get("deprecie")),
                     "html": body_html,
                     "anchors": anchors,
-                    "source": str(path.relative_to(ROOT)),
+                    "source": relative(path),
                     "description": description,
                 })
             unknown = {p.name for p in page_dir.glob("*/") if p.is_dir()} - set(page["groups"])
@@ -449,7 +466,7 @@ def check_ids_and_links(site, sections, lexique, renderer):
             known[anchor] = sec["source"]
     for entry in lexique:
         known[entry["id"]] = "lexique"
-    broken = [f"{src.relative_to(ROOT)}: lien vers #{target} introuvable"
+    broken = [f"{relative(src)}: lien vers #{target} introuvable"
               for src, target in renderer.links if target not in known]
     if broken:
         raise BuildError("\n".join(broken))
@@ -536,8 +553,10 @@ def write_pages(site, sections, lexique):
     pages = []
     for sec in sections:
         label = labels[sec["page"]]
-        if sec["page"] == "methodes":
+        if sec["page"] == "methodes" and sec["nav"] == "Concept":
             title = f"{sec['title']} : améliorer un modèle d'IA | {SITE_NAME}"
+        elif sec["page"] == "methodes":
+            title = f"{sec['title']} | {SITE_NAME}"
         else:
             title = f"{sec['title']} : {label} | {SITE_NAME}"
         description = sec["description"] or f"{sec['title']} : {label}, dans {SITE_NAME}."
@@ -585,7 +604,7 @@ def main():
     renderer = Renderer()
     depot = cat_depot.Catalogue()
     try:
-        depot.fiches = cat_depot.fiches_du_site(CONTENT)
+        depot.fiches = fiches.ids_des_methodes(depot)
         depot.verifier_menu(next(p["groups"] for p in site["pages"] if p["key"] == "methodes"))
     except ValueError as err:
         raise BuildError(str(err)) from None

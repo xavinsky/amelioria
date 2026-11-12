@@ -239,7 +239,7 @@ function buildSectionsPage(page, nav, main){
         currentSub = null;
         subItems = null;
       }
-      makeNavItem(subItems || group.items, sec.id, sec.title, sec.icon, sec.deprecie);
+      makeNavItem(subItems || group.items, sec.id, sec.nav || sec.title, sec.icon, sec.deprecie);
       const panel = makePanel(main, sec.id, sec.title, sec.icon, sec.aka, sec.deprecie);
       const body = el("div", "md");
       body.innerHTML = sec.html;
@@ -316,6 +316,20 @@ function showPage(key){
   document.querySelectorAll(".page-main").forEach(m => m.classList.toggle("active", m.id === "mainpage-" + key));
 }
 
+/* Schémas Mermaid : rendus à l'affichage de leur section (un schéma masqué se mesure mal) */
+function renderMermaid(root){
+  if (!window.mermaid || !root) return;
+  const nodes = Array.from(root.querySelectorAll("pre.mermaid:not([data-processed])"));
+  if (nodes.length) window.mermaid.run({nodes});
+}
+window.addEventListener("load", () => {
+  if (!window.mermaid) return;
+  window.mermaid.initialize({startOnLoad: false, theme: "neutral", securityLevel: "strict",
+                             themeVariables: {fontSize: "15px"},
+                             flowchart: {htmlLabels: true, useMaxWidth: false, nodeSpacing: 28}});
+  renderMermaid(document.querySelector(".panel.active"));
+});
+
 function showSection(id){
   const page = idToPage[id];
   lastIdForPage[page] = id;
@@ -331,6 +345,7 @@ function showSection(id){
       }
     }
   });
+  renderMermaid(document.getElementById("panel-" + id));
   mainRootEl.scrollTo(0, 0);
 }
 

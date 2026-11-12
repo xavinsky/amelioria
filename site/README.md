@@ -17,21 +17,18 @@ make site                 # depuis la racine du dépôt : build, puis ouvrir sit
 | `build/icones/` | Pictogrammes des données à fournir, de [Lucide](https://lucide.dev/), licence ISC (`LICENSE`), insérés en SVG inline par le build |
 | `www/icons/` | Icônes d'accès au modèle `poids.png` et `modele-ferme.png` (Flaticon), et icônes de coût `calcul.png` (processeur, recoloré en vert `#23A055`) et `duree.png` (horloge, recolorée en bleu `#2F6FDB`), de [Flaticon](https://www.flaticon.com/) : licence gratuite avec attribution, créditée dans la page Refs (`content/refs/ressources/`) |
 
-## Fiche de méthode
+## Pages de méthode
 
-Front matter :
+Elles ne s'écrivent pas dans `content/` : `build/fiches.py` les génère depuis le dépôt, deux par méthode, rangées dans l'onglet Méthodes selon la catégorie de `exemples.yaml`.
 
-```yaml
-title: PEFT (LoRA, QLoRA...)
-id: peft
-dossier: 03-peft            # méthode du dépôt présentée : repères et « Essayer dans le dépôt » générés
-aka: Parameter-Efficient Fine-Tuning
-schema: {...}               # schéma d'intégration, voir la docstring de build/schema.py
-references:                 # libellé → URL, rendu en section « Références »
-  "Hu et al., LoRA (2021)": https://arxiv.org/abs/2106.09685
-```
+| Page | Contenu | Source |
+|---|---|---|
+| Concept (`#<id>`) | Introduction, repères (catégorie, coûts, contraintes), Principe, Modèles concernés, Quand l'utiliser, Pièges, Références | `NN-…/README.md` (citation d'introduction et sections du même nom), `exemples.yaml`, section de la méthode dans `docs/references.md` |
+| Exemple du dépôt (`#<id>-exemple`) | Ce que fait l'exemple, statut et résultats, commandes `make`, Utilisation, Paramètres principaux, Grosse infra | `NN-…/README.md`, `exemples.yaml` |
 
-Corps : un paragraphe d'introduction (il sert aussi de description pour le référencement), puis `## Principe`, `## Les variantes` si besoin, `## Quand l'utiliser` (avec un paragraphe **À éviter**), `## Pièges`. Les repères (catégorie, modèles, matériel), le statut des exemples, leurs résultats et les commandes viennent de `exemples.yaml` : ne pas les écrire à la main.
+L'`id` est le nom du dossier sans son numéro (`peft`, `rag`), sauf s'il est fixé dans `NN-…/fiche.yaml`. Ce fichier facultatif, propre au site, donne aussi `aka` (autre nom de la méthode) et `schema` (schéma d'intégration, format de la docstring de `build/schema.py`).
+
+Un README se lit donc aussi bien sur GitHub que sur le site : mêmes titres de section pour toutes les méthodes, une citation `> …` d'une phrase en introduction, pas d'historique. Ses liens vers un autre dossier de méthode deviennent des liens vers sa page Concept, ceux vers une variante mènent à la page Exemple ; les liens vers des fichiers du dépôt deviennent du texte.
 
 ## Statuts
 

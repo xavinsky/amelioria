@@ -856,3 +856,23 @@ html.sidebar-cachee #sidebar{display:none;}
 .arbre-general .branche-label{font-size:15.5px; font-weight:700;}
 .arbre-general .feuille-nom{font-size:15px;}
 .arbre-general .feuille-critere{font-size:13.5px;}
+
+/* Cases cliquables des arbres et graphes : changement net au survol */
+.leaf-link{cursor:pointer;}
+.leaf-link .flow-box{transition:fill 0.12s ease, stroke-width 0.12s ease;}
+.leaf-link:hover .flow-box.leaf{stroke-width:3;}
+.leaf-link:hover .flow-box.leaf.cat-donnees{fill:color-mix(in srgb, var(--cat-donnees) 42%, var(--card));}
+.leaf-link:hover .flow-box.leaf.cat-signal{fill:color-mix(in srgb, var(--cat-signal) 42%, var(--card));}
+.leaf-link:hover .flow-box.leaf.cat-chirurgie{fill:color-mix(in srgb, var(--cat-chirurgie) 42%, var(--card));}
+.leaf-link:hover .flow-box.leaf.cat-remodeler{fill:color-mix(in srgb, var(--cat-remodeler) 42%, var(--card));}
+.leaf-link:hover .flow-box.leaf.cat-inference{fill:color-mix(in srgb, var(--cat-inference) 42%, var(--card));}
+.leaf-link:hover .feuille-nom{text-decoration:underline;}
+.branche-link:hover .flow-box.branche{fill:var(--tone-bright); stroke-width:2.4;}
+.branche-link:hover .branche-label{text-decoration:underline;}
+.md td:has(> code:only-child){white-space:nowrap;}
+.duree{white-space:nowrap;}
+
+/* Schémas Mermaid des exemples : fond clair dans les deux thèmes (couleurs fixées dans le schéma) */
+pre.mermaid{background:#FFFFFF; box-shadow:var(--shadow-card); padding:14px; margin:0 0 16px; overflow-x:auto;
+  text-align:center; color:#374151;}
+.md-card pre.mermaid{box-shadow:none; border:1px solid var(--line);}

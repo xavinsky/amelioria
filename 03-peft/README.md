@@ -49,6 +49,70 @@ Intérêts pratiques :
 - ✅ Beaucoup de variantes spécialisées d'un même modèle (un adaptateur par client, par tâche).
 - ⚠️ Pour injecter beaucoup de connaissances nouvelles ou faire un gros changement de distribution, le fine-tuning complet reste supérieur. Une LoRA de rang élevé (128 à 256) sur toutes les couches s'en rapproche.
 
+## Composants de l'exemple
+
+```mermaid
+flowchart TD
+  classDef externe fill:#fed7aa,stroke:#ea580c,color:#7c2d12
+  classDef code fill:#ffffff,stroke:#6b7280,color:#1f2937
+  classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
+  classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  Hub["Hugging Face Hub<br/>Qwen2.5-1.5B-Instruct"]
+  Cache[("cache disque<br/>~/.cache/huggingface")]
+  subgraph Py["Processus Python"]
+    Run["run.py<br/>génère les données<br/>charge le modèle"]
+    Ev["evaluation.py<br/>génération"]
+    TRL["TRL SFTTrainer<br/>LoRA r = 16"]
+  end
+  GPU["GPU CUDA, 12 Go"]
+  Out[("sorties/03-peft/")]
+
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (3 Go)" --> Cache
+  Cache -- "② lecture des poids" --> Run
+  Run -- "③ copie des poids<br/>en mémoire GPU" --> GPU
+  Run -- "④ ⑨ appel Python<br/>mesure avant, après" --> Ev
+  Ev -- "⑤ ⑩ noyaux CUDA<br/>génération" --> GPU
+  Run -- "⑥ appel Python<br/>trainer.train()" --> TRL
+  TRL -- "⑦ noyaux CUDA<br/>forward, backward" --> GPU
+  TRL -- "⑧ écriture<br/>adaptateur" --> Out
+  Ev -- "⑪ écriture<br/>resultats.json" --> Out
+
+  class Hub externe
+  class Run,Ev,TRL code
+  class GPU gpu
+  class Cache,Out disque
+```
+
+`make run EX=03` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode PEFT, données, réglages) et génère en mémoire, sans téléchargement, 3 000 problèmes d'arithmétique pour l'entraînement et 200 pour le test, de la forme `(a op b) op c` avec leur solution pas à pas.
+
+- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-1.5B-Instruct (environ 3 Go, fichiers safetensors) depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **③ Copie sur le GPU.** Les poids sont copiés en bf16 dans la mémoire du GPU, où ils restent jusqu'à la fin. En QLoRA (`SET="peft.methode=qlora"`), ils y sont stockés en 4 bits par bitsandbytes.
+- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui fait répondre le modèle aux 200 problèmes de test, par lots de 16.
+- **⑤ Génération sur le GPU.** Pour chaque lot, le modèle produit la réponse token par token, jusqu'à 256 tokens. L'évaluation extrait ensuite le nombre final de chaque réponse et le compare au résultat attendu : c'est l'exactitude de départ.
+- **⑥ Entraînement.** `run.py` confie le modèle et la configuration LoRA au SFTTrainer de TRL. PEFT ajoute deux petites matrices de rang 16 à chaque couche linéaire et gèle tout le reste : 18,5 millions de paramètres entraînés sur 1,56 milliard (1,2 %).
+- **⑦ Forward et backward sur le GPU.** Chaque pas d'entraînement traite un lot de 16 exemples : passe avant, calcul de la perte sur la réponse seulement (pas sur l'énoncé), passe arrière, mise à jour des seules matrices LoRA. L'entraînement dure 2 époques, avec un taux d'apprentissage de 2e-4.
+- **⑧ Écriture de l'adaptateur** dans `sorties/03-peft/adaptateur-lora/`.
+- **⑨ Mesure après.** Les mêmes 200 problèmes sont posés au modèle muni de son adaptateur.
+- **⑩ Génération sur le GPU**, avec le même décodage qu'en ⑤.
+- **⑪ Écriture du rapport** dans `sorties/03-peft/resultats.json`, avec le même tableau affiché dans le terminal.
+
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑩), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. En entraînement (⑦), chaque pas fait une passe avant, une passe arrière qui calcule les gradients, puis la mise à jour des paramètres LoRA par l'optimiseur AdamW, dont l'état n'existe que pour ces paramètres. Le pic mesuré est d'environ 8 Go de mémoire GPU.
+
+**Ce qui est écrit.**
+
+| Fichier | Contenu |
+|---|---|
+| `adaptateur-lora/adapter_model.safetensors` | Les matrices LoRA entraînées (74 Mo, en fp32), seules à être sauvegardées : le modèle de base reste celui du Hub |
+| `adaptateur-lora/adapter_config.json` | Rang, alpha, couches ciblées (`q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`) et nom du modèle de base, pour recharger l'adaptateur avec `PeftModel.from_pretrained` |
+| `adaptateur-lora/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
+| `adaptateur-lora/training_args.bin` | Les réglages d'entraînement utilisés |
+| `resultats.json` | Exactitude avant et après, nombre de réponses, durée de chaque évaluation, trois réponses d'exemple de chaque côté ; nombre de paramètres entraînés et taille de l'adaptateur |
+| `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
+
+Avec `SET="peft.fusionner=true"`, le dossier `modele-fusionne/` contient en plus le modèle complet avec l'adaptateur intégré, prêt à servir sans PEFT.
+
 ## Utilisation
 
 ```bash

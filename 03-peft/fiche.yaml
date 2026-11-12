@@ -1,0 +1,15 @@
+# Propre au site AmeliorIA (site/build/fiches.py) : autre nom et schéma d'intégration de la méthode.
+aka: Parameter-Efficient Fine-Tuning
+schema:
+  size: [760, 250]
+  nodes:
+    data: {label: Exemples annotés, sub: "question → réponse", external: true, x: 20, y: 24, w: 170}
+    base: {label: Modèle de base, sub: "poids gelés", x: 20, y: 168, w: 170}
+    train: {label: Entraînement, sub: "même boucle que le SFT", x: 290, y: 96, w: 190}
+    adapt: {label: Adaptateur LoRA, sub: "matrices A et B, ~1 %", focus: true, x: 566, y: 24, w: 176}
+    serve: {label: Service, sub: "une base, N adaptateurs", x: 566, y: 168, w: 176}
+  flows:
+    - {from: data, to: train, text: "Les exemples passent par la même boucle d'entraînement que le fine-tuning supervisé."}
+    - {from: base, to: train, text: "Le modèle de base est chargé puis gelé : en bf16 pour LoRA, en 4 bits (NF4) pour QLoRA."}
+    - {from: train, to: adapt, text: "Seules les petites matrices ajoutées à chaque couche linéaire reçoivent les gradients."}
+    - {from: adapt, to: serve, text: "L'adaptateur, de quelques dizaines de Mo, est fusionné dans les poids ou chargé à chaud à côté d'autres adaptateurs."}

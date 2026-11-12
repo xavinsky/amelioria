@@ -1,0 +1,15 @@
+# Propre au site AmeliorIA (site/build/fiches.py) : autre nom et schéma d'intégration de la méthode.
+aka: Quantization (PTQ, QAT, GGUF)
+schema:
+  size: [760, 250]
+  nodes:
+    ref: {label: Modèle bf16, sub: "référence", x: 20, y: 24, w: 170}
+    calib: {label: Textes de calibration, sub: "GPTQ, AWQ : 256 textes", external: true, x: 20, y: 168, w: 186}
+    quant: {label: Quantification, sub: "NF4, int4, GPTQ, AWQ", focus: true, x: 290, y: 96, w: 180}
+    mesure: {label: Mesure, sub: "mémoire, débit, qualité", x: 566, y: 24, w: 176}
+    deploy: {label: Déploiement, sub: "vLLM, llama.cpp, Ollama", x: 566, y: 168, w: 176}
+  flows:
+    - {from: ref, to: quant, text: "Les poids des couches linéaires sont arrondis sur 8, 4 ou 3 bits, avec une échelle par groupe de 128 poids."}
+    - {from: calib, to: quant, text: "GPTQ et AWQ mesurent les activations sur quelques centaines de textes représentatifs pour limiter l'erreur d'arrondi."}
+    - {from: quant, to: mesure, from_offset: -12, text: "On compare au modèle bf16 dans les mêmes conditions : mémoire, tokens par seconde, perplexité, exactitude sur la tâche."}
+    - {from: quant, to: deploy, from_offset: 12, text: "Le modèle quantifié est servi tel quel, ou exporté en GGUF pour llama.cpp et Ollama."}

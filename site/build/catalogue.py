@@ -90,6 +90,12 @@ class Catalogue:
         return [e for e in self.exemples if e["chemin"].split("/")[0] == m["dossier"]]
 
     @staticmethod
+    def durees(e):
+        """Durées mesurées d'un exemple : test rapide et configuration complète."""
+        test, complet = (e.get(k, "—") for k in ("duree_test", "duree_complet"))
+        return f'<span class="duree">test : {test}</span><br><span class="duree">complet : {complet}</span>'
+
+    @staticmethod
     def variante(exemple):
         return exemple["chemin"].split("/variantes/")[1] if "/variantes/" in exemple["chemin"] else ""
 
@@ -119,14 +125,14 @@ class Catalogue:
             opt = f" VAR={var}" if var else ""
             reserve = f" — *{cellule(e['reserve'])}*" if e.get("reserve") else ""
             lignes.append(f"| {nom} | {MARQUEURS[e['statut']]} | {cellule(e['resultat'])}{reserve} "
-                          f"| `make test EX={num}{opt}` |")
+                          f"| {self.durees(e)} | `make test EX={num}{opt}` |")
         if (DEPOT / m["dossier"] / "infra").is_dir():
-            lignes.append(f"| {MARQUEURS['non-teste']} version grosse infra | | jamais exécutée "
+            lignes.append(f"| {MARQUEURS['non-teste']} version grosse infra | | jamais exécutée | "
                           f"| `{m['dossier']}/infra/` |")
         return ("## Essayer dans le dépôt\n\n"
-                "| Exemple | Statut | Résultat mesuré | Commande |\n|---|---|---|---|\n"
+                "| Exemple | Statut | Résultat mesuré | Durée | Commande |\n|---|---|---|---|---|\n"
                 + "\n".join(lignes)
-                + f"\n\nRésultats de la configuration complète, mesurés sur {self.materiel}. "
+                + f"\n\nRésultats et durées mesurés sur {self.materiel} ; résultats de la configuration complète. "
                 "`make test` lance un test rapide sur un petit modèle ; `make run` lance l'exemple complet ; "
                 "`make verifier` contrôle d'abord les prérequis. Installation : [Installer et lancer](#installer).\n\n"
                 f"```bash\nmake install EXTRAS=1\nmake test EX={num}\nmake run EX={num}\n```\n")
@@ -143,9 +149,10 @@ class Catalogue:
                     var = self.variante(e) or "principal"
                     reserve = f" — *{cellule(e['reserve'])}*" if e.get("reserve") else ""
                     lignes.append(f"| {self.lien(num)} | `{var}` | {MARQUEURS[e['statut']]} "
-                                  f"| {cellule(e['resultat'])}{reserve} |")
+                                  f"| {cellule(e['resultat'])}{reserve} | {self.durees(e)} |")
             blocs.append(f"## {cat['titre']}\n\n{cat['resume']}\n\n"
-                         "| Méthode | Exemple | Statut | Résultat mesuré |\n|---|---|---|---|\n" + "\n".join(lignes))
+                         "| Méthode | Exemple | Statut | Résultat mesuré | Durée |\n|---|---|---|---|---|\n"
+                         + "\n".join(lignes))
         return "\n\n".join(blocs) + "\n"
 
     def bilan(self):
@@ -439,17 +446,3 @@ class Catalogue:
                        f"{esc(li)}</text>")
         return "".join(out)
 
-
-def fiches_du_site(content):
-    """Numéro de méthode -> id de la section dont le front matter porte `dossier: NN-...`."""
-    fiches = {}
-    for path in sorted(content.glob("*/*/*.md")):
-        text = path.read_text(encoding="utf-8")
-        m = re.match(r"---\n(.*?)\n---\n", text, re.S)
-        meta = yaml.safe_load(m.group(1)) if m else {}
-        if meta and meta.get("dossier"):
-            num = str(meta["dossier"])[:2]
-            if num in fiches:
-                raise ValueError(f"{path}: méthode {num} déjà présentée par #{fiches[num]}")
-            fiches[num] = meta.get("id") or re.sub(r"^[a-z]?\d+-", "", path.stem)
-    return fiches

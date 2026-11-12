@@ -296,133 +296,181 @@ methodes:
 
 # Un exemple = le run.py d'un dossier de méthode ou d'une de ses variantes.
 # Résultats : configuration complète sur le matériel de référence, mesures de septembre 2026.
+# duree_test / duree_complet : durée mesurée du test rapide et de l'exemple complet sur ce matériel.
 exemples:
   - chemin: 01-pre-entrainement-continu
     statut: non-prouve
+    duree_test: "12 s"
+    duree_complet: "56 s"
     resultat: "perplexité domaine 130 → 9,5 ; générale 20,2 → 22,6 ; questions sur les faits 0 → 0,04"
     reserve: la connaissance apprise n'est pas extractable par question
     prerequis: {gpu: requis}
   - chemin: 01-pre-entrainement-continu/variantes/mlm-encodeur
     statut: demontre
+    duree_test: "8 s"
+    duree_complet: "17 s"
     resultat: "perte MLM 2,38 → 1,09"
     reserve: sans intervalle de confiance
     prerequis: {gpu: conseille}
 
   - chemin: 02-fine-tuning-supervise
     statut: non-prouve
+    duree_test: "10 s"
+    duree_complet: "2 min"
     resultat: "exactitude 0,955 → 0,885"
     reserve: tâche arithmétique déjà résolue par le modèle de départ
     prerequis: {gpu: requis}
   - chemin: 02-fine-tuning-supervise/variantes/classification-encodeur
     statut: demontre
+    duree_test: "10 s"
+    duree_complet: "76 s"
     resultat: "SST-2 0,54 → 0,95"
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/vision
     statut: demontre
+    duree_test: "13 s"
+    duree_complet: "84 s"
     resultat: "CIFAR-10 0,10 → 0,97"
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/seq2seq
     statut: non-prouve
+    duree_test: "10 s"
+    duree_complet: "57 s"
     resultat: "exactitude 0 → 0,22"
     reserve: l'arithmétique est inadaptée au découpage des nombres de T5
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/audio-whisper
     statut: non-prouve
+    duree_complet: "9 min"
     resultat: "WER 0,141 → 0,141"
     reserve: le modèle est déjà bon sur ce jeu ; test rapide à relancer
     prerequis: {gpu: conseille, extras: [torchcodec]}
 
   - chemin: 03-peft
     statut: non-prouve
+    duree_test: "12 s"
+    duree_complet: "3 min"
     resultat: "Qwen2.5-1.5B 0,995 → 1,0"
     reserve: tâche arithmétique déjà résolue par le modèle de départ
     prerequis: {gpu: requis, extras_selon: {peft.methode=qlora: [bitsandbytes]}}
   - chemin: 03-peft/variantes/diffusion-lora
     statut: non-prouve
+    duree_test: "20 s"
+    duree_complet: "74 s"
     resultat: sujet appris à l'inspection visuelle des images
     reserve: aucune mesure chiffrée
     prerequis: {gpu: requis, extras: [diffusers]}
 
   - chemin: 04-optimisation-preferences
     statut: non-prouve
+    duree_test: "23 s"
+    duree_complet: "4 min"
     resultat: "génération 0,955 → 0,985 ; marge de préférence 0,40 → 0,91"
     reserve: préférences artificielles, gain proche de l'intervalle de confiance
     prerequis: {gpu: requis}
   - chemin: 04-optimisation-preferences/variantes/dpo-iteratif
     statut: non-prouve
+    duree_test: "14 s"
+    duree_complet: "21 min"
     resultat: "0,955 → 0,98"
     reserve: préférences artificielles, gain proche de l'intervalle de confiance
     prerequis: {gpu: requis}
 
   - chemin: 05-rl-en-ligne
     statut: non-prouve
+    duree_test: "21 s"
+    duree_complet: "13 min"
     resultat: "exactitude 0,955 → 0,945 ; récompense 0,66 → 0,84"
     reserve: tâche arithmétique déjà résolue par le modèle de départ
     prerequis: {gpu: requis, api: true}
   - chemin: 05-rl-en-ligne/variantes/modele-recompense
     statut: demontre
+    duree_test: "13 s"
+    duree_complet: "87 s"
     resultat: "exactitude de préférence 0,485 → 0,98"
     prerequis: {gpu: requis}
 
   - chemin: 06-distillation
     statut: non-prouve
+    duree_test: "16 s"
+    duree_complet: "3 min"
     resultat: "élève 0,955 → 0,71 ; enseignant 0,995"
     reserve: tâche déjà résolue par l'élève ; régression à comprendre
     prerequis: {gpu: requis}
   - chemin: 06-distillation/variantes/encodeur-classification
     statut: demontre
+    duree_test: "25 s"
+    duree_complet: "78 s"
     resultat: "sans enseignant 0,758 ; distillé 0,839"
     prerequis: {gpu: conseille}
 
   - chemin: 07-donnees-synthetiques
     statut: non-prouve
+    duree_test: "21 s"
+    duree_complet: "19 min"
     resultat: "0,955 → 0,89 → 0,90"
     reserve: tâche arithmétique déjà résolue par le modèle de départ
     prerequis: {gpu: requis}
 
   - chemin: 08-fusion-modeles
     statut: demontre
+    duree_test: "21 s"
+    duree_complet: "3 min"
     resultat: "GSM8K : base 0,07 ; Instruct 0,51 ; fusion DARE-TIES 0,55"
     reserve: "démontre le mécanisme (n = 100) ; scénario multi-compétences à faire"
     prerequis: {gpu: conseille}
 
   - chemin: 09-edition-connaissances
     statut: demontre
+    duree_test: "12 s"
+    duree_complet: "48 s"
     resultat: "efficacité 0 → 1 ; généralisation 0 → 1 ; spécificité 1 → 1"
     reserve: "n = 4 faits"
     prerequis: {gpu: requis}
 
   - chemin: 10-desapprentissage
     statut: demontre
+    duree_test: "20 s"
+    duree_complet: "59 s"
     resultat: "oubli 1,0 → 0,0 ; rétention 1,0 → 0,925 ; perplexité 25,8 → 26,6"
     prerequis: {gpu: requis}
 
   - chemin: 11-pilotage-activations
     statut: demontre
+    duree_test: "12 s"
+    duree_complet: "27 s"
     resultat: "taux de réponses positives 0,60 → 0,97"
     reserve: "n = 30 par condition"
     prerequis: {gpu: requis}
 
   - chemin: 12-extension-contexte
     statut: demontre
+    duree_test: "15 s"
+    duree_complet: "33 min"
     resultat: "perplexité à 8 192 tokens 422 → 19 ; clé retrouvée à 7 000 tokens 0,3 → 1,0"
     reserve: "n = 10 clés"
     prerequis: {gpu: requis}
 
   - chemin: 13-extension-vocabulaire
     statut: non-prouve
+    duree_test: "8 s"
+    duree_complet: "23 s"
     resultat: "tokens du corpus −22 % ; bits par caractère 1,92 → 0,57"
     reserve: pas de témoin entraîné sans nouveaux tokens à budget égal
     prerequis: {gpu: requis}
 
   - chemin: 14-croissance-architecture
     statut: non-prouve
+    duree_test: "10 s"
+    duree_complet: "15 min"
     resultat: "perplexité 19,9 → 26,9 (transformé) → 14,9 (cicatrisé)"
     reserve: pas de témoin ; le gain peut venir du seul entraînement sur le domaine mesuré
     prerequis: {gpu: requis}
 
   - chemin: 15-quantification
     statut: demontre
+    duree_test: "15 s"
+    duree_complet: "50 s"
     resultat: "NF4 : 2 945 → 1 132 Mo ; perplexité 14,9 → 16,6 ; exactitude 0,99 → 0,96"
     prerequis:
       gpu: requis
@@ -430,32 +478,44 @@ exemples:
       extras_selon: {methode=gptq: [llmcompressor], methode=awq: [llmcompressor]}
   - chemin: 15-quantification/variantes/gguf-llamacpp
     statut: demontre
+    duree_test: "15 s"
+    duree_complet: "21 min"
     resultat: "Q4_K_M : 940 Mo ; perplexité 13,9 → 14,5"
     prerequis: {gpu: facultatif, outils: [llamacpp]}
 
   - chemin: 16-elagage
     statut: non-prouve
+    duree_test: "21 s"
+    duree_complet: "6 min"
     resultat: "perplexité 22,3 → 37,9 → 25,4 ; tâche 0,88 → 0,31 → 0,42"
     reserve: la cicatrisation ne récupère qu'une partie de la tâche
     prerequis: {gpu: requis}
 
   - chemin: 17-optimisation-prompt
     statut: non-prouve
+    duree_test: "18 s"
+    duree_complet: "5 min"
     resultat: "GSM8K : zéro-shot 0,60 ; instruction 0,67 ; CoT 0,67 ; few-shot 0,535 ; OPRO sans gain"
     reserve: écarts dans l'intervalle de confiance
     prerequis: {gpu: conseille, api: true}
 
   - chemin: 18-rag
     statut: demontre
+    duree_test: "14 s"
+    duree_complet: "49 s"
     resultat: "exactitude 0 → 1,0 ; rappel@3 = 1,0"
     prerequis: {gpu: conseille, api: true}
 
   - chemin: 19-outils-agents
     statut: demontre
+    duree_test: "10 s"
+    duree_complet: "3 min"
     resultat: "0,35 → 0,95"
     prerequis: {gpu: conseille, api: true}
 
   - chemin: 20-calcul-inference
     statut: demontre
+    duree_test: "9 s"
+    duree_complet: "10 min"
     resultat: "glouton 0,65 ; vote sur 16 réponses 0,77 ; oracle 0,93"
     prerequis: {gpu: conseille, api: true}
