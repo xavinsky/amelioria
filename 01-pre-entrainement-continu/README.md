@@ -39,6 +39,71 @@ Le pré-entraînement continu est en général suivi d'un SFT ([02](../02-fine-t
 - ❌ Pour des connaissances qui changent souvent ou doivent être citées : préférer le RAG ([18](../18-rag)).
 - ❌ Pour changer un format ou un comportement : préférer le SFT ([02](../02-fine-tuning-supervise)) ou LoRA ([03](../03-peft)).
 
+## Composants de l'exemple
+
+```mermaid
+flowchart TD
+  classDef externe fill:#fed7aa,stroke:#ea580c,color:#7c2d12
+  classDef code fill:#ffffff,stroke:#6b7280,color:#1f2937
+  classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
+  classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  Hub["Hugging Face Hub<br/>Qwen2.5-0.5B<br/>wikitext-2"]
+  Cache[("cache disque<br/>~/.cache/huggingface")]
+  subgraph Py["Processus Python"]
+    Run["run.py<br/>génère les faits<br/>charge le modèle"]
+    Ev["evaluation.py<br/>génération, perplexité"]
+    Tr["transformers Trainer<br/>prochain token"]
+  end
+  GPU["GPU CUDA, 12 Go"]
+  Out[("sorties/01-pre-<br/>entrainement-continu/")]
+
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (1 Go), wikitext-2" --> Cache
+  Cache -- "② lecture des poids<br/>et des textes" --> Run
+  Run -- "③ copie des poids<br/>en mémoire GPU" --> GPU
+  Run -- "④ ⑧ appel Python<br/>mesure avant, après" --> Ev
+  Ev -- "⑤ ⑨ noyaux CUDA<br/>génération, passe avant" --> GPU
+  Run -- "⑥ appel Python<br/>trainer.train()" --> Tr
+  Tr -- "⑦ noyaux CUDA<br/>forward, backward" --> GPU
+  Tr -- "⑩ écriture<br/>modèle" --> Out
+  Run -- "⑪ écriture<br/>resultats.json" --> Out
+
+  GPU ~~~ Out
+  class Hub externe
+  class Run,Ev,Tr code
+  class GPU gpu
+  class Cache,Out disque
+```
+
+`make run EX=01` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle de base, données, réglages) et génère en mémoire, sans téléchargement, une base de 40 personnages fictifs décrits chacun par 4 phrases de formulations différentes : 3 servent à l'entraînement, la 4e est gardée pour mesurer la perplexité du domaine. Le texte général (paragraphes Wikipédia de wikitext-2) vient du Hub.
+
+- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-0.5B (environ 1 Go, safetensors) et `datasets` télécharge wikitext-2 (7,5 Mo, fichiers parquet), depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **③ Copie sur le GPU.** Les poids sont copiés en fp32 dans la mémoire du GPU (`dtype: float32`), où ils restent jusqu'à la fin : ce sont les poids maîtres de l'entraînement complet.
+- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py` pour trois mesures : 80 questions sur les personnages (réponse juste si elle contient l'attribut attendu), perplexité sur les 40 formulations mises de côté, perplexité sur 50 paragraphes du split `test` de wikitext-2 (connaissances générales).
+- **⑤ Calcul sur le GPU.** Les questions sont posées en génération, jusqu'à 24 tokens par réponse. Les perplexités ne demandent qu'une passe avant sur chaque texte, sans génération.
+- **⑥ Entraînement.** `run.py` répète 15 fois les 120 phrases d'entraînement, y ajoute 20 % (en caractères) de paragraphes neufs du split `train` de wikitext-2 contre l'oubli, mélange le tout et le découpe en blocs de 256 tokens, puis le confie au `Trainer` de transformers. Tous les poids du modèle sont entraînés, sur la perte « prochain token ».
+- **⑦ Forward et backward sur le GPU.** Chaque pas traite un lot effectif de 8 blocs (2 blocs, 4 accumulations) : passe avant, perte sur tous les tokens, passe arrière, mise à jour de tous les poids. Taux d'apprentissage 5e-5, calcul en bf16, gradient checkpointing actif.
+- **⑧ Mesure après.** Les mêmes questions et les mêmes textes sont soumis au modèle entraîné.
+- **⑨ Calcul sur le GPU**, avec le même décodage et les mêmes textes qu'en ⑤.
+- **⑩ Écriture du modèle** complet dans `sorties/01-pre-entrainement-continu/modele/`.
+- **⑪ Écriture du rapport** dans `sorties/01-pre-entrainement-continu/resultats.json`, avec le même tableau affiché dans le terminal.
+
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑨), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées ; une perplexité ne demande qu'une passe avant par lot de textes. En entraînement (⑦), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis leur mise à jour par l'optimiseur AdamW, dont l'état couvre l'ensemble du modèle. Les logits sur le vocabulaire de 152 000 tokens occupent une grande part de la mémoire, d'où les lots de 2 blocs. Le pic mesuré est d'environ 9 Go de mémoire GPU.
+
+**Ce qui est écrit.**
+
+| Fichier | Contenu |
+|---|---|
+| `modele/model.safetensors` | Tous les poids du modèle entraîné (2,0 Go, en fp32) |
+| `modele/config.json`, `generation_config.json` | Architecture et réglages de génération, pour recharger le modèle avec `AutoModelForCausalLM.from_pretrained` |
+| `modele/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
+| `modele/training_args.bin` | Les réglages d'entraînement utilisés |
+| `resultats.json` | Avant et après : exactitude sur les questions, perplexité du domaine, perplexité générale, nombre de questions, durée de l'évaluation, trois réponses d'exemple |
+| `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
+
+Avec `SET="sauvegarder=false"`, seul le rapport est écrit, sans le dossier `modele/`.
+
 ## Utilisation
 
 ```bash

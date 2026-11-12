@@ -53,6 +53,79 @@ Le **DPO itératif / on-policy** ([`variantes/dpo-iteratif`](variantes/dpo-itera
 - ✅ Alternative bien plus simple et stable que PPO pour les préférences « subjectives ».
 - ⚠️ Pour le raisonnement vérifiable (maths, code), le RL en ligne avec récompense vérifiable ([05](../05-rl-en-ligne)) va plus loin. Le DPO itératif est un intermédiaire.
 
+## Composants de l'exemple
+
+```mermaid
+flowchart TD
+  classDef externe fill:#fed7aa,stroke:#ea580c,color:#7c2d12
+  classDef code fill:#ffffff,stroke:#6b7280,color:#1f2937
+  classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
+  classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  Hub["Hugging Face Hub<br/>Qwen2.5-0.5B-Instruct"]
+  Cache[("cache disque<br/>~/.cache/huggingface")]
+  subgraph Py["Processus Python"]
+    Run["run.py<br/>génère les paires<br/>charge le modèle"]
+    Pref["preferences.py<br/>log-probabilités"]
+    Ev["evaluation.py<br/>génération"]
+    TRL["TRL DPOTrainer<br/>LoRA r = 16"]
+  end
+  GPU["GPU CUDA, 12 Go"]
+  Out[("sorties/04-optimi-<br/>sation-preferences/")]
+
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (1 Go)" --> Cache
+  Cache -- "② lecture des poids" --> Run
+  Run -- "③ copie des poids<br/>en mémoire GPU" --> GPU
+  Run -- "④ ⑩ appel Python<br/>paires, avant, après" --> Pref
+  Pref -- "⑤ ⑪ noyaux CUDA<br/>passe avant" --> GPU
+  Run -- "⑥ ⑫ appel Python<br/>exactitude" --> Ev
+  Ev -- "⑦ ⑬ noyaux CUDA<br/>génération" --> GPU
+  Run -- "⑧ appel Python<br/>trainer.train()" --> TRL
+  TRL -- "⑨ noyaux CUDA<br/>forward, backward" --> GPU
+  TRL -- "⑭ écriture<br/>adaptateur" --> Out
+  Run -- "⑮ écriture<br/>resultats.json" --> Out
+
+  GPU ~~~ Out
+  class Hub externe
+  class Run,Pref,Ev,TRL code
+  class GPU gpu
+  class Cache,Out disque
+```
+
+`make run EX=04` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, algorithme `dpo`, `beta`, LoRA, données, réglages) et génère en mémoire, sans téléchargement, 2 000 paires de préférence pour l'entraînement et 100 pour le test : pour un même problème `(a op b) op c`, la réponse préférée est le raisonnement juste, la réponse rejetée le même raisonnement avec une erreur de calcul. 200 problèmes de test servent en plus à mesurer l'exactitude en génération.
+
+- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-0.5B-Instruct (environ 1 Go, safetensors) depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **③ Copie sur le GPU.** Les poids sont copiés en fp32 dans la mémoire du GPU (`dtype: float32`), où ils restent jusqu'à la fin.
+- **④ Mesure des préférences avant.** `run.py` appelle `preferences.py`, qui calcule pour chacune des 100 paires de test la log-probabilité moyenne par token de la réponse préférée et de la réponse rejetée.
+- **⑤ Passe avant sur le GPU.** Une passe avant par réponse, sans génération. La part des paires où la réponse préférée l'emporte donne `exactitude_preferences`, l'écart moyen donne `marge_moyenne`.
+- **⑥ Mesure de l'exactitude avant.** `run.py` appelle `commun/evaluation.py`, qui fait répondre le modèle aux 200 problèmes de test, par lots de 16.
+- **⑦ Génération sur le GPU.** Le modèle produit chaque réponse token par token, jusqu'à 256 tokens ; le nombre final est comparé au résultat attendu.
+- **⑧ Entraînement.** `preferences.py` construit le DPOTrainer de TRL (perte `sigmoid`, `beta` = 0,1) avec la configuration LoRA ; `run.py` lance `trainer.train()`. PEFT ajoute deux petites matrices de rang 16 à chaque couche linéaire et gèle tout le reste.
+- **⑨ Forward et backward sur le GPU.** Chaque pas traite un lot effectif de 16 paires (2 paires, 8 accumulations) : passe avant sur la réponse préférée et la réponse rejetée avec l'adaptateur, puis avec l'adaptateur désactivé pour obtenir le modèle de référence, calcul de la perte DPO, passe arrière, mise à jour des seules matrices LoRA. Une époque, taux d'apprentissage 5e-6, gradient checkpointing actif.
+- **⑩ Mesure des préférences après**, sur les mêmes 100 paires.
+- **⑪ Passe avant sur le GPU**, comme en ⑤.
+- **⑫ Mesure de l'exactitude après**, sur les mêmes 200 problèmes.
+- **⑬ Génération sur le GPU**, avec le même décodage qu'en ⑦.
+- **⑭ Écriture de l'adaptateur** dans `sorties/04-optimisation-preferences/modele-dpo/`.
+- **⑮ Écriture du rapport** dans `sorties/04-optimisation-preferences/resultats.json`, avec le même tableau affiché dans le terminal.
+
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Les mesures de préférence (⑤, ⑪) ne demandent qu'une passe avant par réponse. En génération (⑦, ⑬), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. En entraînement (⑨), DPO a besoin des log-probabilités d'un modèle de référence figé : avec LoRA, c'est le même modèle, adaptateur désactivé, donc aucune seconde copie des poids n'occupe la mémoire. Chaque pas fait les passes avant du modèle entraîné et de la référence, une passe arrière, puis la mise à jour des paramètres LoRA par l'optimiseur AdamW, dont l'état n'existe que pour ces paramètres.
+
+**Ce qui est écrit.**
+
+| Fichier | Contenu |
+|---|---|
+| `modele-dpo/adapter_model.safetensors` | Les matrices LoRA entraînées (35 Mo, en fp32), seules à être sauvegardées : le modèle de base reste celui du Hub |
+| `modele-dpo/adapter_config.json` | Rang, alpha, couches ciblées (`q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`) et nom du modèle de base, pour recharger l'adaptateur avec `PeftModel.from_pretrained` |
+| `modele-dpo/README.md` | La fiche de modèle générée par PEFT et TRL (modèle de base, étiquettes `dpo`, `lora`) |
+| `modele-dpo/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
+| `modele-dpo/training_args.bin` | Les réglages d'entraînement utilisés |
+| `resultats.json` | Avant et après : `exactitude_preferences`, `marge_moyenne`, exactitude en génération, nombre de réponses, durée de l'évaluation, trois réponses d'exemple ; algorithme utilisé |
+| `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
+
+Le dossier de sortie prend le nom de l'algorithme : avec `SET="algo=kto"`, il s'appelle `modele-kto/`. Avec `SET="peft.activer=false"`, il contient le modèle complet au lieu de l'adaptateur.
+
 ## Utilisation
 
 ```bash

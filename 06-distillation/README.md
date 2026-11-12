@@ -47,6 +47,71 @@ Lien avec les données synthétiques ([07](../07-donnees-synthetiques)) : le mod
 - ⚠️ L'élève plafonne sous l'enseignant. Un écart de taille trop grand (×20 et plus) apprend moins bien qu'un enseignant intermédiaire.
 - ❌ Si la quantification ([15](../15-quantification)) suffit à faire tenir le modèle : elle ne demande aucun entraînement.
 
+## Composants de l'exemple
+
+```mermaid
+flowchart TD
+  classDef externe fill:#fed7aa,stroke:#ea580c,color:#7c2d12
+  classDef code fill:#ffffff,stroke:#6b7280,color:#1f2937
+  classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
+  classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  Hub["Hugging Face Hub<br/>Qwen2.5-1.5B-Instruct<br/>Qwen2.5-0.5B-Instruct"]
+  Cache[("cache disque<br/>~/.cache/huggingface")]
+  subgraph Py["Processus Python"]
+    Run["run.py<br/>génère les données<br/>charge les 2 modèles"]
+    Ev["evaluation.py<br/>génération"]
+    KD["TrainerKD<br/>KL + entropie croisée"]
+  end
+  GPU["GPU CUDA, 12 Go"]
+  Out[("sorties/06-distillation/")]
+
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (3 Go + 1 Go)" --> Cache
+  Cache -- "② lecture des poids" --> Run
+  Run -- "③ copie des poids<br/>en mémoire GPU" --> GPU
+  Run -- "④ ⑧ appel Python<br/>mesure avant, après" --> Ev
+  Ev -- "⑤ ⑨ noyaux CUDA<br/>génération" --> GPU
+  Run -- "⑥ appel Python<br/>trainer.train()" --> KD
+  KD -- "⑦ noyaux CUDA<br/>forward, backward" --> GPU
+  KD -- "⑩ écriture<br/>élève distillé" --> Out
+  Run -- "⑪ écriture<br/>resultats.json" --> Out
+
+  GPU ~~~ Out
+  class Hub externe
+  class Run,Ev,KD code
+  class GPU gpu
+  class Cache,Out disque
+```
+
+`make run EX=06` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (enseignant, élève, mode `logits`, réglages de la distillation) et génère en mémoire, sans téléchargement, 2 000 problèmes d'arithmétique pour l'entraînement et 200 pour le test, de la forme `(a op b) op c` avec leur solution pas à pas. L'enseignant et l'élève sont de la même famille : même tokenizer, donc mêmes tokens à comparer un par un.
+
+- **① Téléchargement.** Au premier lancement, transformers télécharge depuis le Hugging Face Hub, par HTTPS, les poids de l'enseignant Qwen2.5-1.5B-Instruct (environ 3 Go) et de l'élève Qwen2.5-0.5B-Instruct (environ 1 Go).
+- **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **③ Copie sur le GPU.** Les deux modèles sont copiés dans la mémoire du GPU et y restent jusqu'à la fin : l'élève en float32, parce que c'est lui qu'on entraîne, l'enseignant en bf16, figé (aucun gradient).
+- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui fait répondre l'enseignant, puis l'élève, aux 200 problèmes de test, par lots de 16.
+- **⑤ Génération sur le GPU.** Pour chaque lot, le modèle produit la réponse token par token, jusqu'à 256 tokens. L'évaluation extrait le nombre final de chaque réponse et le compare au résultat attendu : c'est l'exactitude de l'enseignant (le plafond visé) et celle de l'élève au départ.
+- **⑥ Distillation.** `run.py` confie l'élève, l'enseignant et les 2 000 problèmes au `TrainerKD`, un `Trainer` de transformers dont la perte est réécrite : 0,7 × divergence KL entre les distributions de l'enseignant et de l'élève, adoucies à la température 2, plus 0,3 × entropie croisée sur la solution de référence. Les deux termes ne portent que sur les tokens de la réponse.
+- **⑦ Forward et backward sur le GPU.** Chaque pas traite un lot de 2 exemples, avec 8 lots accumulés avant chaque mise à jour (16 exemples), pendant 1 époque, au taux d'apprentissage de 1e-5.
+- **⑧ Mesure après.** Les mêmes 200 problèmes sont posés à l'élève distillé.
+- **⑨ Génération sur le GPU**, avec le même décodage qu'en ⑤.
+- **⑩ Écriture de l'élève** complet dans `sorties/06-distillation/eleve-logits/`.
+- **⑪ Écriture du rapport** dans `sorties/06-distillation/resultats.json`, avec le même tableau affiché dans le terminal.
+
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑨), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. En distillation (⑦), chaque pas fait deux passes avant sur le même lot : celle de l'enseignant, sans gradient, qui fournit ses logits sur tout le vocabulaire, puis celle de l'élève ; la perte compare les deux, la passe arrière calcule les gradients de l'élève seul, puis l'optimiseur AdamW 8 bits de bitsandbytes met à jour tous ses poids. Les logits des deux modèles, sur un vocabulaire d'environ 152 000 tokens, sont ce qui pèse le plus : d'où le lot de 2, le gradient checkpointing (activations recalculées pendant la passe arrière au lieu d'être gardées) et l'optimiseur 8 bits. Un lancement de calibrage de cette configuration, réduit à 4 pas, a culminé à environ 9,3 Go de mémoire GPU.
+
+**Ce qui est écrit.**
+
+| Fichier | Contenu |
+|---|---|
+| `eleve-logits/model.safetensors` | Tous les poids de l'élève distillé (1,98 Go, en float32) |
+| `eleve-logits/config.json`, `generation_config.json` | Architecture Qwen2 et réglages de génération, pour recharger l'élève avec `AutoModelForCausalLM.from_pretrained` |
+| `eleve-logits/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
+| `eleve-logits/training_args.bin` | Les réglages d'entraînement utilisés |
+| `resultats.json` | Exactitude de l'enseignant, de l'élève avant et après, nombre de réponses, durée de chaque évaluation, trois réponses d'exemple pour chacun ; mode de distillation |
+| `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
+
+Avec `SET="mode=sequence"` ou `SET="mode=on_policy"`, l'élève est écrit dans `eleve-sequence/` ou `eleve-on_policy/`.
+
 ## Utilisation
 
 ```bash

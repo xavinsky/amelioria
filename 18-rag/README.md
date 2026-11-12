@@ -48,6 +48,73 @@ Cette même base de faits sert au pré-entraînement continu ([01](../01-pre-ent
 - ⚠️ La qualité dépend d'abord de la recherche : si `rappel_a_k` est bas, aucun LLM ne répondra bien.
 - ❌ Pour changer un comportement, un style ou une compétence de raisonnement : c'est le rôle du fine-tuning.
 
+## Composants de l'exemple
+
+```mermaid
+flowchart TD
+  classDef externe fill:#fed7aa,stroke:#ea580c,color:#7c2d12
+  classDef code fill:#ffffff,stroke:#6b7280,color:#1f2937
+  classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
+  classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  Hub["Hugging Face Hub<br/>LLM, encodeurs<br/>wikitext-2"]
+  Cache[("cache disque<br/>~/.cache/huggingface")]
+  subgraph Py["Processus Python"]
+    Run["run.py<br/>corpus, fusion RRF<br/>assemblage du prompt"]
+    BM["BM25"]
+    Enc["sentence-transformers<br/>mpnet, cross-encoder"]
+    Gen["generateur.py<br/>chat()"]
+  end
+  GPU["GPU CUDA, 12 Go"]
+  API["serveur d'API<br/>Ollama, vLLM…"]
+  Out[("sorties/18-rag/")]
+
+  Hub -- "① HTTPS GET, 1re fois<br/>poids, wikitext-2" --> Cache
+  Cache -- "② lecture des poids<br/>et des textes" --> Run
+  Run -- "③ ⑥ calcul CPU<br/>BM25" --> BM
+  Run -- "④ ⑦ appel Python<br/>encode, predict" --> Enc
+  Enc -- "⑤ ⑧ noyaux CUDA<br/>embeddings" --> GPU
+  Run -- "⑨ copie des poids<br/>en mémoire GPU" --> GPU
+  Run -- "⑩ ⑫ appel Python<br/>sans RAG, avec RAG" --> Gen
+  Gen -- "⑪ ⑬ noyaux CUDA<br/>génération" --> GPU
+  Gen -. "⑪' ⑬' HTTP POST<br/>/v1/chat/completions" .-> API
+  Run -- "⑭ écriture" --> Out
+  GPU ~~~ Out
+  GPU ~~~ API
+
+  class Hub,API externe
+  class Run,BM,Enc,Gen code
+  class GPU gpu
+  class Cache,Out disque
+```
+
+`make run EX=18` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode de recherche, encodeur, reranker, gabarit du prompt, taille du corpus) et construit le corpus : 50 personnages inventés, générés en mémoire, décrits chacun par 4 fiches (200 passages), noyés parmi 2 000 paragraphes Wikipédia sans rapport, tirés de wikitext-2 (2 200 passages au total). Les 200 questions portent sur ces personnages : le modèle ne peut pas connaître les réponses. Aucun poids n'est modifié. Le modèle est chargé en local par défaut ; avec `make run EX=18 API=http://localhost:11434/v1 MODELE=qwen3:8b`, il est servi par une API compatible OpenAI.
+
+- **① Téléchargement.** Au premier lancement, le jeu `Salesforce/wikitext`, l'encodeur all-mpnet-base-v2, le reranker ms-marco-MiniLM-L-6-v2 et le LLM Qwen2.5-1.5B-Instruct sont téléchargés depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau. Chaque modèle est lu au moment où il est chargé (④, ⑨).
+- **③ Index lexical.** `run.py` découpe les 2 200 passages en mots et calcule, sur le CPU, les statistiques de BM25 : fréquence de chaque mot dans chaque passage, rareté de chaque mot dans le corpus.
+- **④ Index dense.** sentence-transformers charge all-mpnet-base-v2 et encode les 2 200 passages, par lots de 64 ; il charge aussi le cross-encoder qui servira au reranking.
+- **⑤ Embeddings sur le GPU.** Chaque passage devient un vecteur normalisé, gardé en mémoire GPU.
+- **⑥ Recherche lexicale.** Pour chaque question, BM25 renvoie les 20 passages les mieux notés.
+- **⑦ Recherche dense et reranking.** La question est encodée et comparée aux 2 200 vecteurs (similarité cosinus) : 20 autres candidats. Les deux listes sont fusionnées par rang (Reciprocal Rank Fusion, constante 60), puis le cross-encoder note chaque couple question-passage ; les 3 meilleurs passages sont gardés. Le rappel mesure la part des questions dont au moins un de ces 3 passages parle du bon personnage.
+- **⑧ Embeddings et reranking sur le GPU** : encodage de la question, puis une passe avant du cross-encoder par couple question-passage.
+- **⑨ Copie du LLM sur le GPU.** `commun/generateur.py` charge Qwen2.5-1.5B-Instruct avec transformers et copie ses poids en bf16 dans la mémoire du GPU. En mode API, cette étape n'a pas lieu.
+- **⑩ Mesure sans RAG.** Les 200 questions sont posées seules, suivies de « Answer briefly. ».
+- **⑪ Génération sur le GPU.** Par lots de 16, en décodage glouton, jusqu'à 32 tokens. Une réponse est juste si elle contient la valeur attendue.
+- **⑪' Génération par API.** Quand `modele.api_base` est renseigné, `chat()` envoie chaque conversation au serveur par HTTP POST sur `/v1/chat/completions` à la place de ⑪ et ⑬ ; c'est le serveur qui génère.
+- **⑫ Mesure avec RAG.** Chaque question est placée dans le gabarit de `config.yaml`, avec les 3 passages retrouvés numérotés `[1]` à `[3]` et la consigne de répondre seulement à partir de ce contexte.
+- **⑬ Génération sur le GPU**, avec le même décodage qu'en ⑪.
+- **⑭ Écriture du rapport** dans `sorties/18-rag/resultats.json`, avec le même tableau affiché dans le terminal.
+
+**Ce que fait le GPU.** Il n'y a aucun entraînement : seulement des passes avant. L'encodeur et le cross-encoder (⑤, ⑧) font une passe avant par texte ou par couple question-passage, sans génération. Le LLM (⑪, ⑬) fait une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. BM25 et la fusion RRF tournent sur le CPU. En mode API, le GPU local ne sert plus au LLM : c'est le serveur qui génère, et seuls l'encodeur et le reranker tournent encore sur la machine.
+
+**Ce qui est écrit.**
+
+| Fichier | Contenu |
+|---|---|
+| `resultats.json` | Exactitude sans RAG et avec RAG, début de la première réponse de chaque côté, rappel à 3 de la recherche, méthode de recherche utilisée (`hybride + reranker`) |
+| `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
+
 ## Utilisation
 
 ```bash

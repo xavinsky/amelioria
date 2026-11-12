@@ -38,6 +38,69 @@ L'exemple utilise le **sentiment**, mesuré par un classifieur externe (DistilBE
 - ⚠️ Un α trop grand dégrade la cohérence : il faut chercher le bon compromis.
 - ❌ Pour des capacités nouvelles ou des connaissances : le pilotage réoriente ce qui existe déjà, il n'ajoute rien.
 
+## Composants de l'exemple
+
+```mermaid
+flowchart TD
+  classDef externe fill:#fed7aa,stroke:#ea580c,color:#7c2d12
+  classDef code fill:#ffffff,stroke:#6b7280,color:#1f2937
+  classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
+  classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  Hub["Hugging Face Hub<br/>Qwen2.5-1.5B-Instruct<br/>DistilBERT SST-2"]
+  Cache[("cache disque<br/>~/.cache/huggingface")]
+  subgraph Py["Processus Python"]
+    Run["run.py<br/>direction d, α<br/>génération"]
+    Hook["forward hook<br/>couche 14 sur 28"]
+    Clf["pipeline transformers<br/>classifieur"]
+  end
+  GPU["GPU CUDA, 12 Go"]
+  Out[("sorties/<br/>11-pilotage-activations/")]
+
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (3 Go + 270 Mo)" --> Cache
+  Cache -- "② lecture des poids" --> Run
+  Run -- "④ ⑨ appel Python<br/>pose du hook" --> Hook
+  Hook -- "⑤ ⑩ hook sur les activations<br/>lecture, puis ajout α·d" --> GPU
+  Run -- "③ copie des poids<br/>⑥ génération" --> GPU
+  Run -- "⑦ ⑪ appel Python<br/>textes à juger" --> Clf
+  Clf -- "⑧ ⑫ noyaux CUDA<br/>classification" --> GPU
+  Run -- "⑬ écriture" --> Out
+  GPU ~~~ Out
+
+  class Hub externe
+  class Run,Hook,Clf code
+  class GPU gpu
+  class Cache,Out disque
+```
+
+`make run EX=11` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, mode `vecteur`, couche, intensités α, évaluation). Toutes les phrases sont écrites dans `run.py`, sans téléchargement : 15 paires de phrases de sentiment opposé (« I absolutely love the weather… » / « I absolutely hate the weather… »), 30 consignes neutres (« Write one sentence about the movie. ») et 30 demandes de texte négatif (« Write an angry complaint about the hotel. »).
+
+- **① Téléchargement.** Au premier lancement, transformers télécharge depuis le Hugging Face Hub, par HTTPS, les poids de Qwen2.5-1.5B-Instruct (environ 3 Go) et ceux du classifieur de sentiment `distilbert-base-uncased-finetuned-sst-2-english` (environ 270 Mo).
+- **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **③ Copie sur le GPU.** Les deux modèles sont copiés dans la mémoire du GPU, le LLM en bf16. Ses poids sont gelés : rien n'est entraîné.
+- **④ Pose du hook de lecture.** `run.py` accroche un *forward hook* PyTorch à la sortie du bloc 14 sur 28, au milieu du modèle (`couche_relative: 0.5`).
+- **⑤ Extraction de la direction.** Chacune des 30 phrases passe dans le modèle ; à chaque passage, le hook copie l'activation du flux résiduel au dernier token. La direction `d` est la moyenne des activations positives moins celle des négatives. Le hook est ensuite retiré.
+- **⑥ Génération sans intervention.** Le modèle répond aux 30 consignes neutres et aux 30 demandes négatives, en génération gloutonne jusqu'à 48 tokens, par lots de 16.
+- **⑦ Jugement.** Les textes produits sont passés au classifieur, via la `pipeline("sentiment-analysis")` de transformers.
+- **⑧ Classification sur le GPU.** Le classifieur rend POSITIVE ou NEGATIVE pour chaque texte ; le résultat est le taux de textes positifs.
+- **⑨ Pose du hook de pilotage**, une fois pour chaque α de la liste `[-2.0, 1.0, 2.0]`.
+- **⑩ Génération pilotée.** Les mêmes 60 consignes sont reposées, avec le même décodage qu'en ⑥. À chaque passe avant, le hook remplace la sortie du bloc 14 par cette sortie plus α·d, à toutes les positions. Les poids ne changent pas : retirer le hook rend le modèle d'origine.
+- **⑪ Jugement** des textes pilotés.
+- **⑫ Classification sur le GPU**, comme en ⑧.
+- **⑬ Écriture** de la direction dans `sorties/11-pilotage-activations/direction.pt` et du rapport dans `resultats.json`, avec le même tableau affiché dans le terminal.
+
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Il n'y a ni passe arrière ni optimiseur : tout le travail est de l'inférence. En génération (⑥, ⑩), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. Le hook est une fonction Python appelée par PyTorch au milieu de chaque passe avant ; l'addition α·d qu'elle demande est elle-même un noyau CUDA sur le tenseur d'activations, qui ne quitte pas la mémoire du GPU. Le classifieur (⑧, ⑫) ne fait qu'une passe avant par lot de textes.
+
+**Ce qui est écrit.**
+
+| Fichier | Contenu |
+|---|---|
+| `direction.pt` | La direction `d`, un vecteur de la taille du flux résiduel (fichier de 8 Ko), le numéro de couche et le nom du modèle : de quoi piloter à nouveau ce modèle sans réextraire |
+| `resultats.json` | Pour `sans_intervention` et pour chaque `alpha_-2.0`, `alpha_1.0`, `alpha_2.0` : le `taux_positif` sur les consignes neutres et sur les demandes négatives, avec un texte d'exemple de chaque côté |
+| `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
+
+Avec `SET="pilotage.mode=ablation"`, la direction est retirée des matrices qui écrivent dans le flux résiduel, et le dossier `modele-ablation/` contient le modèle complet aux poids modifiés, à la place de `direction.pt`.
+
 ## Utilisation
 
 ```bash

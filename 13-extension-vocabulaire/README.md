@@ -54,6 +54,75 @@ Deux techniques d'ajout :
 - ⚠️ Toujours suivi d'un entraînement conséquent : sans lui, les nouveaux tokens sont moins bien compris que l'ancien découpage.
 - ❌ Pour quelques mots rares : inutile, le modèle apprend très bien leur découpage.
 
+## Composants de l'exemple
+
+```mermaid
+flowchart TD
+  classDef externe fill:#fed7aa,stroke:#ea580c,color:#7c2d12
+  classDef code fill:#ffffff,stroke:#6b7280,color:#1f2937
+  classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
+  classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  Hub["Hugging Face Hub<br/>Qwen2.5-0.5B"]
+  Cache[("cache disque<br/>~/.cache/huggingface")]
+  subgraph Py["Processus Python"]
+    Run["run.py<br/>génère les textes<br/>bits par caractère"]
+    Tok["tokenizer<br/>add_tokens"]
+    Tr["Trainer transformers<br/>phase 1, phase 2"]
+  end
+  GPU["GPU CUDA, 12 Go"]
+  Out[("sorties/<br/>13-extension-vocabulaire/")]
+
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (1 Go)" --> Cache
+  Cache -- "② lecture des poids" --> Run
+  Run -- "③ ⑦ copie des poids<br/>en mémoire GPU" --> GPU
+  Run -- "④ ⑥ appel Python<br/>découpage, ajout" --> Tok
+  Run -- "⑤ ⑧ ⑪ ⑭ noyaux CUDA<br/>passes avant, mesure" --> GPU
+  Run -- "⑨ ⑫ appel Python<br/>trainer.train()" --> Tr
+  Tr -- "⑩ ⑬ noyaux CUDA<br/>forward, backward" --> GPU
+  Tr -- "⑮ écriture<br/>modèle" --> Out
+  Run -- "⑯ écriture<br/>resultats.json" --> Out
+
+  GPU ~~~ Out
+  class Hub externe
+  class Run,Tok,Tr code
+  class GPU gpu
+  class Cache,Out disque
+```
+
+`make run EX=13` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, nombre de tokens à ajouter, initialisation, réglages des deux phases) et génère en mémoire, sans téléchargement, 80 personnages fictifs aux noms inventés, décrits chacun par 4 courtes notices : 320 textes. Un texte sur cinq est mis de côté pour la mesure (64 textes), les 256 autres servent à l'entraînement.
+
+- **① Téléchargement.** Au premier lancement, transformers télécharge le tokenizer et les poids de Qwen2.5-0.5B, modèle de base (environ 1 Go, safetensors), depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **③ Copie sur le GPU.** Les poids sont copiés en fp32 dans la mémoire du GPU.
+- **④ Choix des tokens.** `run.py` compte les mots des textes d'entraînement présents au moins 3 fois, demande au tokenizer d'origine en combien de morceaux il découpe chacun, et garde les 200 mots qui font gagner le plus de tokens : noms inventés (« Golsol », « Quibru ») et mots rares (« orrery », « glassblower »).
+- **⑤ Mesure avant.** Deux mesures sur les 64 textes de test, comparables entre tokenizers : le nombre total de tokens, et les bits par caractère (la perte du modèle rapportée au nombre de caractères, pas de tokens). Chaque texte demande une passe avant.
+- **⑥ Ajout au tokenizer.** Les 200 mots sont ajoutés avec `add_tokens`, chacun précédé de son espace, comme les mots du vocabulaire BPE d'origine.
+- **⑦ Agrandissement des embeddings.** La matrice d'embeddings de Qwen2.5-0.5B, partagée entre l'entrée et la sortie, compte déjà 151 936 lignes pour 151 665 tokens : les nouveaux identifiants (151 665 à 151 864) tombent dans ses lignes de réserve, et `resize_token_embeddings` ne sert que si le nouveau vocabulaire les dépasse. Chaque nouveau token reçoit la moyenne des embeddings des sous-tokens qui le découpaient avec le tokenizer d'origine.
+- **⑧ Mesure après ajout**, avant tout entraînement.
+- **⑨ Phase 1, embeddings seuls.** Le reste du modèle est gelé. Les textes d'entraînement sont concaténés et découpés en blocs de 256 tokens (28 blocs), confiés au Trainer de transformers : 3 époques, lots de 2, accumulation 4, taux d'apprentissage 1e-3.
+- **⑩ Forward et backward sur le GPU**, avec mise à jour de la seule matrice d'embeddings.
+- **⑪ Mesure après phase 1.**
+- **⑫ Phase 2, modèle complet.** Tous les poids sont dégelés : 2 époques, mêmes lots, taux 2e-5, gradient checkpointing.
+- **⑬ Forward et backward sur le GPU**, avec mise à jour de tous les poids.
+- **⑭ Mesure après phase 2.**
+- **⑮ Écriture du modèle** et du tokenizer agrandi dans `sorties/13-extension-vocabulaire/modele/`.
+- **⑯ Écriture du rapport** dans `sorties/13-extension-vocabulaire/resultats.json`, avec le même tableau affiché dans le terminal.
+
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Les mesures (⑤, ⑧, ⑪, ⑭) ne font qu'une passe avant par texte, sans génération. L'agrandissement (⑦) alloue une nouvelle matrice d'embeddings sur le GPU et y recopie les anciennes lignes. En entraînement (⑩, ⑬), chaque pas fait une passe avant, une passe arrière qui calcule les gradients, puis la mise à jour par AdamW : en phase 1, gradients et état de l'optimiseur n'existent que pour la matrice d'embeddings ; en phase 2, pour tout le modèle. Les poids restent en fp32, les calculs d'entraînement se font en bf16.
+
+**Ce qui est écrit.**
+
+| Fichier | Contenu |
+|---|---|
+| `modele/model.safetensors` | Le modèle complet après les deux phases, avec sa matrice d'embeddings de 151 936 lignes (en fp32) |
+| `modele/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer agrandi des 200 nouveaux tokens : il doit accompagner le modèle, l'ancien tokenizer ne correspond plus à ses embeddings |
+| `modele/config.json`, `generation_config.json` | L'architecture, avec `vocab_size: 151936`, et les réglages de génération |
+| `modele/training_args.bin` | Les réglages d'entraînement de la phase 2 |
+| `phase1/`, `phase2/` | Dossiers de travail du Trainer, vides : aucun point de contrôle n'est sauvegardé |
+| `resultats.json` | Pour `avant`, `apres_init`, `apres_phase1` et `apres_phase2` : `tokens_corpus_test` et `bits_par_caractere` ; la liste `nouveaux_tokens` des 200 mots ajoutés |
+| `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
+
 ## Utilisation
 
 ```bash

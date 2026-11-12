@@ -876,3 +876,4 @@ html.sidebar-cachee #sidebar{display:none;}
 pre.mermaid{background:#FFFFFF; box-shadow:var(--shadow-card); padding:14px; margin:0 0 16px; overflow-x:auto;
   text-align:center; color:#374151;}
 .md-card pre.mermaid{box-shadow:none; border:1px solid var(--line);}
+pre.mermaid svg{max-width:100%; height:auto;}

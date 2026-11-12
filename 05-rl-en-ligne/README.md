@@ -59,6 +59,72 @@ Et les variantes d'algorithme (`--set algo=...`) :
 - ⚠️ Récompense apprise ou juge : risque de **reward hacking** (le modèle exploite les failles du juge). Garder la KL, surveiller les sorties.
 - ❌ Si le modèle ne réussit jamais la tâche (récompense toujours 0) : d'abord SFT, ou une tâche plus facile (curriculum).
 
+## Composants de l'exemple
+
+```mermaid
+flowchart TD
+  classDef externe fill:#fed7aa,stroke:#ea580c,color:#7c2d12
+  classDef code fill:#ffffff,stroke:#6b7280,color:#1f2937
+  classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
+  classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  Hub["Hugging Face Hub<br/>Qwen2.5-0.5B-Instruct"]
+  Cache[("cache disque<br/>~/.cache/huggingface")]
+  subgraph Py["Processus Python"]
+    Run["run.py<br/>génère les prompts<br/>charge le modèle"]
+    TRL["TRL GRPOTrainer<br/>algorithme DAPO"]
+    Rec["recompenses.py<br/>exactitude, format"]
+  end
+  API["juge en option<br/>serveur d'API"]
+  GPU["GPU CUDA, 12 Go"]
+  Out[("sorties/05-rl-en-ligne/")]
+
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (1 Go)" --> Cache
+  Cache -- "② lecture des poids" --> Run
+  Run -- "③ copie des poids<br/>④ ⑤ ⑩ ⑪ mesures" --> GPU
+  Run -- "⑥ appel Python<br/>trainer.train()" --> TRL
+  TRL -- "⑧ appel Python<br/>notation" --> Rec
+  Rec -. "⑧ HTTP POST<br/>/v1/chat/completions" .-> API
+  TRL -- "⑦ ⑨ noyaux CUDA<br/>génération, entraînement" --> GPU
+  Run -- "⑫ ⑬ écriture" --> Out
+
+  class Hub,API externe
+  class Run,TRL,Rec code
+  class GPU gpu
+  class Cache,Out disque
+```
+
+`make run EX=05` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, algorithme `dapo`, source de récompense `regles`, génération, données, réglages) et génère en mémoire, sans téléchargement, 800 prompts d'arithmétique pour l'entraînement et 200 problèmes pour le test, de la forme `(a op b) op c`. Seul le résultat attendu sert pendant le RL : le modèle n'est jamais entraîné sur une solution écrite.
+
+- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-0.5B-Instruct (environ 1 Go, safetensors) depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **③ Copie sur le GPU.** Les poids sont copiés en fp32 dans la mémoire du GPU (`dtype: float32`), où ils restent jusqu'à la fin.
+- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui fait répondre le modèle aux 200 problèmes de test, par lots de 16.
+- **⑤ Génération sur le GPU.** Pour chaque lot, le modèle produit la réponse token par token, jusqu'à 256 tokens, en décodage glouton. L'évaluation extrait ensuite le nombre final de chaque réponse et le compare au résultat attendu : c'est l'exactitude de départ.
+- **⑥ Entraînement.** `run.py` confie le modèle, les prompts et les fonctions de récompense au GRPOTrainer de TRL, réglé pour DAPO (perte `dapo`, `epsilon_high` = 0,28, `beta` = 0, réponses tronquées ignorées). Rien n'est gelé : tous les poids du modèle sont entraînés.
+- **⑦ Génération sur le GPU.** À chaque pas, le modèle lui-même produit 8 réponses par prompt, par échantillonnage à température 1,0, jusqu'à 128 tokens chacune.
+- **⑧ Notation.** TRL passe les réponses à `recompenses.py` : 1 si le nombre final est juste, plus 0,2 si la réponse se termine par `Answer: N`. Ce calcul se fait en Python, sans GPU. Avec `SET="recompense.source=juge recompense.api_base=http://localhost:11434/v1"`, la note vient d'un LLM juge interrogé par HTTP sur une API compatible OpenAI (flèche pointillée).
+- **⑨ Forward et backward sur le GPU.** Chaque réponse reçoit un avantage : l'écart de sa récompense à la moyenne de son groupe de 8, divisé par l'écart type du groupe. Chaque pas traite 16 réponses (8 par lot, 2 accumulations) : passe avant pour les log-probabilités des tokens générés, perte DAPO, passe arrière, mise à jour de tous les poids. Taux d'apprentissage 1e-6, gradient checkpointing actif.
+- **⑩ Mesure après.** Les mêmes 200 problèmes sont posés au modèle entraîné.
+- **⑪ Génération sur le GPU**, avec le même décodage qu'en ⑤.
+- **⑫ Écriture du modèle** complet dans `sorties/05-rl-en-ligne/modele-dapo/`.
+- **⑬ Écriture du rapport** dans `sorties/05-rl-en-ligne/resultats.json`, avec le même tableau affiché dans le terminal.
+
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑦, ⑪), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées ; pendant l'entraînement, cette génération occupe l'essentiel du temps. En entraînement (⑨), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis leur mise à jour par l'optimiseur AdamW. Avec `beta` = 0, aucun modèle de référence n'est chargé, et la récompense par règles ne demande aucun modèle : un seul modèle occupe la mémoire GPU. Le pic mesuré est d'environ 9,6 Go de mémoire GPU.
+
+**Ce qui est écrit.**
+
+| Fichier | Contenu |
+|---|---|
+| `modele-dapo/model.safetensors` | Tous les poids du modèle entraîné (2,0 Go, en fp32) |
+| `modele-dapo/config.json`, `generation_config.json` | Architecture et réglages de génération, pour recharger le modèle avec `AutoModelForCausalLM.from_pretrained` |
+| `modele-dapo/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
+| `modele-dapo/training_args.bin` | Les réglages d'entraînement utilisés |
+| `resultats.json` | Exactitude avant et après, nombre de réponses, durée de chaque évaluation, trois réponses d'exemple de chaque côté ; récompense moyenne en début et en fin d'entraînement ; algorithme et source de récompense |
+| `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
+
+Le dossier de sortie prend le nom de l'algorithme : avec `SET="algo=grpo"`, il s'appelle `modele-grpo/`.
+
 ## Utilisation
 
 ```bash

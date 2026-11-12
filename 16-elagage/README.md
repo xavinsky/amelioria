@@ -46,6 +46,74 @@ Chaque étape est mesurée (origine → élagué → cicatrisé) : paramètres, 
 - ⚠️ Non structuré sans moteur sparse : aucun gain de mémoire ni de vitesse en PyTorch standard. Intérêt surtout pour la compression combinée à la quantification.
 - ❌ Élagage structuré agressif sans budget de cicatrisation : la qualité s'effondre.
 
+## Composants de l'exemple
+
+```mermaid
+flowchart TD
+  classDef externe fill:#fed7aa,stroke:#ea580c,color:#7c2d12
+  classDef code fill:#ffffff,stroke:#6b7280,color:#1f2937
+  classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
+  classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  Hub["Hugging Face Hub<br/>Qwen2.5-0.5B-Instruct<br/>wikitext-2"]
+  Cache[("cache disque<br/>~/.cache/huggingface")]
+  subgraph Py["Processus Python"]
+    Run["run.py<br/>génère les problèmes<br/>charge le modèle"]
+    El["elagage.py<br/>Wanda 50 %"]
+    Tr["Trainer transformers<br/>distillation"]
+  end
+  GPU["GPU CUDA, 12 Go"]
+  Out[("sorties/16-elagage/")]
+
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (1 Go), textes" --> Cache
+  Cache -- "② lecture des poids<br/>et des textes" --> Run
+  Run -- "③ ⑥ copie des poids<br/>④⑤ ⑨⑩ ⑬⑭ mesures" --> GPU
+  Run -- "⑦ appel Python<br/>calibration, masques" --> El
+  El -- "⑧ noyaux CUDA<br/>forward, mise à zéro" --> GPU
+  Run -- "⑪ appel Python<br/>trainer.train()" --> Tr
+  Tr -- "⑫ noyaux CUDA<br/>forward, backward" --> GPU
+  Run -- "⑮ ⑯ écriture" --> Out
+
+  GPU ~~~ Out
+  class Hub externe
+  class Run,El,Tr code
+  class GPU gpu
+  class Cache,Out disque
+```
+
+`make run EX=16` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode d'élagage, cicatrisation, données, évaluation) : par défaut, Qwen2.5-0.5B-Instruct est élagué par Wanda à 50 % (`methode: wanda`, `sparsite: 0.5`), puis cicatrisé par distillation depuis une copie de l'original (`cicatrisation.mode: distillation`). Les 100 problèmes de test, de la forme `a op b`, sont générés en mémoire, sans téléchargement. Les textes viennent de wikitext-2, téléchargé depuis le Hugging Face Hub : 128 paragraphes du split `train` pour la calibration, 4 000 pour la cicatrisation, 50 du split `test` pour la perplexité.
+
+- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-0.5B-Instruct (environ 1 Go, fichiers safetensors) et datasets télécharge wikitext-2, depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **③ Copie sur le GPU.** Les poids sont copiés en float32 dans la mémoire du GPU : c'est le modèle qui sera élagué.
+- **④ Mesure de l'origine.** `run.py` relève les paramètres (494 millions), la part de poids nuls dans les couches linéaires et le débit en génération (32 tokens après un préchauffage), puis appelle `commun/evaluation.py` pour la perplexité sur les 50 paragraphes et l'exactitude sur les 100 problèmes.
+- **⑤ Génération et forward sur le GPU.** La perplexité demande une passe avant par lot de 4 paragraphes. L'exactitude fait répondre le modèle par lots de 16, token par token, jusqu'à 256 tokens, puis compare le nombre final de chaque réponse au résultat attendu.
+- **⑥ Copie de l'enseignant.** `run.py` duplique le modèle d'origine dans la mémoire du GPU, en bf16 et figé : il servira de référence pendant la distillation.
+- **⑦ Élagage.** `run.py` appelle `elagage.py`, qui pose des points d'écoute sur les couches linéaires (`q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`) de chaque bloc.
+- **⑧ Calibration et mise à zéro sur le GPU.** Les 128 paragraphes de calibration, tronqués à 256 tokens, traversent le modèle sans rétropropagation ; les points d'écoute cumulent la norme ‖X_j‖₂ de chaque colonne d'entrée. Chaque poids reçoit le score `|W_ij| · ‖X_j‖₂`, et la moitié de plus faible score de chaque ligne est mise à zéro. Les masques booléens sont gardés pour la suite.
+- **⑨ Mesure du modèle élagué.** Mêmes mesures qu'en ④ : le nombre de paramètres ne change pas, la sparsité passe à 0,5.
+- **⑩ Génération et forward sur le GPU**, comme en ⑤.
+- **⑪ Cicatrisation.** `run.py` confie l'élève élagué et l'enseignant à un `Trainer` de transformers dont la perte est la divergence KL entre leurs distributions de sortie, token par token. Les 4 000 paragraphes sont tokenisés, concaténés et découpés en blocs de 256 tokens. Après chaque pas, le rappel `GarderMasques` d'`elagage.py` réapplique les masques : les zéros restent des zéros.
+- **⑫ Forward et backward sur le GPU.** Chaque pas traite 16 blocs (lots de 2, accumulation sur 8) : passe avant de l'élève, passe avant de l'enseignant sans gradient, perte KL, passe arrière, mise à jour par AdamW 8 bits. 300 pas, taux d'apprentissage 2e-5 après 20 pas de chauffe, gradient checkpointing activé.
+- **⑬ Mesure après cicatrisation.** Mêmes mesures qu'en ④ sur le modèle cicatrisé.
+- **⑭ Génération et forward sur le GPU**, comme en ⑤.
+- **⑮ Écriture du modèle élagué et cicatrisé** et de son tokenizer dans `sorties/16-elagage/modele-wanda/`.
+- **⑯ Écriture du rapport** dans `sorties/16-elagage/resultats.json`, avec le même tableau affiché dans le terminal.
+
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération, il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. Les poids mis à zéro restent stockés et multipliés comme les autres : sans moteur sparse, l'élagage non structuré n'allège ni la mémoire ni le calcul. Pendant la cicatrisation, trois choses coexistent dans la mémoire du GPU : l'élève en float32 (environ 2 Go), l'enseignant en bf16 (environ 1 Go), l'état de l'optimiseur AdamW 8 bits et les masques booléens (1 octet par poids élagable). Chaque pas fait la passe avant de l'enseignant, la passe avant et la passe arrière de l'élève, puis la mise à jour. Le pic mesuré, sur un calibrage aux mêmes réglages de modèle et d'entraînement, est d'environ 8,9 Go.
+
+**Ce qui est écrit.**
+
+| Fichier | Contenu |
+|---|---|
+| `modele-wanda/model.safetensors` | Les poids du modèle élagué puis cicatrisé (2,0 Go, en float32). Les zéros sont stockés comme les autres valeurs : le fichier a la taille du modèle d'origine en float32 |
+| `modele-wanda/config.json`, `generation_config.json` | L'architecture, inchangée, et les réglages de génération, pour recharger le modèle avec `AutoModelForCausalLM.from_pretrained` |
+| `modele-wanda/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
+| `resultats.json` | Pour l'origine, le modèle élagué et le modèle cicatrisé : paramètres, sparsité des couches linéaires, tokens par seconde, perplexité générale, exactitude sur les 100 problèmes avec la durée de l'évaluation et trois réponses d'exemple |
+| `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
+
+Avec une autre méthode (`SET="methode=..."`), le dossier du modèle prend son nom (`modele-magnitude/`, `modele-2-4/`, `modele-couches/`, `modele-largeur/`).
+
 ## Utilisation
 
 ```bash

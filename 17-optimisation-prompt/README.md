@@ -43,6 +43,68 @@ Toutes les méthodes des dossiers 17 à 20 passent par [`commun/generateur.py`](
 - ✅ Tâches qui changent souvent : un prompt se met à jour en quelques minutes.
 - ⚠️ Plafond : le prompting ne donne pas au modèle une compétence qu'il n'a pas, et un long prompt coûte à chaque appel. Si le few-shot demande 20 exemples, un SFT ou une LoRA ([02](../02-fine-tuning-supervise), [03](../03-peft)) devient rentable.
 
+## Composants de l'exemple
+
+```mermaid
+flowchart TD
+  classDef externe fill:#fed7aa,stroke:#ea580c,color:#7c2d12
+  classDef code fill:#ffffff,stroke:#6b7280,color:#1f2937
+  classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
+  classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  Hub["Hugging Face Hub<br/>Qwen2.5-1.5B, MiniLM<br/>GSM8K"]
+  Cache[("cache disque<br/>~/.cache/huggingface")]
+  subgraph Py["Processus Python"]
+    Run["run.py<br/>stratégies de prompt<br/>boucle OPRO"]
+    Gen["generateur.py<br/>chat()"]
+    Emb["SentenceTransformer<br/>all-MiniLM-L6-v2"]
+  end
+  GPU["GPU CUDA, 12 Go"]
+  API["Serveur compatible OpenAI<br/>Ollama, vLLM…"]
+  Out[("sorties/17-optimisation-prompt/")]
+
+  Hub -- "① HTTPS GET, 1re fois<br/>poids, GSM8K" --> Cache
+  Cache -- "② lecture des poids<br/>et des données" --> Run
+  Run -- "③ copie des poids<br/>en mémoire GPU" --> GPU
+  Run -- "④ ⑧ ⑩ appel Python<br/>chat()" --> Gen
+  Gen -- "⑤ ⑨ ⑪ noyaux CUDA<br/>génération" --> GPU
+  Gen -. "⑤' ⑨' ⑪' HTTP POST<br/>/v1/chat/completions" .-> API
+  Run -- "⑥ appel Python<br/>voisins()" --> Emb
+  Emb -- "⑦ noyaux CUDA<br/>embeddings" --> GPU
+  Run -- "⑫ écriture<br/>resultats.json" --> Out
+
+  GPU ~~~ Out
+  class Hub,API externe
+  class Run,Gen,Emb code
+  class GPU gpu
+  class Cache,Out disque
+```
+
+`make run EX=17` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, stratégies comparées, nombre d'exemples, réglages de l'optimisation, données) et charge GSM8K depuis le Hugging Face Hub : 500 problèmes d'entraînement, qui servent seulement de réserve d'exemples pour le few-shot, et 260 problèmes de test, coupés en 60 de validation et 200 de test. Aucun poids n'est modifié. Le modèle est chargé en local par défaut ; avec `make run EX=17 API=http://localhost:11434/v1 MODELE=qwen3:8b`, il est servi par une API compatible OpenAI.
+
+- **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-1.5B-Instruct et de l'encodeur all-MiniLM-L6-v2, ainsi que le jeu `openai/gsm8k`, sont téléchargés depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
+- **③ Copie sur le GPU.** `commun/generateur.py` charge le modèle avec transformers et copie ses poids en bf16 dans la mémoire du GPU. En mode API, cette étape n'a pas lieu.
+- **④ Stratégies simples.** Pour `zero_shot`, `instruction`, `cot` et `few_shot`, `run.py` construit une conversation par question (consigne système, 4 exemples tirés au hasard pour `few_shot`, « Let's think step by step » pour `cot`) et appelle `chat()`, d'abord sur la validation, puis sur le test.
+- **⑤ Génération sur le GPU.** Les conversations passent par lots de 16 ; le modèle produit chaque réponse token par token, en décodage glouton, jusqu'à 384 tokens. Le nombre final de chaque réponse est comparé au résultat attendu.
+- **⑤' Génération par API.** Quand `modele.api_base` est renseigné, `chat()` envoie chaque conversation au serveur par HTTP POST sur `/v1/chat/completions` à la place de ⑤ (de même pour ⑨ et ⑪) ; c'est le serveur qui génère.
+- **⑥ Recherche d'exemples proches.** Pour `few_shot_similaires`, `run.py` charge all-MiniLM-L6-v2 avec sentence-transformers et encode les 500 problèmes d'entraînement et les questions.
+- **⑦ Embeddings sur le GPU.** Chaque texte devient un vecteur normalisé ; le produit scalaire donne la similarité cosinus, et les 4 exemples les plus proches de chaque question sont retenus.
+- **⑧ Few-shot par similarité.** Les conversations sont reconstruites avec ces 4 exemples, puis envoyées à `chat()`.
+- **⑨ Génération sur le GPU**, avec le même décodage qu'en ⑤.
+- **⑩ Optimisation de l'instruction.** Boucle de type OPRO : 4 tours où le modèle lui-même (ou `optimiseur.nom` s'il est renseigné) reçoit les instructions déjà essayées avec leur score et en propose 4 nouvelles, échantillonnées à température 1,0 ; chaque proposition est notée sur les 60 questions de validation. La meilleure est ensuite mesurée sur le test.
+- **⑪ Génération sur le GPU**, pour les propositions comme pour les mesures.
+- **⑫ Écriture du rapport** dans `sorties/17-optimisation-prompt/resultats.json`, avec le même tableau affiché dans le terminal.
+
+**Ce que fait le GPU.** Il n'y a aucun entraînement : seulement des passes avant. En génération (⑤, ⑨, ⑪), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. Pour les embeddings (⑦), l'encodeur fait une seule passe avant par texte. En mode API, le GPU local ne sert plus au LLM : c'est le serveur qui génère, et seul l'encodeur de ⑦ tourne encore sur la machine.
+
+**Ce qui est écrit.**
+
+| Fichier | Contenu |
+|---|---|
+| `resultats.json` | Pour chaque stratégie : exactitude en validation et en test, début de la première réponse de test ; stratégie la meilleure en validation ; instruction retenue par l'optimisation ; historique de toutes les instructions essayées avec leur score de validation |
+| `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
+
 ## Utilisation
 
 ```bash

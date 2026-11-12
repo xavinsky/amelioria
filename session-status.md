@@ -24,6 +24,8 @@ Une ligne par étape terminée, exemple validé ou en échec, la plus récente e
 | 2026-11-12 | Site AmeliorIA (`site/`, moteur memoria-gcp) : arbre de décision, 3 fiches, installation, statut des exemples, lexique | Build sans erreur ; rendu vérifié en clair et en sombre (Chrome headless) | `make site` |
 | 2026-11-12 | Arbre de décision : critère de choix en tête de case, enchaînements « si insuffisant », icônes de calcul et de temps (`calcul`, `duree` dans `exemples.yaml`), tableau des critères généré | Rendu vérifié | `make site` |
 | 2026-11-12 | Six graphes de décision par cas (pages « Cas : … »), pictogrammes d'accès au modèle et de données à fournir, tableau des critères retiré | Build sans erreur, rendu vérifié en clair et en sombre | `make site` |
+| 2026-11-12 | Pages de méthode générées depuis les README (Concept, Exemple), durées mesurées, schéma des composants et texte des étapes pour les 20 exemples | 20 schémas Mermaid rendus sans erreur, numérotation schéma/texte cohérente | `make site` |
+| 2026-11-12 | 13 vocabulaire : initialisation par moyenne des nouveaux tokens corrigée (ids dans les lignes de réserve de la matrice) | Code corrigé, vérifié sur le tokenizer ; résultats à remesurer (GPU) | — |
 
 ## Environnement
 

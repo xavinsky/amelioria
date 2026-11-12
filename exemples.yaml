@@ -456,7 +456,7 @@ exemples:
     duree_test: "8 s"
     duree_complet: "23 s"
     resultat: "tokens du corpus −22 % ; bits par caractère 1,92 → 0,57"
-    reserve: pas de témoin entraîné sans nouveaux tokens à budget égal
+    reserve: pas de témoin entraîné sans nouveaux tokens à budget égal ; résultat mesuré sans l'initialisation par moyenne, à remesurer
     prerequis: {gpu: requis}
 
   - chemin: 14-croissance-architecture

@@ -49,6 +49,75 @@ Pour chacun, on mesure le **test de la clé cachée** (passkey retrieval, retrou
 - ⚠️ Fenêtre étendue ne veut pas dire usage efficace de tout le contexte : vérifier avec RULER.
 - ❌ Si le RAG ([18](../18-rag)) suffit à apporter la bonne information dans une fenêtre courte : c'est bien moins cher à l'inférence.
 
+## Composants de l'exemple
+
+```mermaid
+flowchart TD
+  classDef externe fill:#fed7aa,stroke:#ea580c,color:#7c2d12
+  classDef code fill:#ffffff,stroke:#6b7280,color:#1f2937
+  classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
+  classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  Hub["Hugging Face Hub<br/>SmolLM-360M<br/>wikitext-2"]
+  Cache[("cache disque<br/>~/.cache/huggingface")]
+  subgraph Py["Processus Python"]
+    Run["run.py<br/>config RoPE YaRN<br/>blocs de 8192 tokens"]
+    Ev["mesurer()<br/>clé cachée, perplexité"]
+    Tr["Trainer transformers<br/>200 pas"]
+  end
+  GPU["GPU CUDA, 12 Go"]
+  Out[("sorties/<br/>12-extension-contexte/")]
+
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (1,4 Go), textes" --> Cache
+  Cache -- "② lecture des poids" --> Run
+  Run -- "③ ⑥ copie des poids<br/>en mémoire GPU" --> GPU
+  Run -- "④ ⑦ ⑪ appel Python<br/>trois mesures" --> Ev
+  Ev -- "⑤ ⑧ ⑫ noyaux CUDA<br/>passes avant longues" --> GPU
+  Run -- "⑨ appel Python<br/>trainer.train()" --> Tr
+  Tr -- "⑩ noyaux CUDA<br/>forward, backward" --> GPU
+  Tr -- "⑬ écriture<br/>modèle" --> Out
+  Run -- "⑭ écriture<br/>resultats.json" --> Out
+
+  GPU ~~~ Out
+  class Hub externe
+  class Run,Ev,Tr code
+  class GPU gpu
+  class Cache,Out disque
+```
+
+`make run EX=12` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode `yarn`, facteur 4, entraînement, longueurs testées). SmolLM-360M a été pré-entraîné avec un contexte de 2 048 tokens ; l'exemple le porte à 8 192. Les textes viennent de wikitext-2 : jusqu'à 6 000 paragraphes du split `train` pour l'entraînement, et 4 documents longs de 60 paragraphes chacun, tirés du split `test`, pour la perplexité. Le test de la clé cachée est généré en mémoire : un nombre à 5 chiffres placé au hasard dans un texte de remplissage répété.
+
+- **① Téléchargement.** Au premier lancement, la bibliothèque datasets télécharge wikitext-2 et transformers télécharge le tokenizer et les poids de SmolLM-360M (1,4 Go, safetensors en fp32), depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **③ Copie du modèle d'origine sur le GPU**, en bf16, avec sa configuration RoPE inchangée.
+- **④ Mesure du modèle d'origine.** Pour chaque longueur (1 024, 2 048, 4 096 et 7 000 tokens), 10 textes cachent chacun une clé. La clé est juste si elle est la plus probable parmi 10 candidates. La perplexité est calculée sur les 4 documents longs, coupés à 8 192 tokens.
+- **⑤ Passes avant sur le GPU.** Chaque candidate demande une passe avant sur tout le texte, sans génération : 100 passes par longueur. Le modèle d'origine est ensuite retiré de la mémoire.
+- **⑥ Rechargement avec YaRN.** `run.py` modifie la configuration (`rope_parameters` : `rope_type: yarn`, `factor: 4.0`, `original_max_position_embeddings: 2048`, `max_position_embeddings: 8192`) puis recharge les mêmes poids sur le GPU. Seul le calcul des rotations de RoPE change : les poids sont identiques.
+- **⑦ Mesure après mise à l'échelle seule**, sans aucun entraînement.
+- **⑧ Passes avant sur le GPU**, comme en ⑤.
+- **⑨ Fine-tuning long.** Les paragraphes d'entraînement sont concaténés puis découpés en blocs de 8 192 tokens (123 blocs), confiés au Trainer de transformers : 200 pas, chacun sur 8 blocs (lot de 1, accumulation 8), taux d'apprentissage 2e-5 après 20 pas de montée. Tous les poids sont entraînés.
+- **⑩ Forward et backward sur le GPU**, sur des séquences de 8 192 tokens, avec gradient checkpointing.
+- **⑪ Mesure après fine-tuning.**
+- **⑫ Passes avant sur le GPU**, comme en ⑤.
+- **⑬ Écriture du modèle** et de son tokenizer dans `sorties/12-extension-contexte/modele-yarn/`.
+- **⑭ Écriture du rapport** dans `sorties/12-extension-contexte/resultats.json`, avec le même tableau affiché dans le terminal.
+
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Ici, le coût vient de la longueur des séquences : l'attention compare chaque token à tous ceux qui le précèdent, et les activations d'une séquence de 8 192 tokens occupent bien plus de mémoire que les poids d'un modèle de 360 millions de paramètres. Les mesures (⑤, ⑧, ⑫) ne font que des passes avant. En entraînement (⑩), chaque pas fait 8 passes avant et arrière, une par bloc, en cumulant les gradients, puis une mise à jour de tous les poids par AdamW. Le gradient checkpointing ne garde qu'une partie des activations et recalcule les autres pendant la passe arrière, ce qui fait tenir des blocs de 8 192 tokens. Le pic mesuré est d'environ 8 Go de mémoire GPU.
+
+**Ce qui est écrit.**
+
+| Fichier | Contenu |
+|---|---|
+| `modele-yarn/model.safetensors` | Le modèle complet après fine-tuning (724 Mo, en bf16) |
+| `modele-yarn/config.json` | L'architecture, avec la configuration RoPE YaRN et `max_position_embeddings: 8192` : le modèle se recharge directement en contexte 8 192 avec `AutoModelForCausalLM.from_pretrained` |
+| `modele-yarn/generation_config.json` | Les réglages de génération |
+| `modele-yarn/tokenizer.json`, `tokenizer_config.json` | Le tokenizer, copié pour que le dossier se suffise à lui-même |
+| `modele-yarn/training_args.bin` | Les réglages d'entraînement utilisés |
+| `resultats.json` | Pour `origine`, `echelle_seule` et `apres_finetuning` : le taux de clés retrouvées à chaque longueur (`cle_1024` à `cle_7000`) et `perplexite_8192` |
+| `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
+
+Avec `SET="entrainement.max_steps=0"`, il n'y a pas de fine-tuning : le modèle mis à l'échelle est sauvegardé tel quel et `resultats.json` ne contient que `origine` et `echelle_seule`.
+
 ## Utilisation
 
 ```bash

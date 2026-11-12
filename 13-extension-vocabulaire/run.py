@@ -46,8 +46,11 @@ def bits_par_caractere(model, tok, textes):
 
 @torch.no_grad()
 def agrandir(model, tok_ancien, tok, nouveaux, init):
-    n_ancien = model.get_input_embeddings().weight.shape[0]
-    model.resize_token_embeddings(len(tok), mean_resizing=False)
+    # Taille du vocabulaire d'origine, et non de la matrice : celle-ci peut compter des lignes de réserve
+    # (151 936 lignes pour 151 665 tokens chez Qwen2.5), où tombent alors les nouveaux identifiants.
+    n_ancien = len(tok_ancien)
+    if len(tok) > model.get_input_embeddings().weight.shape[0]:
+        model.resize_token_embeddings(len(tok), mean_resizing=False)
     entree, sortie = model.get_input_embeddings().weight, model.get_output_embeddings().weight
     liees = entree.data_ptr() == sortie.data_ptr()
     for mot in nouveaux:

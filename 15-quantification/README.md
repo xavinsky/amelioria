@@ -42,6 +42,70 @@ Mesures (référence bf16 puis modèle quantifié) : mémoire du modèle, tokens
 - ✅ QLoRA ([03](../03-peft)) : entraîner au-dessus d'un modèle NF4.
 - ⚠️ Moins de 4 bits, petits modèles (< 3B), maths et code : les pertes deviennent visibles. Toujours mesurer sur *sa* tâche, pas seulement la perplexité.
 
+## Composants de l'exemple
+
+```mermaid
+flowchart TD
+  classDef externe fill:#fed7aa,stroke:#ea580c,color:#7c2d12
+  classDef code fill:#ffffff,stroke:#6b7280,color:#1f2937
+  classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
+  classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  Hub["Hugging Face Hub<br/>Qwen2.5-1.5B-Instruct<br/>wikitext-2"]
+  Cache[("cache disque<br/>~/.cache/huggingface")]
+  subgraph Py["Processus Python"]
+    Run["run.py<br/>génère les problèmes<br/>charge les modèles"]
+    Ev["evaluation.py<br/>perplexité, exactitude"]
+    BnB["bitsandbytes<br/>NF4, 4 bits"]
+  end
+  GPU["GPU CUDA, 12 Go"]
+  Out[("sorties/<br/>15-quantification/")]
+
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (3 Go), textes" --> Cache
+  Cache -- "② ⑥ lecture des poids" --> Run
+  Run -- "③ copie des poids bf16<br/>en mémoire GPU" --> GPU
+  Run -- "④ ⑨ appel Python<br/>mesure bf16, NF4" --> Ev
+  Ev -- "⑤ ⑩ noyaux CUDA<br/>génération, forward" --> GPU
+  Run -- "⑦ appel Python<br/>from_pretrained" --> BnB
+  BnB -- "⑧ quantification<br/>à la volée" --> GPU
+  Run -- "⑪ ⑫ écriture<br/>modèle, resultats.json" --> Out
+
+  GPU ~~~ Out
+  class Hub externe
+  class Run,Ev,BnB code
+  class GPU gpu
+  class Cache,Out disque
+```
+
+`make run EX=15` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode de quantification, données, évaluation) : par défaut, Qwen2.5-1.5B-Instruct est mesuré en bf16, puis rechargé en NF4 4 bits par bitsandbytes (`methode: bnb_nf4`) et mesuré de nouveau. Les autres méthodes se choisissent avec `SET="methode=..."` ; `gptq` et `awq` tournent alors dans l'environnement séparé `.venv-llmcompressor`, que `make` choisit tout seul. Le schéma suit la méthode par défaut. Les 100 problèmes de test, de la forme `(a op b) op c`, sont générés en mémoire, sans téléchargement ; les 50 paragraphes de perplexité viennent du split `test` de wikitext-2, téléchargé depuis le Hugging Face Hub.
+
+- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-1.5B-Instruct (environ 3 Go, fichiers safetensors) et datasets télécharge wikitext-2, depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **③ Copie sur le GPU.** Le modèle de référence est copié en bf16 dans la mémoire du GPU.
+- **④ Mesure de la référence.** `run.py` relève la mémoire occupée par le modèle sur le GPU, puis le débit en génération : 64 tokens produits sur une consigne fixe, après un court préchauffage. Il appelle ensuite `commun/evaluation.py` pour la perplexité sur les 50 paragraphes et l'exactitude sur les 100 problèmes.
+- **⑤ Génération et forward sur le GPU.** La perplexité demande une passe avant par lot de 4 paragraphes. L'exactitude fait répondre le modèle par lots de 16, token par token, jusqu'à 256 tokens, puis compare le nombre final de chaque réponse au résultat attendu.
+- **⑥ Relecture.** Le modèle de référence est supprimé et la mémoire du GPU vidée ; les poids d'origine sont relus dans le cache.
+- **⑦ Chargement quantifié.** `run.py` appelle `from_pretrained` avec une configuration bitsandbytes : NF4, double quantification des échelles, calcul en bf16.
+- **⑧ Quantification à la volée.** Au moment de leur copie sur le GPU, les poids des couches linéaires sont arrondis par bitsandbytes sur 16 niveaux NF4, par blocs ayant chacun leur échelle. Les embeddings restent en bf16. Aucune donnée de calibration n'est utilisée.
+- **⑨ Mesure du modèle NF4.** Mêmes mesures qu'en ④ : mémoire, débit, perplexité, exactitude.
+- **⑩ Génération et forward sur le GPU**, avec le même décodage qu'en ⑤.
+- **⑪ Écriture du modèle quantifié** et de son tokenizer dans `sorties/15-quantification/modele-bnb_nf4/`.
+- **⑫ Écriture du rapport** dans `sorties/15-quantification/resultats.json`, avec le même tableau affiché dans le terminal.
+
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération, il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. En NF4, les poids restent stockés sur 4 bits dans la mémoire du GPU : les noyaux de bitsandbytes les décompressent en bf16 au moment de chaque multiplication de matrices. C'est ce qui réduit la mémoire du modèle (2 945 Mo en bf16, 1 132 Mo en NF4) et ralentit ici la génération (126,4 contre 89,6 tokens par seconde). Les deux modèles ne coexistent jamais : la référence est libérée avant le chargement quantifié.
+
+**Ce qui est écrit.**
+
+| Fichier | Contenu |
+|---|---|
+| `modele-bnb_nf4/model.safetensors` | Les poids quantifiés (1,1 Go) : couches linéaires en NF4 avec leurs échelles, embeddings en bf16 |
+| `modele-bnb_nf4/config.json`, `generation_config.json` | L'architecture, la configuration de quantification (`quant_method: bitsandbytes`, `bnb_4bit_quant_type: nf4`, double quantification) et les réglages de génération, pour recharger le modèle directement en 4 bits |
+| `modele-bnb_nf4/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
+| `resultats.json` | Pour la référence bf16 et le modèle NF4 : mémoire du modèle sur le GPU, tokens par seconde, perplexité générale, exactitude sur les 100 problèmes avec la durée de l'évaluation et trois réponses d'exemple |
+| `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
+
+Avec une autre méthode (`SET="methode=..."`), le dossier du modèle prend son nom (`modele-bnb_int8/`, `modele-gptq/`...), sauf `qat` qui n'en écrit pas ; pour `gptq` et `awq`, `resultats.json` ajoute la taille du modèle compressé sur le disque.
+
 ## Utilisation
 
 ```bash

@@ -46,6 +46,62 @@ Mesures : exactitude sans outils, exactitude avec outils, nombre moyen d'appels.
 - ⚠️ Chaque tour relance le modèle, donc latence et coût se multiplient. Limiter `max_tours`.
 - ⚠️ **Sécurité** : un outil qui exécute du code ou agit sur un système doit être isolé (bac à sable, liste blanche). L'outil `calculer` de l'exemple évalue un AST restreint, jamais `eval` brut.
 
+## Composants de l'exemple
+
+```mermaid
+flowchart TD
+  classDef externe fill:#fed7aa,stroke:#ea580c,color:#7c2d12
+  classDef code fill:#ffffff,stroke:#6b7280,color:#1f2937
+  classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
+  classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  Hub["Hugging Face Hub<br/>Qwen2.5-3B-Instruct"]
+  Cache[("cache disque<br/>~/.cache/huggingface")]
+  subgraph Py["Processus Python"]
+    Run["run.py<br/>questions, boucle<br/>d'appel d'outils"]
+    Outils["outils Python<br/>calculer<br/>chercher_fiche"]
+  end
+  GPU["GPU CUDA, 12 Go"]
+  API["serveur d'API<br/>Ollama, vLLM…"]
+  Out[("sorties/19-outils-agents/")]
+
+  Hub -- "① HTTPS GET, 1re fois<br/>poids" --> Cache
+  Cache -- "② lecture des poids" --> Run
+  Run -- "③ copie des poids<br/>④ ⑤ ⑥ ⑦ génération" --> GPU
+  Run -. "⑤' ⑦' HTTP POST<br/>/v1/chat/completions" .-> API
+  Run -- "⑧ exécution Python<br/>de l'outil" --> Outils
+  Run -- "⑨ écriture" --> Out
+  GPU ~~~ Out
+  GPU ~~~ API
+
+  class Hub,API externe
+  class Run,Outils code
+  class GPU gpu
+  class Cache,Out disque
+```
+
+`make run EX=19` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, consignes système, nombre maximal de tours, données) et génère en mémoire, sans téléchargement, 30 personnages inventés et 60 questions qui exigent un outil : une sur deux est un gros calcul (`What is a * b + c?`), l'autre demande l'écart entre l'année de naissance d'un personnage et 2024. Deux outils sont de simples fonctions Python : `calculer`, qui évalue une expression arithmétique, et `chercher_fiche`, qui renvoie la fiche d'un personnage. Aucun poids n'est modifié. Le modèle est chargé en local par défaut ; avec `make run EX=19 API=http://localhost:11434/v1 MODELE=qwen3:8b`, il est servi par une API compatible OpenAI.
+
+- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-3B-Instruct depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **③ Copie sur le GPU.** Les poids sont copiés en bf16 dans la mémoire du GPU (environ 6 Go). En mode API, cette étape n'a pas lieu.
+- **④ Mesure sans outils.** `run.py` pose les 60 questions avec une consigne qui ne mentionne aucun outil.
+- **⑤ Génération sur le GPU.** Par lots de 16, en décodage glouton, jusqu'à 256 tokens. Le nombre final de chaque réponse est comparé au résultat attendu.
+- **⑤' Génération par API.** Quand `modele.api_base` est renseigné, chaque conversation part au serveur par HTTP POST sur `/v1/chat/completions` à la place de ⑤ et ⑦ ; c'est le serveur qui génère. Les outils lui sont décrits en schéma JSON (`tools`) et il renvoie les appels d'outils dans le champ structuré `tool_calls`.
+- **⑥ Tour de la boucle agentique.** Pour chaque question, le chat template de Qwen reçoit la liste des outils (nom, description, arguments, tirés des docstrings) et la conversation en cours.
+- **⑦ Génération sur le GPU.** Le modèle répond, ou demande un outil en écrivant un bloc `<tool_call>{"name": ..., "arguments": ...}</tool_call>`.
+- **⑧ Exécution de l'outil.** `run.py` lit le JSON, appelle la fonction Python correspondante et ajoute son résultat à la conversation, avec le rôle `tool` ; un appel mal formé renvoie l'erreur au modèle. La boucle reprend en ⑥ jusqu'à une réponse sans appel d'outil, dans la limite de 5 tours.
+- **⑨ Écriture du rapport** dans `sorties/19-outils-agents/resultats.json`, avec le même tableau affiché dans le terminal.
+
+**Ce que fait le GPU.** Il n'y a aucun entraînement : seulement de la génération (⑤, ⑦), une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. Dans la boucle agentique, chaque question est traitée seule et chaque tour relance une génération sur toute la conversation, résultats d'outils compris. Les outils eux-mêmes s'exécutent sur le CPU, dans le processus Python. En mode API, le GPU local n'est pas utilisé : c'est le serveur qui génère.
+
+**Ce qui est écrit.**
+
+| Fichier | Contenu |
+|---|---|
+| `resultats.json` | Exactitude sans outils et avec outils, nombre moyen d'appels d'outils par question, début de la première réponse de chaque côté |
+| `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
+
 ## Utilisation
 
 ```bash

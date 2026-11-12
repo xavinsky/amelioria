@@ -45,12 +45,77 @@ Les implémentations sont dans [`fusion.py`](fusion.py) : environ 100 lignes lis
 - ✅ Budget GPU nul : quelques minutes de CPU.
 - ⚠️ Toujours évaluer : une fusion peut dégrader silencieusement une compétence.
 
+## Composants de l'exemple
+
+```mermaid
+flowchart TD
+  classDef externe fill:#fed7aa,stroke:#ea580c,color:#7c2d12
+  classDef code fill:#ffffff,stroke:#6b7280,color:#1f2937
+  classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
+  classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+  Hub["Hugging Face Hub<br/>Qwen2.5-1.5B, Instruct<br/>GSM8K, wikitext"]
+  Cache[("cache disque<br/>~/.cache/huggingface")]
+  subgraph Py["Processus Python"]
+    Run["run.py<br/>charge les modèles"]
+    Ev["evaluation.py<br/>génération, perplexité"]
+    Fu["fusion.py<br/>DARE-TIES"]
+  end
+  GPU["GPU CUDA, 12 Go"]
+  CPU["CPU et RAM"]
+  Out[("sorties/<br/>08-fusion-modeles/")]
+
+  Hub -- "① HTTPS GET, 1re fois<br/>poids, jeux de données" --> Cache
+  Cache -- "② ⑥ lecture<br/>des poids" --> Run
+  Run -- "③ ⑨ copie des poids<br/>en mémoire GPU" --> GPU
+  Run -- "④ ⑩ appel Python<br/>sources, puis fusion" --> Ev
+  Ev -- "⑤ ⑪ noyaux CUDA<br/>génération, perplexité" --> GPU
+  Run -- "⑦ appel Python<br/>fusionner_etats()" --> Fu
+  Fu -- "⑧ calcul CPU<br/>tenseur par tenseur" --> CPU
+  Run -- "⑫ écriture<br/>modèle, resultats.json" --> Out
+
+  GPU ~~~ Out
+  class Hub externe
+  class Run,Ev,Fu code
+  class GPU,CPU gpu
+  class Cache,Out disque
+```
+
+`make run EX=08` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` : méthode `dare_ties`, base commune Qwen2.5-1.5B, un modèle source Qwen2.5-1.5B-Instruct de poids 1,0, densité 0,3. Il n'y a aucun entraînement : les données ne servent qu'à mesurer, sur 100 problèmes de GSM8K (split `test`) et sur la perplexité de 50 paragraphes Wikipédia (wikitext-2, split `test`).
+
+- **① Téléchargement.** Au premier lancement, transformers et datasets téléchargent depuis le Hugging Face Hub, par HTTPS, les poids de Qwen2.5-1.5B et de Qwen2.5-1.5B-Instruct (environ 3 Go chacun), le tokenizer de l'Instruct et les jeux GSM8K et wikitext-2.
+- **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau. Chaque modèle à mesurer est lu à son tour.
+- **③ Copie sur le GPU.** Le modèle mesuré est copié en bf16 dans la mémoire du GPU, puis renvoyé en RAM une fois mesuré : il n'y en a qu'un à la fois sur la carte.
+- **④ Mesure des sources.** `run.py` appelle `commun/evaluation.py` pour la base, puis pour l'Instruct.
+- **⑤ Génération et perplexité sur le GPU.** Chaque modèle répond aux 100 problèmes GSM8K, par lots de 16, jusqu'à 384 tokens ; l'évaluation compare le nombre final au résultat attendu. L'évaluation calcule aussi la perplexité sur les 50 paragraphes wikitext, qui détecte une dégradation générale du modèle.
+- **⑥ Lecture des poids pour la fusion.** Les poids de la base et de l'Instruct sont relus et gardés en RAM, en bf16, sous forme de dictionnaires de tenseurs.
+- **⑦ Fusion.** `run.py` appelle `fusion.py`, écrit en PyTorch pur, sans bibliothèque de fusion.
+- **⑧ Calcul sur le CPU.** `fusion.py` mesure d'abord l'écart relatif de l'Instruct à la base (1,2 % ici : c'est bien un fine-tune de cette base). Puis, pour chaque tenseur, il calcule le vecteur de tâche (Instruct − base), en garde 30 % des coordonnées tirées au hasard, multiplie celles-ci par 1/0,3 (DARE), applique l'élection de signe de TIES et ajoute le résultat à la base. Avec une seule source, l'élection de signe ne retire rien.
+- **⑨ Copie du modèle fusionné sur le GPU.** Les tenseurs fusionnés sont chargés dans un modèle de même architecture, puis copiés en mémoire GPU.
+- **⑩ Mesure du modèle fusionné**, par le même appel qu'en ④.
+- **⑪ Génération et perplexité sur le GPU**, avec le même décodage qu'en ⑤.
+- **⑫ Écriture du modèle et du rapport.** Le modèle fusionné complet est écrit dans `sorties/08-fusion-modeles/modele-dare_ties/`, puis `resultats.json`, avec le même tableau affiché dans le terminal.
+
+**Ce que fait le GPU.** Le GPU ne sert qu'à mesurer (⑤, ⑪) : PyTorch y envoie des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids déjà présents dans sa mémoire. En génération, il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées ; pour la perplexité, une seule passe avant par lot de 4 paragraphes, sans génération. La fusion elle-même (⑧) n'a ni passe avant ni gradient : c'est de l'arithmétique sur les poids (soustraction, masque aléatoire, addition), faite sur CPU, tenseur par tenseur, en float32 pour chaque tenseur traité. Elle demande surtout de la RAM : la base et l'Instruct y tiennent ensemble en bf16, avec le résultat de la fusion.
+
+**Ce qui est écrit.**
+
+| Fichier | Contenu |
+|---|---|
+| `modele-dare_ties/model.safetensors` | Tous les poids du modèle fusionné (3,09 Go, en bf16), utilisable comme n'importe quel modèle Hugging Face |
+| `modele-dare_ties/config.json`, `generation_config.json` | Architecture Qwen2 et réglages de génération, repris de l'Instruct |
+| `modele-dare_ties/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation de l'Instruct |
+| `resultats.json` | Pour la base, l'Instruct et le modèle fusionné : exactitude GSM8K, nombre de réponses, durée, trois réponses d'exemple, perplexité wikitext ; écart relatif de l'Instruct à la base |
+| `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
+
+Avec `SET="methode=..."`, le modèle fusionné est écrit dans `modele-<methode>/`.
+
 ## Utilisation
 
 ```bash
 python run.py --quick                                                  # moyenne SmolLM2 base + instruct
-python run.py                                                          # TIES : Qwen2.5-1.5B-Instruct + Qwen2.5-Math-1.5B-Instruct
-python run.py --set methode=dare_ties --set densite=0.3
+python run.py                                                          # DARE-TIES (densité 0,3) : Qwen2.5-1.5B + vecteur de tâche de l'Instruct
+python run.py --set methode=ties
 python run.py --set methode=slerp --set base=null --set t_slerp=0.3
 python run.py --set methode=arithmetique_taches
 ```
@@ -58,8 +123,8 @@ python run.py --set methode=arithmetique_taches
 ## Ce que fait l'exemple
 
 1. Évalue chaque modèle source sur GSM8K (100 questions) et sur la perplexité générale.
-2. Fusionne avec la méthode choisie, par rapport à la base commune Qwen2.5-1.5B.
-3. Évalue le modèle fusionné. Attendu avec TIES : un score GSM8K proche du modèle Math, tout en gardant le format et la perplexité générale de l'instruct.
+2. Fusionne avec la méthode choisie (DARE-TIES par défaut) le vecteur de tâche de Qwen2.5-1.5B-Instruct, par rapport à la base commune Qwen2.5-1.5B : seules 30 % de ses coordonnées sont gardées, puis rééchelonnées.
+3. Évalue le modèle fusionné. L'exemple montre le mécanisme : le modèle garde l'essentiel du gain de l'Instruct malgré 70 % des coordonnées abandonnées. Réunir plusieurs compétences demande d'ajouter d'autres fine-tunes de la même base dans `modeles`.
 
 ## Paramètres principaux (`config.yaml`)
 
