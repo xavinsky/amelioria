@@ -24,7 +24,7 @@ Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et
 ## 1. Terminer la passe finale en cours
 
 - [x] Relever les résultats de 12 à 15 (`logs/complet/`) dans `exemples.yaml`.
-- [ ] Quand le GPU est disponible : 15 GGUF et 16 à 20 en complet (`make complet EX=...`), `make test EX=02 VAR=audio-whisper` ; reporter les résultats dans `exemples.yaml`.
+- [ ] Quand le GPU est disponible : 15 GGUF et 16 à 20 en complet (`make complet EX=...`), `make test EX=DATA02 VAR=audio-whisper` ; reporter les résultats dans `exemples.yaml`.
 
 ## 2. Outils de preuve (socle)
 

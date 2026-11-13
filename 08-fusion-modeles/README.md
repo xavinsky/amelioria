@@ -34,7 +34,7 @@ Les implémentations sont dans [`fusion.py`](fusion.py) : environ 100 lignes lis
 | Adaptateurs LoRA d'une même base | ✅ | `peft` : `model.add_weighted_adapter([...], weights, combination_type="ties")` |
 | Encodeurs, ViT, CLIP, Whisper | ✅ | Model soups sur CLIP/ViT (papier d'origine), WiSE-FT (fusion modèle fine-tuné / zéro-shot) |
 | Diffusion (SD, SDXL) | ✅ très courant | Fusion de checkpoints et de LoRA de style (outils : Automatic1111, ComfyUI, `sd-mecha`) |
-| Modèles de tailles ou d'architectures différentes | ❌ | Il faut passer par la distillation ([06](../06-distillation)) |
+| Modèles de tailles ou d'architectures différentes | ❌ | Il faut passer par la distillation ([SIGN06](../06-distillation)) |
 | Modèle fermé via API | ❌ | Pas d'accès aux poids |
 
 ## Quand l'utiliser
@@ -81,7 +81,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=08` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` : méthode `dare_ties`, base commune Qwen2.5-1.5B, un modèle source Qwen2.5-1.5B-Instruct de poids 1,0, densité 0,3. Il n'y a aucun entraînement : les données ne servent qu'à mesurer, sur 100 problèmes de GSM8K (split `test`) et sur la perplexité de 50 paragraphes Wikipédia (wikitext-2, split `test`).
+`make run EX=EDIT08` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` : méthode `dare_ties`, base commune Qwen2.5-1.5B, un modèle source Qwen2.5-1.5B-Instruct de poids 1,0, densité 0,3. Il n'y a aucun entraînement : les données ne servent qu'à mesurer, sur 100 problèmes de GSM8K (split `test`) et sur la perplexité de 50 paragraphes Wikipédia (wikitext-2, split `test`).
 
 - **① Téléchargement.** Au premier lancement, transformers et datasets téléchargent depuis le Hugging Face Hub, par HTTPS, les poids de Qwen2.5-1.5B et de Qwen2.5-1.5B-Instruct (environ 3 Go chacun), le tokenizer de l'Instruct et les jeux GSM8K et wikitext-2.
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau. Chaque modèle à mesurer est lu à son tour.

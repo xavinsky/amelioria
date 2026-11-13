@@ -79,10 +79,20 @@ class Catalogue:
             raise ValueError(f"{source}: méthode {num} absente de exemples.yaml")
         return num, self.methodes[num]
 
+    def ident(self, num):
+        """Identifiant d'une méthode : code de sa catégorie suivi de son numéro (SIGN05)."""
+        num, m = self.methode(num)
+        return f"{self.categories[m['categorie']]['code']}{num}"
+
+    def libelle_categorie(self, cat_id):
+        """Code et titre d'une catégorie (« SIGN · Apprendre à partir d'un signal »)."""
+        c = self.categories[cat_id]
+        return f"{c['code']} · {c['titre']}"
+
     def lien(self, num):
         """Nom de la méthode, en lien vers sa fiche si elle existe."""
         num, m = self.methode(num)
-        nom = f"{num} · {m['titre']}"
+        nom = f"{self.ident(num)} · {m['titre']}"
         return f"[{nom}](#{self.fiches[num]})" if num in self.fiches else nom
 
     def exemples_de(self, num):
@@ -105,7 +115,7 @@ class Catalogue:
         """Repères d'une méthode, placés en tête de sa fiche."""
         num, m = self.methode(num, source)
         cat = self.categories[m["categorie"]]
-        return (f"- **Catégorie** : {cat['titre']}\n- **Regroupe** : {m['regroupe']}\n"
+        return (f"- **Identifiant** : {self.ident(num)}\n- **Catégorie** : {cat['code']} · {cat['titre']}\n- **Regroupe** : {m['regroupe']}\n"
                 f"- **Modèles concernés** : {m['modeles']}\n"
                 f"- **Calcul** : {self.icones(num, 'calcul')}\n- **Temps** : {self.icones(num, 'duree')}\n"
                 f"- **Modèle** : {self.contrainte(num, 'acces')}\n- **Données** : {self.contrainte(num, 'donnees')}\n"
@@ -125,7 +135,7 @@ class Catalogue:
             opt = f" VAR={var}" if var else ""
             reserve = f" — *{cellule(e['reserve'])}*" if e.get("reserve") else ""
             lignes.append(f"| {nom} | {MARQUEURS[e['statut']]} | {cellule(e['resultat'])}{reserve} "
-                          f"| {self.durees(e)} | `make test EX={num}{opt}` |")
+                          f"| {self.durees(e)} | `make test EX={self.ident(num)}{opt}` |")
         if (DEPOT / m["dossier"] / "infra").is_dir():
             lignes.append(f"| {MARQUEURS['non-teste']} version grosse infra | | jamais exécutée | "
                           f"| `{m['dossier']}/infra/` |")
@@ -135,7 +145,7 @@ class Catalogue:
                 + f"\n\nRésultats et durées mesurés sur {self.materiel} ; résultats de la configuration complète. "
                 "`make test` lance un test rapide sur un petit modèle ; `make run` lance l'exemple complet ; "
                 "`make verifier` contrôle d'abord les prérequis. Installation : [Installer et lancer](#installer).\n\n"
-                f"```bash\nmake install EXTRAS=1\nmake test EX={num}\nmake run EX={num}\n```\n")
+                f"```bash\nmake install EXTRAS=1\nmake test EX={self.ident(num)}\nmake run EX={self.ident(num)}\n```\n")
 
     def tableau_complet(self):
         """Tous les exemples, par catégorie."""
@@ -150,10 +160,29 @@ class Catalogue:
                     reserve = f" — *{cellule(e['reserve'])}*" if e.get("reserve") else ""
                     lignes.append(f"| {self.lien(num)} | `{var}` | {MARQUEURS[e['statut']]} "
                                   f"| {cellule(e['resultat'])}{reserve} | {self.durees(e)} |")
-            blocs.append(f"## {cat['titre']}\n\n{cat['resume']}\n\n"
+            blocs.append(f"## {cat['code']} · {cat['titre']}\n\n{cat['resume']}\n\n"
                          "| Méthode | Exemple | Statut | Résultat mesuré | Durée |\n|---|---|---|---|---|\n"
                          + "\n".join(lignes))
         return "\n\n".join(blocs) + "\n"
+
+    def comparatif(self, cat_id):
+        """Tableau des méthodes d'une catégorie : coût, contraintes et statut des exemples du dépôt."""
+        if cat_id not in self.categories:
+            raise ValueError(f"comparatif : catégorie « {cat_id} » absente de exemples.yaml")
+        lignes = []
+        for num, m in self.methodes.items():
+            if m["categorie"] != cat_id:
+                continue
+            oubli = (f'{self.picto("remelange", True)} oui' if m.get("remelange") else "—")
+            statuts = " ".join(MARQUEURS[e["statut"]] for e in self.exemples_de(num))
+            cellules = [self.lien(num), self.icones(num, "calcul"), self.icones(num, "duree"),
+                        self.contrainte(num, "donnees"), oubli, statuts]
+            # Une ligne de tableau Markdown tient sur une ligne : les SVG inline sont mis à plat
+            lignes.append("| " + " | ".join(" ".join(c.split()) for c in cellules) + " |")
+        return ("| Méthode | Calcul | Temps | Données à fournir | Remélanger du général | Exemples du dépôt |\n"
+                "|---|---|---|---|---|---|\n" + "\n".join(lignes)
+                + f"\n\nCalcul et temps : {self.couts['hypothese']}. Statuts des exemples : "
+                "[Statut des exemples](#statut-des-exemples).\n")
 
     def bilan(self):
         """Phrase de bilan : nombre d'exemples par statut."""
@@ -162,10 +191,13 @@ class Catalogue:
                 f"{n['non-prouve']} non prouvés ; versions grosse infra non testées.")
 
     def verifier_menu(self, groupes):
-        """Les groupes de l'onglet Méthodes sont les catégories du catalogue, dans le même ordre."""
+        """Les groupes de l'onglet Méthodes sont les catégories du catalogue, dans le même ordre ; leur
+        libellé (code et titre) vient du catalogue."""
         if list(groupes) != list(self.categories):
             raise ValueError(f"site.yml, onglet methodes : groupes {list(groupes)} différents des catégories "
                              f"de exemples.yaml {list(self.categories)}")
+        for cat_id in groupes:
+            groupes[cat_id] = self.libelle_categorie(cat_id)
 
     # ----- Coût : calcul et temps -----
 
@@ -305,7 +337,7 @@ class Catalogue:
     def _case_arbre(self, f, fx, fy, fw, h_f, epine, marker, source, cibles):
         """Une case de l'arbre général : critère, méthode, coûts et contraintes, lien vers la fiche."""
         num, m = self.methode(f["m"], source)
-        nom = f"{num} · {f.get('nom', m['court'])}"
+        nom = f"{self.ident(num)} · {f.get('nom', m['court'])}"
         for texte, largeur_car in ((nom, CHAR_NOM_ARBRE), (f["si"], CHAR_CRITERE_ARBRE)):
             if len(texte) * largeur_car > fw - 10:
                 raise ValueError(f"{source}: arbre, « {texte} » trop long pour une case")
@@ -341,7 +373,7 @@ class Catalogue:
             return f'<table class="legende-couts"><tbody>{"".join(lignes)}</tbody></table>'
 
         categories = ('<table class="legende-couts"><tbody><tr class="sous-titre"><th>Catégorie</th></tr>'
-                      + "".join(f'<tr><td class="cat-cellule cat-{c["id"]}">{esc(c["titre"])}</td></tr>'
+                      + "".join(f'<tr><td class="cat-cellule cat-{c["id"]}"><b>{esc(c["code"])}</b> {esc(c["titre"])}</td></tr>'
                                 for c in self.categories.values()) + "</tbody></table>")
         blocs = [categories,
                  bloc(("Calcul", [(self.echelle("calcul", n), esc(v)) for n, v in self.couts["calcul"].items()])),
@@ -419,7 +451,7 @@ class Catalogue:
         """Case d'un graphe de décision : question, méthode (avec coûts et contraintes) ou issue."""
         if "m" in n:
             num, m = self.methode(n["m"], source)
-            nom = f"{num} · {n.get('nom', m['court'])}"
+            nom = f"{self.ident(num)} · {n.get('nom', m['court'])}"
             if len(nom) * CHAR_FEUILLE > w - 8:
                 raise ValueError(f"{source}: graphe, « {nom} » trop long pour une case")
             corps = (f'<rect class="flow-box leaf cat-{m["categorie"]}" x="{x:g}" y="{y:g}" width="{w}" height="{h}"/>'

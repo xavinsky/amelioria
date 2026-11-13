@@ -39,7 +39,7 @@ Mesures (référence bf16 puis modèle quantifié) : mémoire du modèle, tokens
 
 - ✅ Toujours envisager en déploiement. 8 bits : perte quasi nulle ; 4 bits : perte faible sur les modèles ≥ 7B.
 - ✅ Faire tenir un modèle plus gros sur le matériel disponible.
-- ✅ QLoRA ([03](../03-peft)) : entraîner au-dessus d'un modèle NF4.
+- ✅ QLoRA ([DATA03](../03-peft)) : entraîner au-dessus d'un modèle NF4.
 - ⚠️ Moins de 4 bits, petits modèles (< 3B), maths et code : les pertes deviennent visibles. Toujours mesurer sur *sa* tâche, pas seulement la perplexité.
 
 ## Composants de l'exemple
@@ -77,7 +77,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=15` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode de quantification, données, évaluation) : par défaut, Qwen2.5-1.5B-Instruct est mesuré en bf16, puis rechargé en NF4 4 bits par bitsandbytes (`methode: bnb_nf4`) et mesuré de nouveau. Les autres méthodes se choisissent avec `SET="methode=..."` ; `gptq` et `awq` tournent alors dans l'environnement séparé `.venv-llmcompressor`, que `make` choisit tout seul. Le schéma suit la méthode par défaut. Les 100 problèmes de test, de la forme `(a op b) op c`, sont générés en mémoire, sans téléchargement ; les 50 paragraphes de perplexité viennent du split `test` de wikitext-2, téléchargé depuis le Hugging Face Hub.
+`make run EX=FORM15` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode de quantification, données, évaluation) : par défaut, Qwen2.5-1.5B-Instruct est mesuré en bf16, puis rechargé en NF4 4 bits par bitsandbytes (`methode: bnb_nf4`) et mesuré de nouveau. Les autres méthodes se choisissent avec `SET="methode=..."` ; `gptq` et `awq` tournent alors dans l'environnement séparé `.venv-llmcompressor`, que `make` choisit tout seul. Le schéma suit la méthode par défaut. Les 100 problèmes de test, de la forme `(a op b) op c`, sont générés en mémoire, sans téléchargement ; les 50 paragraphes de perplexité viennent du split `test` de wikitext-2, téléchargé depuis le Hugging Face Hub.
 
 - **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-1.5B-Instruct (environ 3 Go, fichiers safetensors) et datasets télécharge wikitext-2, depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
@@ -134,7 +134,7 @@ Dépendances selon la méthode : `bitsandbytes` (bnb), `torchao` (torchao, qat),
 - **Quantifier ne demande pas de cluster.** llm-compressor calibre un 70B couche par couche sur 1 à 2 GPU ([`infra/gptq_70b_llmcompressor.py`](infra/gptq_70b_llmcompressor.py)). GGUF tourne sur CPU.
 - Le multi-GPU sert à **servir** (vLLM `--tensor-parallel-size`) et à **évaluer la dégradation** sur des benchmarks ([`infra/lancer.sh`](infra/lancer.sh) : lm-eval du modèle bf16 et du modèle quantifié).
 - [`infra/config.yaml`](infra/config.yaml) : `run.py` complet sur un 8B (GPTQ W4A16) sur 1 GPU 40 à 80 Go.
-- QAT sur gros modèles : torchtune / Axolotl (recettes QAT torchao), avec la même infra que le SFT ([02](../02-fine-tuning-supervise)).
+- QAT sur gros modèles : torchtune / Axolotl (recettes QAT torchao), avec la même infra que le SFT ([DATA02](../02-fine-tuning-supervise)).
 - Cache KV quantifié (FP8) pour les longs contextes : `vllm serve ... --kv-cache-dtype fp8`.
 
 ## Pièges

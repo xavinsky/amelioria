@@ -31,7 +31,8 @@ du dépôt (build/fiches.py), une page Concept et une page Exemple par méthode,
 exemples.yaml et docs/references.md (build/catalogue.py). `references` (libellé → URL) donne la section
 « Références ». `arbre` décrit l'arbre de décision général et `decision` le graphe de décision d'un cas, rendus
 en SVG en tête de la section ;
-`catalogue: true` insère le tableau de tous les exemples. Marqueurs de statut des exemples :
+`catalogue: true` insère le tableau de tous les exemples ; `comparatif: <catégorie>` le tableau comparatif des
+méthodes d'une catégorie. Marqueurs de statut des exemples :
 `[!DEMONTRE]`, `[!NONPROUVE]`, `[!NONTESTE]`.
 
 Pour le référencement, le build produit aussi, à partir de www/index.html pris pour gabarit, une
@@ -321,6 +322,8 @@ def insert_depot(body, meta, depot, path):
             head, sep, rest = body.partition("\n## ")
             body = head.rstrip() + "\n\n" + depot.en_bref(num, path) + (sep + rest if sep else "")
             body = body.rstrip() + "\n\n" + depot.essayer(num, path)
+        if meta.get("comparatif"):
+            body = body.rstrip() + "\n\n## Comparer les méthodes\n\n" + depot.comparatif(meta["comparatif"])
         if meta.get("catalogue"):
             body = body.rstrip() + "\n\n" + depot.bilan() + "\n\n" + depot.tableau_complet()
     except ValueError as err:

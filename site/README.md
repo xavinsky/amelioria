@@ -8,7 +8,7 @@ make site                 # depuis la racine du dépôt : build, puis ouvrir sit
 
 | Élément | Rôle |
 |---|---|
-| `content/site.yml` | Onglets et groupes du menu ; les groupes de l'onglet Méthodes sont les catégories de `exemples.yaml` |
+| `content/site.yml` | Onglets et groupes du menu ; les groupes de l'onglet Méthodes sont les catégories de `exemples.yaml`, dont le build reprend le libellé (code et titre) |
 | `content/<onglet>/<groupe>/<NN>-<slug>.md` | Une section ; `id` du front matter ou slug du nom de fichier |
 | `content/lexique.md` | Un terme par titre `## Terme`, avec un lien vers la section qui le détaille |
 | `build/build.py`, `build/schema.py` | Compilation, schémas d'intégration en SVG, contrôle des liens internes |
@@ -20,6 +20,10 @@ make site                 # depuis la racine du dépôt : build, puis ouvrir sit
 ## Pages de méthode
 
 Elles ne s'écrivent pas dans `content/` : `build/fiches.py` les génère depuis le dépôt, deux par méthode, rangées dans l'onglet Méthodes selon la catégorie de `exemples.yaml`.
+
+Chaque catégorie a un code de 4 lettres lisible en anglais comme en français (`code` dans `exemples.yaml`) : DATA, SIGN, EDIT, FORM, EXEC. Une méthode est désignée partout par ce code suivi de son numéro (SIGN05), y compris dans `make test EX=SIGN05`.
+
+En tête de chaque catégorie, une page écrite à la main, `content/methodes/<catégorie>/00-choisir.md`, explique le choix entre ses méthodes : graphe de décision (`decision:`), texte, puis tableau comparatif généré (`comparatif: <catégorie>` : coûts, données, remélange, statut des exemples).
 
 | Page | Contenu | Source |
 |---|---|---|

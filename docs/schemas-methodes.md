@@ -155,7 +155,7 @@ flowchart TB
 <a id="m03"></a>
 ## 03 — PEFT (LoRA, QLoRA, DoRA, IA³, prompt et prefix tuning)
 
-Le modèle est gelé. On ajoute un petit module entraînable, ici sur chaque couche linéaire des blocs. Mêmes données et même perte que le SFT (02).
+Le modèle est gelé. On ajoute un petit module entraînable, ici sur chaque couche linéaire des blocs. Mêmes données et même perte que le SFT (DATA02).
 
 ```mermaid
 flowchart TB

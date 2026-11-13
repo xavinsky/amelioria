@@ -122,7 +122,7 @@ class Generateur:
                        + self.sections(readme, ["Ce que fait l'exemple", "Composants de l'exemple"], m["dossier"])
                        + "\n\n" + self.depot.essayer(num, chemin) + "\n\n"
                        + self.sections(readme, EXEMPLE, m["dossier"]))
-            base = {"subgroup": f"{num} · {m['titre']}", "aka": extra.get("aka")}
+            base = {"subgroup": f"{self.depot.ident(num)} · {m['titre']}", "aka": extra.get("aka")}
             sortie.append((chemin, {**base, "title": m["titre"], "nav": "Concept", "id": ident,
                                     "schema": extra.get("schema"), "description": intro}, concept))
             sortie.append((chemin, {**base, "title": f"Exemple du dépôt : {m['titre']}", "nav": "Exemple du dépôt",

@@ -10,7 +10,7 @@
 
 Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m04) (ce que la méthode ajoute ou modifie dans le transformer).
 
-Le RLHF classique entraîne d'abord un modèle de récompense, puis optimise la politique avec PPO ([05](../05-rl-en-ligne)). **DPO** montre que le même objectif (maximiser la préférence sans trop s'éloigner du modèle de référence) se ramène à une simple perte de classification sur les paires :
+Le RLHF classique entraîne d'abord un modèle de récompense, puis optimise la politique avec PPO ([SIGN05](../05-rl-en-ligne)). **DPO** montre que le même objectif (maximiser la préférence sans trop s'éloigner du modèle de référence) se ramène à une simple perte de classification sur les paires :
 
 ```
 perte = -log σ( β · [ (log π(préférée) - log π_ref(préférée)) - (log π(rejetée) - log π_ref(rejetée)) ] )
@@ -51,7 +51,7 @@ Le **DPO itératif / on-policy** ([`variantes/dpo-iteratif`](variantes/dpo-itera
 - ✅ Après un SFT, pour aligner le ton, l'utilité, la sécurité, la concision.
 - ✅ Vous avez ou pouvez produire des comparaisons : annotateurs, 👍/👎 des utilisateurs (KTO), LLM juge, vérificateur.
 - ✅ Alternative bien plus simple et stable que PPO pour les préférences « subjectives ».
-- ⚠️ Pour le raisonnement vérifiable (maths, code), le RL en ligne avec récompense vérifiable ([05](../05-rl-en-ligne)) va plus loin. Le DPO itératif est un intermédiaire.
+- ⚠️ Pour le raisonnement vérifiable (maths, code), le RL en ligne avec récompense vérifiable ([SIGN05](../05-rl-en-ligne)) va plus loin. Le DPO itératif est un intermédiaire.
 
 ## Composants de l'exemple
 
@@ -92,7 +92,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=04` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, algorithme `dpo`, `beta`, LoRA, données, réglages) et génère en mémoire, sans téléchargement, 2 000 paires de préférence pour l'entraînement et 100 pour le test : pour un même problème `(a op b) op c`, la réponse préférée est le raisonnement juste, la réponse rejetée le même raisonnement avec une erreur de calcul. 200 problèmes de test servent en plus à mesurer l'exactitude en génération.
+`make run EX=SIGN04` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, algorithme `dpo`, `beta`, LoRA, données, réglages) et génère en mémoire, sans téléchargement, 2 000 paires de préférence pour l'entraînement et 100 pour le test : pour un même problème `(a op b) op c`, la réponse préférée est le raisonnement juste, la réponse rejetée le même raisonnement avec une erreur de calcul. 200 problèmes de test servent en plus à mesurer l'exactitude en génération.
 
 - **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-0.5B-Instruct (environ 1 Go, safetensors) depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.

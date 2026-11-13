@@ -2,8 +2,8 @@
 
     python3 scripts/catalogue.py liste
     python3 scripts/catalogue.py readme          # régénère la section des méthodes du README
-    python3 scripts/catalogue.py chemin 03 [diffusion-lora]
-    .venv/bin/python scripts/catalogue.py verifier 03 [variante] [--set cle=val ...] [--api URL] [--complet]
+    python3 scripts/catalogue.py chemin DATA03 [diffusion-lora]      # ou 03
+    .venv/bin/python scripts/catalogue.py verifier DATA03 [variante] [--set cle=val ...] [--api URL] [--complet]
 
 Utilisé par le Makefile ; ne dépend que de pyyaml (et de torch pour la vérification du GPU).
 """
@@ -15,6 +15,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import sys
 import urllib.request
 
@@ -35,11 +36,25 @@ def charger() -> dict:
     return yaml.safe_load((RACINE / "exemples.yaml").read_text(encoding="utf-8"))
 
 
+def ident(cat: dict, m: dict) -> str:
+    """Identifiant d'une méthode : code de sa catégorie suivi de son numéro (SIGN05)."""
+    code = next(c["code"] for c in cat["categories"] if c["id"] == m["categorie"])
+    return code + m["dossier"][:2]
+
+
 def resoudre(cat: dict, ex: str, var: str = "") -> dict:
-    """Trouve l'exemple désigné par un numéro (« 03 »), un nom de dossier ou un mot du nom, plus une variante."""
+    """Trouve l'exemple désigné par un identifiant (« DATA03 »), un numéro (« 03 »), un nom de dossier ou un mot
+    du nom, plus une variante."""
     ex = ex.strip().rstrip("/")
     if not ex:
-        sortir("préciser l'exemple, ex. EX=03 (voir : make liste)")
+        sortir("préciser l'exemple, ex. EX=DATA03 (voir : make liste)")
+    code = re.fullmatch(r"([A-Za-z]{4})(\d{1,2})", ex)
+    if code:
+        m = next((m for m in cat["methodes"] if m["dossier"][:2] == code.group(2).zfill(2)), None)
+        if m is None or ident(cat, m) != code.group(1).upper() + code.group(2).zfill(2):
+            aide = f" ; le numéro {code.group(2).zfill(2)} est {ident(cat, m)}" if m else ""
+            sortir(f"identifiant « {ex} » inconnu{aide} (voir : make liste)")
+        ex = code.group(2)
     methodes = [m["dossier"] for m in cat["methodes"]]
     trouves = [d for d in methodes if d == ex or d.startswith(ex.zfill(2) + "-")] or [d for d in methodes if ex in d]
     if len(trouves) != 1:
@@ -64,17 +79,17 @@ def liste(cat: dict):
           f"{teinte('● ' + statuts['non-teste'], 'non-teste')} : jamais exécuté (versions infra/)")
     print(f"Mesures : configuration complète sur {cat['materiel_reference']}.\n")
     for c in cat["categories"]:
-        print(teinte(c["titre"].upper(), "titre") + teinte(f"  {c['resume']}", "gris"))
+        print(teinte(f"{c['code']} · {c['titre'].upper()}", "titre") + teinte(f"  {c['resume']}", "gris"))
         for m in (m for m in cat["methodes"] if m["categorie"] == c["id"]):
-            num = m["dossier"][:2]
+            num = ident(cat, m)
             print(f"  {num}  {m['titre']}")
             for e in (e for e in cat["exemples"] if e["chemin"].split("/")[0] == m["dossier"]):
                 variante = e["chemin"].split("/variantes/")[1] if "/variantes/" in e["chemin"] else ""
                 commande = f"make test EX={num}" + (f" VAR={variante}" if variante else "")
                 etiquette = teinte(f"● {statuts[e['statut']]:<10}", e["statut"])
-                print(f"      {etiquette} {commande:<44} {e['resultat']}")
+                print(f"      {etiquette} {commande:<48} {e['resultat']}")
                 if e.get("reserve"):
-                    print(" " * 63 + teinte(f"↳ {e['reserve']}", "gris"))
+                    print(" " * 67 + teinte(f"↳ {e['reserve']}", "gris"))
             if (RACINE / m["dossier"] / "infra").is_dir():
                 print(f"      {teinte('● ' + statuts['non-teste'], 'non-teste'):<10}  "
                       + teinte(f"{m['dossier']}/infra/ (grosse infra)", "gris"))
@@ -95,14 +110,14 @@ def section_readme(cat: dict) -> str:
               "",
               "Colonne « Local 12 Go » : ✅ faisable sur un GPU grand public ; ⚠️ seulement sur de petits modèles ; "
               "☁️ les vrais cas d'usage demandent une grosse infra (exemple fourni dans `infra/`)."]
-    for i, c in enumerate(cat["categories"]):
-        lignes += ["", f"### {chr(65 + i)}. {c['titre']}", "", c["resume"], "",
-                   "| # | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |", "|---|---|---|---|---|---|"]
+    for c in cat["categories"]:
+        lignes += ["", f"### {c['code']} · {c['titre']}", "", c["resume"], "",
+                   "| Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |", "|---|---|---|---|---|---|"]
         for m in (m for m in cat["methodes"] if m["categorie"] == c["id"]):
             exemples = [e for e in cat["exemples"] if e["chemin"].split("/")[0] == m["dossier"]]
             etats = " · ".join(PASTILLES[e["statut"]] + " " + (e["chemin"].split("/variantes/")[1]
                                if "/variantes/" in e["chemin"] else "principal") for e in exemples)
-            lignes.append(f"| [{m['dossier'][:2]}]({m['dossier']}) | {m['titre']} | {m['regroupe']} | {m['modeles']} "
+            lignes.append(f"| [{ident(cat, m)}]({m['dossier']}) | {m['titre']} | {m['regroupe']} | {m['modeles']} "
                           f"| {m['local']} | {etats} |")
     return "\n".join(lignes + ["", FIN])
 

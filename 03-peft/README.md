@@ -10,7 +10,7 @@
 
 Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m03) (ce que la méthode ajoute ou modifie dans le transformer).
 
-Toutes ces méthodes suivent la même recette : mêmes données et même boucle que le SFT ([02](../02-fine-tuning-supervise)). Seul change le petit module entraîné, d'où leur regroupement ici. On passe de l'une à l'autre avec `--set peft.methode=...`.
+Toutes ces méthodes suivent la même recette : mêmes données et même boucle que le SFT ([DATA02](../02-fine-tuning-supervise)). Seul change le petit module entraîné, d'où leur regroupement ici. On passe de l'une à l'autre avec `--set peft.methode=...`.
 
 | Méthode | Ce qui est entraîné | Particularité |
 |---|---|---|
@@ -27,7 +27,7 @@ Toutes ces méthodes suivent la même recette : mêmes données et même boucle 
 Intérêts pratiques :
 
 - plusieurs adaptateurs pour un seul modèle de base, chargés à chaud (vLLM `--enable-lora`, TGI, LoRAX) ;
-- combinaison d'adaptateurs ([08](../08-fusion-modeles)) ;
+- combinaison d'adaptateurs ([EDIT08](../08-fusion-modeles)) ;
 - moins d'oubli que le fine-tuning complet (*LoRA Learns Less and Forgets Less*).
 
 ## Modèles concernés
@@ -84,7 +84,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=03` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode PEFT, données, réglages) et génère en mémoire, sans téléchargement, 3 000 problèmes d'arithmétique pour l'entraînement et 200 pour le test, de la forme `(a op b) op c` avec leur solution pas à pas.
+`make run EX=DATA03` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode PEFT, données, réglages) et génère en mémoire, sans téléchargement, 3 000 problèmes d'arithmétique pour l'entraînement et 200 pour le test, de la forme `(a op b) op c` avec leur solution pas à pas.
 
 - **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-1.5B-Instruct (environ 3 Go, fichiers safetensors) depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
@@ -129,7 +129,7 @@ python variantes/diffusion-lora/run.py                       # SD 1.5, 5 photos 
 
 ## Ce que fait l'exemple
 
-Même tâche et même évaluation que [02](../02-fine-tuning-supervise), pour comparer directement les deux. Le rapport ajoute le nombre et le pourcentage de paramètres entraînés, ainsi que la taille de l'adaptateur sauvegardé.
+Même tâche et même évaluation que [DATA02](../02-fine-tuning-supervise), pour comparer directement les deux. Le rapport ajoute le nombre et le pourcentage de paramètres entraînés, ainsi que la taille de l'adaptateur sauvegardé.
 
 ## Paramètres principaux (`config.yaml`)
 

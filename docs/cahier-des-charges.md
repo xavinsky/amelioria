@@ -32,7 +32,7 @@ Pour chaque méthode d'amélioration d'un modèle : **un problème réellement r
 | Mesure avant / après dans les mêmes conditions | Même jeu de test, même décodage, même précision numérique, même longueur de génération suffisante pour ne pas couper les réponses |
 | Jeu de test assez grand | Plusieurs centaines d'exemples ; intervalle de confiance à 95 % affiché pour les exactitudes |
 | Pas un coup de chance | Écart supérieur à l'incertitude ; pour les entraînements courts, plusieurs graines (moyenne et écart) |
-| Effet attribué à la méthode | Témoin quand une autre cause est possible : même entraînement sans la modification (13, 14), même élève sans enseignant (06), même modèle sans outils (19) ou sans RAG (18) |
+| Effet attribué à la méthode | Témoin quand une autre cause est possible : même entraînement sans la modification (FORM13, FORM14), même élève sans enseignant (SIGN06), même modèle sans outils (EXEC19) ou sans RAG (EXEC18) |
 | Pas de fuite | Jeu de test jamais vu à l'entraînement ; textes de perplexité sur un split distinct |
 | Non-régression | Une mesure hors de la tâche visée (perplexité générale, tâche voisine) quand la méthode modifie les poids |
 | Coût | Durée, mémoire, paramètres entraînés, taille produite |

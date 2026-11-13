@@ -22,9 +22,9 @@ générer  ->  filtrer / noter  ->  SFT (dossier 02, ou LoRA 03)
 | `self_instruct` | Un modèle générateur invente de **nouvelles questions** à partir d'exemples, puis y répond | Réponse vérifiable, déduplication, format valide |
 | `critique_revision` | Le modèle répond, se critique selon un **principe écrit**, puis réécrit sa réponse | On garde la révision (entraînement sur « réponse révisée ») |
 
-La clé est **le filtre**. Un modèle qui s'entraîne sur ses propres sorties non filtrées stagne ou se dégrade (model collapse). Filtrer par un vérificateur, un juge ou un modèle de récompense ne garde que ses meilleures sorties : le modèle s'améliore ainsi « par lui-même ». C'est le même ressort que le RL en ligne ([05](../05-rl-en-ligne)), en version hors ligne, plus simple et plus stable.
+La clé est **le filtre**. Un modèle qui s'entraîne sur ses propres sorties non filtrées stagne ou se dégrade (model collapse). Filtrer par un vérificateur, un juge ou un modèle de récompense ne garde que ses meilleures sorties : le modèle s'améliore ainsi « par lui-même ». C'est le même ressort que le RL en ligne ([SIGN05](../05-rl-en-ligne)), en version hors ligne, plus simple et plus stable.
 
-Lien avec la distillation ([06](../06-distillation)) : si le générateur est un modèle plus fort que l'élève, `self_instruct` et `rejet` deviennent de la distillation de séquences.
+Lien avec la distillation ([SIGN06](../06-distillation)) : si le générateur est un modèle plus fort que l'élève, `self_instruct` et `rejet` deviennent de la distillation de séquences.
 
 ## Modèles concernés
 
@@ -79,7 +79,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=07` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, stratégie `rejet`, 2 tours, réglages de génération et d'entraînement) et génère en mémoire, sans téléchargement, des problèmes d'arithmétique de la forme `(a op b) op c` : 200 pour le test, et 1 000 nouvelles questions à chaque tour. Les données d'entraînement ne sont pas fournies : c'est le modèle lui-même qui écrit les solutions, et seules les justes sont gardées.
+`make run EX=SIGN07` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, stratégie `rejet`, 2 tours, réglages de génération et d'entraînement) et génère en mémoire, sans téléchargement, des problèmes d'arithmétique de la forme `(a op b) op c` : 200 pour le test, et 1 000 nouvelles questions à chaque tour. Les données d'entraînement ne sont pas fournies : c'est le modèle lui-même qui écrit les solutions, et seules les justes sont gardées.
 
 - **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-0.5B-Instruct (environ 1 Go) depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
@@ -121,7 +121,7 @@ python run.py --set strategie=critique_revision
 python run.py --set tours=3                                    # itérer (STaR / ReST-EM)
 ```
 
-Le jeu généré est sauvegardé dans `sorties/.../donnees-tour-N.jsonl`, réutilisable par [02](../02-fine-tuning-supervise) ou [03](../03-peft) (`donnees.source=hf`, `donnees.nom=json`, `donnees.fichiers=...`).
+Le jeu généré est sauvegardé dans `sorties/.../donnees-tour-N.jsonl`, réutilisable par [DATA02](../02-fine-tuning-supervise) ou [DATA03](../03-peft) (`donnees.source=hf`, `donnees.nom=json`, `donnees.fichiers=...`).
 
 ## Ce que fait l'exemple
 

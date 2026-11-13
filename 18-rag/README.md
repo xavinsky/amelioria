@@ -27,7 +27,7 @@ Le corpus de test contient les fiches de 50 personnages fictifs, noyées dans 2 
 - `rappel_a_k` : la bonne fiche est-elle parmi les k passages fournis ? Ça mesure la recherche seule.
 - `exactitude` sans et avec RAG : ça mesure la réponse finale.
 
-Cette même base de faits sert au pré-entraînement continu ([01](../01-pre-entrainement-continu)) et au désapprentissage ([10](../10-desapprentissage)), ce qui permet de comparer directement « mettre la connaissance dans les poids » et « la fournir dans le contexte ».
+Cette même base de faits sert au pré-entraînement continu ([DATA01](../01-pre-entrainement-continu)) et au désapprentissage ([EDIT10](../10-desapprentissage)), ce qui permet de comparer directement « mettre la connaissance dans les poids » et « la fournir dans le contexte ».
 
 ## Modèles concernés
 
@@ -88,7 +88,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=18` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode de recherche, encodeur, reranker, gabarit du prompt, taille du corpus) et construit le corpus : 50 personnages inventés, générés en mémoire, décrits chacun par 4 fiches (200 passages), noyés parmi 2 000 paragraphes Wikipédia sans rapport, tirés de wikitext-2 (2 200 passages au total). Les 200 questions portent sur ces personnages : le modèle ne peut pas connaître les réponses. Aucun poids n'est modifié. Le modèle est chargé en local par défaut ; avec `make run EX=18 API=http://localhost:11434/v1 MODELE=qwen3:8b`, il est servi par une API compatible OpenAI.
+`make run EX=EXEC18` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode de recherche, encodeur, reranker, gabarit du prompt, taille du corpus) et construit le corpus : 50 personnages inventés, générés en mémoire, décrits chacun par 4 fiches (200 passages), noyés parmi 2 000 paragraphes Wikipédia sans rapport, tirés de wikitext-2 (2 200 passages au total). Les 200 questions portent sur ces personnages : le modèle ne peut pas connaître les réponses. Aucun poids n'est modifié. Le modèle est chargé en local par défaut ; avec `make run EX=EXEC18 API=http://localhost:11434/v1 MODELE=qwen3:8b`, il est servi par une API compatible OpenAI.
 
 - **① Téléchargement.** Au premier lancement, le jeu `Salesforce/wikitext`, l'encodeur all-mpnet-base-v2, le reranker ms-marco-MiniLM-L-6-v2 et le LLM Qwen2.5-1.5B-Instruct sont téléchargés depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau. Chaque modèle est lu au moment où il est chargé (④, ⑨).
@@ -142,7 +142,7 @@ python run.py --set modele.api_base=http://localhost:11434/v1 --set modele.nom=q
 - [`infra/indexer_qdrant.py`](infra/indexer_qdrant.py) : découpage avec chevauchement, embeddings par lots, insertion.
 - [`infra/interroger.py`](infra/interroger.py) : recherche → reranking → réponse avec citations `[n]`.
 - [`infra/config.yaml`](infra/config.yaml) : `run.py` contre ce LLM servi, avec 500 personnages et 20 000 distracteurs.
-- Au-delà : recherche multi-vecteurs (ColBERT), graphes de connaissances (GraphRAG), RAG agentique (le modèle décide quoi chercher : [19](../19-outils-agents)), fine-tuning des embeddings sur ses propres paires question/passage.
+- Au-delà : recherche multi-vecteurs (ColBERT), graphes de connaissances (GraphRAG), RAG agentique (le modèle décide quoi chercher : [EXEC19](../19-outils-agents)), fine-tuning des embeddings sur ses propres paires question/passage.
 
 ## Pièges
 

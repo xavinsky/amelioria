@@ -73,7 +73,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=11` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, mode `vecteur`, couche, intensités α, évaluation). Toutes les phrases sont écrites dans `run.py`, sans téléchargement : 15 paires de phrases de sentiment opposé (« I absolutely love the weather… » / « I absolutely hate the weather… »), 30 consignes neutres (« Write one sentence about the movie. ») et 30 demandes de texte négatif (« Write an angry complaint about the hotel. »).
+`make run EX=EDIT11` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, mode `vecteur`, couche, intensités α, évaluation). Toutes les phrases sont écrites dans `run.py`, sans téléchargement : 15 paires de phrases de sentiment opposé (« I absolutely love the weather… » / « I absolutely hate the weather… »), 30 consignes neutres (« Write one sentence about the movie. ») et 30 demandes de texte négatif (« Write an angry complaint about the hotel. »).
 
 - **① Téléchargement.** Au premier lancement, transformers télécharge depuis le Hugging Face Hub, par HTTPS, les poids de Qwen2.5-1.5B-Instruct (environ 3 Go) et ceux du classifieur de sentiment `distilbert-base-uncased-finetuned-sst-2-english` (environ 270 Mo).
 - **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.

@@ -46,7 +46,7 @@ arbre:
 ---
 
 > [!TIP]
-> Les méthodes de la catégorie « Sans toucher aux poids » marchent aussi avec un modèle fermé appelé par API. Elles se combinent avec toutes les autres : un modèle affiné se sert encore avec un bon prompt, du RAG et des outils.
+> Les méthodes de la catégorie EXEC « À l'exécution, sans toucher aux poids » marchent aussi avec un modèle fermé appelé par API. Elles se combinent avec toutes les autres : un modèle affiné se sert encore avec un bon prompt, du RAG et des outils.
 
 ## Recette d'un modèle post-entraîné
 

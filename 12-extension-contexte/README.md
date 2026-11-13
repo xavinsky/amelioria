@@ -47,7 +47,7 @@ Pour chacun, on mesure le **test de la clé cachée** (passkey retrieval, retrou
 - ✅ Le modèle doit lire des documents, du code ou des conversations plus longs que sa fenêtre.
 - ✅ Adapter un modèle spécialisé (fine-tuné à 4-8k) à du 32k et plus.
 - ⚠️ Fenêtre étendue ne veut pas dire usage efficace de tout le contexte : vérifier avec RULER.
-- ❌ Si le RAG ([18](../18-rag)) suffit à apporter la bonne information dans une fenêtre courte : c'est bien moins cher à l'inférence.
+- ❌ Si le RAG ([EXEC18](../18-rag)) suffit à apporter la bonne information dans une fenêtre courte : c'est bien moins cher à l'inférence.
 
 ## Composants de l'exemple
 
@@ -85,7 +85,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=12` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode `yarn`, facteur 4, entraînement, longueurs testées). SmolLM-360M a été pré-entraîné avec un contexte de 2 048 tokens ; l'exemple le porte à 8 192. Les textes viennent de wikitext-2 : jusqu'à 6 000 paragraphes du split `train` pour l'entraînement, et 4 documents longs de 60 paragraphes chacun, tirés du split `test`, pour la perplexité. Le test de la clé cachée est généré en mémoire : un nombre à 5 chiffres placé au hasard dans un texte de remplissage répété.
+`make run EX=FORM12` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode `yarn`, facteur 4, entraînement, longueurs testées). SmolLM-360M a été pré-entraîné avec un contexte de 2 048 tokens ; l'exemple le porte à 8 192. Les textes viennent de wikitext-2 : jusqu'à 6 000 paragraphes du split `train` pour l'entraînement, et 4 documents longs de 60 paragraphes chacun, tirés du split `test`, pour la perplexité. Le test de la clé cachée est généré en mémoire : un nombre à 5 chiffres placé au hasard dans un texte de remplissage répété.
 
 - **① Téléchargement.** Au premier lancement, la bibliothèque datasets télécharge wikitext-2 et transformers télécharge le tokenizer et les poids de SmolLM-360M (1,4 Go, safetensors en fp32), depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
@@ -149,7 +149,7 @@ python run.py --set contexte.methode=abf --set contexte.facteur_theta=20
 - **Données** : concaténer des paragraphes courts n'apprend pas vraiment les dépendances longues. Utiliser des documents naturellement longs (livres, dépôts de code).
 - **Régression en contexte court** : garder des séquences courtes dans le mélange et vérifier les benchmarks habituels.
 - **Servir avec la même config** : vLLM et llama.cpp doivent lire le `rope_scaling` sauvegardé. Certaines implémentations appliquent YaRN à toutes les longueurs, ce qui dégrade légèrement le court.
-- **Mémoire du cache KV** à l'inférence : elle croît avec la longueur. Voir la quantification du cache ([15](../15-quantification)).
+- **Mémoire du cache KV** à l'inférence : elle croît avec la longueur. Voir la quantification du cache ([FORM15](../15-quantification)).
 
 ## Références
 

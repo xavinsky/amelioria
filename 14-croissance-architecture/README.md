@@ -88,7 +88,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=14` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode de croissance, données, réglages) : par défaut, SmolLM2-360M passe de 32 à 48 couches par depth up-scaling (`methode: profondeur`, `m: 8`), puis est cicatrisé par 600 pas de pré-entraînement continu. Les textes sont des paragraphes de Wikipédia du jeu wikitext-2, téléchargé depuis le Hugging Face Hub : 8 000 paragraphes du split `train` pour la cicatrisation, 100 du split `test` pour la perplexité.
+`make run EX=FORM14` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode de croissance, données, réglages) : par défaut, SmolLM2-360M passe de 32 à 48 couches par depth up-scaling (`methode: profondeur`, `m: 8`), puis est cicatrisé par 600 pas de pré-entraînement continu. Les textes sont des paragraphes de Wikipédia du jeu wikitext-2, téléchargé depuis le Hugging Face Hub : 8 000 paragraphes du split `train` pour la cicatrisation, 100 du split `test` pour la perplexité.
 
 - **① Téléchargement.** Au premier lancement, transformers télécharge les poids de SmolLM2-360M (environ 700 Mo, fichiers safetensors) et datasets télécharge wikitext-2, depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.

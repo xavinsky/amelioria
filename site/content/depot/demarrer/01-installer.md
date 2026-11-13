@@ -23,21 +23,21 @@ make liste                         # les exemples par catégorie, avec statut et
 ## Lancer
 
 ```bash
-make test EX=15                    # test rapide : petit modèle, quelques pas, quelques minutes au plus
-make run  EX=15                    # exemple complet, résultats dans sorties/
-make test EX=03 VAR=diffusion-lora # une variante
-make run  EX=03 SET="peft.methode=dora entrainement.lr=1e-4"
-make run  EX=18 API=http://localhost:11434/v1 MODELE=qwen3:8b
+make test EX=FORM15                 # test rapide : petit modèle, quelques pas, quelques minutes au plus
+make run  EX=FORM15                 # exemple complet, résultats dans sorties/
+make test EX=DATA03 VAR=diffusion-lora # une variante
+make run  EX=DATA03 SET="peft.methode=dora entrainement.lr=1e-4"
+make run  EX=EXEC18 API=http://localhost:11434/v1 MODELE=qwen3:8b
 ```
 
 | Option | Rôle |
 |---|---|
-| `EX` | Dossier de méthode : numéro (`03`) ou nom (`peft`) |
+| `EX` | Méthode : identifiant (`DATA03`, code de catégorie + numéro), numéro seul (`03`) ou nom de dossier (`peft`) |
 | `VAR` | Variante du dossier |
 | `SET` | Surcharges de la configuration, séparées par des espaces |
 | `API`, `MODELE` | Modèle servi par une API compatible OpenAI (Ollama, vLLM, fournisseur cloud) |
 
-Avant de lancer quoi que ce soit, `make test` et `make run` vérifient les modules, le GPU et sa mémoire, llama.cpp et l'API. S'il manque quelque chose, ils disent quoi installer. `make verifier EX=NN` ne fait que cette vérification. Dans un dossier de méthode, les mêmes cibles marchent sans `EX` : `cd 03-peft && make test`.
+Avant de lancer quoi que ce soit, `make test` et `make run` vérifient les modules, le GPU et sa mémoire, llama.cpp et l'API. S'il manque quelque chose, ils disent quoi installer. `make verifier EX=FORM15` ne fait que cette vérification. Dans un dossier de méthode, les mêmes cibles marchent sans `EX` : `cd 03-peft && make test`.
 
 ## Ce que produit un exemple
 

@@ -38,14 +38,14 @@ Les métriques sont celles de CounterFact :
 | Encodeur (BERT), seq2seq (T5) | ⚠️ | MEND et KE ont été proposés pour ces architectures, moins courant |
 | Multimodal (BLIP-2, LLaVA) | ⚠️ | EasyEdit propose l'édition multimodale (MMEdit) |
 | Diffusion | ✅ | Même principe sur le cross-attention (TIME, UCE : « changer ce que signifie un mot ») |
-| Modèle fermé via API | ❌ | Seul le RAG ([18](../18-rag)) permet de corriger un fait |
+| Modèle fermé via API | ❌ | Seul le RAG ([EXEC18](../18-rag)) permet de corriger un fait |
 
 ## Quand l'utiliser
 
 - ✅ Quelques faits erronés ou obsolètes à corriger rapidement, sans pipeline d'entraînement.
 - ✅ Recherche et interprétabilité : comprendre où et comment un fait est stocké.
 - ⚠️ Des centaines d'éditions séquentielles dégradent le modèle : MEMIT/AlphaEdit en lot, ou mémoire externe.
-- ❌ Les éditions **généralisent mal au raisonnement multi-sauts** (« la tour Eiffel est à Rome », donc « le pays de la tour Eiffel est » → souvent encore « France »). Pour des connaissances évolutives, préférer le RAG ([18](../18-rag)).
+- ❌ Les éditions **généralisent mal au raisonnement multi-sauts** (« la tour Eiffel est à Rome », donc « le pays de la tour Eiffel est » → souvent encore « France »). Pour des connaissances évolutives, préférer le RAG ([EXEC18](../18-rag)).
 
 ## Composants de l'exemple
 
@@ -82,7 +82,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=09` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode `rome`, couche et module édités, réglages de l'optimisation) et prend les 4 faits à modifier dans `commun/donnees.py` : la tour Eiffel passe à Rome, la Joconde à Picasso, l'Everest aux Alpes, Python à Linus. Chaque fait vient avec 2 paraphrases (le changement doit s'y retrouver) et 2 faits voisins (ils ne doivent pas changer). Il n'y a pas de jeu d'entraînement : seuls 200 paragraphes Wikipédia servent, à estimer la statistique des activations.
+`make run EX=EDIT09` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode `rome`, couche et module édités, réglages de l'optimisation) et prend les 4 faits à modifier dans `commun/donnees.py` : la tour Eiffel passe à Rome, la Joconde à Picasso, l'Everest aux Alpes, Python à Linus. Chaque fait vient avec 2 paraphrases (le changement doit s'y retrouver) et 2 faits voisins (ils ne doivent pas changer). Il n'y a pas de jeu d'entraînement : seuls 200 paragraphes Wikipédia servent, à estimer la statistique des activations.
 
 - **① Téléchargement du modèle.** Au premier lancement, transformers télécharge les poids de Qwen2.5-1.5B (environ 3 Go), un modèle de base et non instruct, puisque les prompts sont des débuts de phrase à compléter.
 - **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.

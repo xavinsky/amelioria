@@ -41,7 +41,7 @@ Toutes les méthodes des dossiers 17 à 20 passent par [`commun/generateur.py`](
 - ✅ **Toujours en premier**, avant tout fine-tuning : c'est gratuit, immédiat et réversible.
 - ✅ Modèles fermés, pas d'accès aux poids.
 - ✅ Tâches qui changent souvent : un prompt se met à jour en quelques minutes.
-- ⚠️ Plafond : le prompting ne donne pas au modèle une compétence qu'il n'a pas, et un long prompt coûte à chaque appel. Si le few-shot demande 20 exemples, un SFT ou une LoRA ([02](../02-fine-tuning-supervise), [03](../03-peft)) devient rentable.
+- ⚠️ Plafond : le prompting ne donne pas au modèle une compétence qu'il n'a pas, et un long prompt coûte à chaque appel. Si le few-shot demande 20 exemples, un SFT ou une LoRA ([DATA02](../02-fine-tuning-supervise), [DATA03](../03-peft)) devient rentable.
 
 ## Composants de l'exemple
 
@@ -80,7 +80,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=17` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, stratégies comparées, nombre d'exemples, réglages de l'optimisation, données) et charge GSM8K depuis le Hugging Face Hub : 500 problèmes d'entraînement, qui servent seulement de réserve d'exemples pour le few-shot, et 260 problèmes de test, coupés en 60 de validation et 200 de test. Aucun poids n'est modifié. Le modèle est chargé en local par défaut ; avec `make run EX=17 API=http://localhost:11434/v1 MODELE=qwen3:8b`, il est servi par une API compatible OpenAI.
+`make run EX=EXEC17` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, stratégies comparées, nombre d'exemples, réglages de l'optimisation, données) et charge GSM8K depuis le Hugging Face Hub : 500 problèmes d'entraînement, qui servent seulement de réserve d'exemples pour le few-shot, et 260 problèmes de test, coupés en 60 de validation et 200 de test. Aucun poids n'est modifié. Le modèle est chargé en local par défaut ; avec `make run EX=EXEC17 API=http://localhost:11434/v1 MODELE=qwen3:8b`, il est servi par une API compatible OpenAI.
 
 - **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-1.5B-Instruct et de l'encodeur all-MiniLM-L6-v2, ainsi que le jeu `openai/gsm8k`, sont téléchargés depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.

@@ -26,7 +26,7 @@ perte = α · T² · KL(softmax(z_enseignant / T) ‖ softmax(z_élève / T))  +
 
 La température T > 1 adoucit les distributions : l'élève apprend aussi quelles *mauvaises* réponses sont presque bonnes (« dark knowledge »). Le mode `on_policy` corrige le principal défaut des deux autres : l'élève, entraîné sur des préfixes écrits par l'enseignant, ne sait pas se rattraper quand il dérive de lui-même à la génération.
 
-Lien avec les données synthétiques ([07](../07-donnees-synthetiques)) : le mode `sequence` est une génération filtrée dont le générateur est un modèle plus fort.
+Lien avec les données synthétiques ([SIGN07](../07-donnees-synthetiques)) : le mode `sequence` est une génération filtrée dont le générateur est un modèle plus fort.
 
 ## Modèles concernés
 
@@ -42,10 +42,10 @@ Lien avec les données synthétiques ([07](../07-donnees-synthetiques)) : le mod
 ## Quand l'utiliser
 
 - ✅ Servir un modèle plus petit avec une qualité proche d'un grand, sur une tâche donnée.
-- ✅ Après un élagage ([16](../16-elagage)) : la distillation est la meilleure cicatrisation.
+- ✅ Après un élagage ([FORM16](../16-elagage)) : la distillation est la meilleure cicatrisation.
 - ✅ Transférer un comportement coûteux à obtenir (raisonnement long, format) d'un modèle entraîné par RL vers un petit modèle.
 - ⚠️ L'élève plafonne sous l'enseignant. Un écart de taille trop grand (×20 et plus) apprend moins bien qu'un enseignant intermédiaire.
-- ❌ Si la quantification ([15](../15-quantification)) suffit à faire tenir le modèle : elle ne demande aucun entraînement.
+- ❌ Si la quantification ([FORM15](../15-quantification)) suffit à faire tenir le modèle : elle ne demande aucun entraînement.
 
 ## Composants de l'exemple
 
@@ -83,7 +83,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=06` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (enseignant, élève, mode `logits`, réglages de la distillation) et génère en mémoire, sans téléchargement, 2 000 problèmes d'arithmétique pour l'entraînement et 200 pour le test, de la forme `(a op b) op c` avec leur solution pas à pas. L'enseignant et l'élève sont de la même famille : même tokenizer, donc mêmes tokens à comparer un par un.
+`make run EX=SIGN06` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (enseignant, élève, mode `logits`, réglages de la distillation) et génère en mémoire, sans téléchargement, 2 000 problèmes d'arithmétique pour l'entraînement et 200 pour le test, de la forme `(a op b) op c` avec leur solution pas à pas. L'enseignant et l'élève sont de la même famille : même tokenizer, donc mêmes tokens à comparer un par un.
 
 - **① Téléchargement.** Au premier lancement, transformers télécharge depuis le Hugging Face Hub, par HTTPS, les poids de l'enseignant Qwen2.5-1.5B-Instruct (environ 3 Go) et de l'élève Qwen2.5-0.5B-Instruct (environ 1 Go).
 - **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
@@ -148,7 +148,7 @@ La variante encodeur entraîne le même élève deux fois, sans enseignant (`alp
 - [`infra/config.yaml`](infra/config.yaml) : logits Llama-3.1-8B-Instruct → Llama-3.2-1B-Instruct sur GSM8K, 1 nœud 8×H100 (l'enseignant est répliqué sur chaque GPU, élève en ZeRO-2).
 - [`infra/lancer.sh`](infra/lancer.sh) documente deux montages :
   - `logits` : `accelerate launch` de `run.py` ;
-  - `sequence` : génération par un enseignant 70B avec vLLM ([`infra/generer_vllm.py`](infra/generer_vllm.py), rejection sampling inclus), puis SFT de l'élève avec l'infra du [02](../02-fine-tuning-supervise/infra). C'est la recette des modèles « DeepSeek-R1-Distill ».
+  - `sequence` : génération par un enseignant 70B avec vLLM ([`infra/generer_vllm.py`](infra/generer_vllm.py), rejection sampling inclus), puis SFT de l'élève avec l'infra du [DATA02](../02-fine-tuning-supervise/infra). C'est la recette des modèles « DeepSeek-R1-Distill ».
 - Enseignant trop gros pour un GPU : pré-calculer les top-k logits hors ligne ([DistillKit](https://github.com/arcee-ai/DistillKit)) ou passer au mode `sequence`.
 - Distillation massive (Minitron, Gemma 2) : NeMo, torchtitan, sur des dizaines à des centaines de milliards de tokens.
 

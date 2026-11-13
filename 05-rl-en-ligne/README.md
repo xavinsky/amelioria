@@ -18,7 +18,7 @@ Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m05) (ce que la
 4. L'**avantage** de chaque réponse est sa récompense moins la moyenne de son groupe (éventuellement divisée par l'écart-type). On n'a donc pas besoin d'un réseau critique comme dans PPO.
 5. Mise à jour de type « policy gradient » avec clipping, et éventuellement une pénalité KL vers le modèle initial.
 
-Contrairement au DPO ([04](../04-optimisation-preferences)), les données sont **générées par le modèle lui-même** pendant l'entraînement (on-policy). Le modèle peut ainsi découvrir des stratégies meilleures que celles des données d'origine. C'est ce qui a produit les modèles de raisonnement (o1, DeepSeek-R1).
+Contrairement au DPO ([SIGN04](../04-optimisation-preferences)), les données sont **générées par le modèle lui-même** pendant l'entraînement (on-policy). Le modèle peut ainsi découvrir des stratégies meilleures que celles des données d'origine. C'est ce qui a produit les modèles de raisonnement (o1, DeepSeek-R1).
 
 **La boucle est la même dans tous les cas, seule la source de récompense change**, d'où le regroupement :
 
@@ -94,7 +94,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=05` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, algorithme `dapo`, source de récompense `regles`, génération, données, réglages) et génère en mémoire, sans téléchargement, 800 prompts d'arithmétique pour l'entraînement et 200 problèmes pour le test, de la forme `(a op b) op c`. Seul le résultat attendu sert pendant le RL : le modèle n'est jamais entraîné sur une solution écrite.
+`make run EX=SIGN05` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, algorithme `dapo`, source de récompense `regles`, génération, données, réglages) et génère en mémoire, sans téléchargement, 800 prompts d'arithmétique pour l'entraînement et 200 problèmes pour le test, de la forme `(a op b) op c`. Seul le résultat attendu sert pendant le RL : le modèle n'est jamais entraîné sur une solution écrite.
 
 - **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-0.5B-Instruct (environ 1 Go, safetensors) depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.

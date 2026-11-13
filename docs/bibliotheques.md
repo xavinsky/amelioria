@@ -55,16 +55,16 @@ Tenseurs sur GPU, différentiation automatique, optimiseurs. Tout le dépôt rep
 | `torch.autocast(device, dtype=torch.bfloat16)` | Précision mixte : poids fp32, calculs en bf16 (boucles manuelles de 03 diffusion et 10) |
 | `torch.nn.functional.cross_entropy` | Perte « prochain token » ou de classification |
 | `torch.nn.functional.log_softmax`, `softmax`, `kl_div` | Distributions de sortie et divergence KL (distillation 06 et 16, ROME 09) |
-| `torch.nn.functional.logsigmoid` | Perte NPO (10) |
+| `torch.nn.functional.logsigmoid` | Perte NPO (EDIT10) |
 | `torch.nn.functional.mse_loss` | Perte de débruitage (03 diffusion) |
 | `torch.nn.functional.cosine_similarity` | Influence d'un bloc (16, suppression de couches) |
 | `torch.optim.AdamW`, `torch.optim.Adam` | Optimiseurs des boucles écrites à la main (06 encodeur, 10, 09, 03 diffusion) |
 | `torch.nn.utils.clip_grad_norm_` | Limiter la norme du gradient |
 | `torch.linalg.inv` | Inverse de la covariance des clés (ROME) |
 | `torch.outer`, `torch.sign`, `torch.arccos`, `torch.sin` | Mise à jour de rang 1 (ROME), élection de signe (TIES), interpolation sphérique (SLERP) |
-| `nn.Module.register_forward_hook`, `register_forward_pre_hook` | Lire ou modifier les activations d'une couche (09, 11, 16) |
+| `nn.Module.register_forward_hook`, `register_forward_pre_hook` | Lire ou modifier les activations d'une couche (EDIT09, EDIT11, FORM16) |
 | `torch.nn.Linear`, `torch.nn.ModuleList` | Reconstruire des couches (réduction de largeur, duplication de couches) |
-| `torch.cuda.memory_allocated`, `synchronize`, `empty_cache` | Mesurer la mémoire et le débit (15) |
+| `torch.cuda.memory_allocated`, `synchronize`, `empty_cache` | Mesurer la mémoire et le débit (FORM15) |
 
 ### NumPy (`numpy` 2.5)
 
@@ -104,18 +104,18 @@ La bibliothèque centrale : architectures, chargement, génération, entraîneme
 | Classe | Rôle |
 |---|---|
 | `AutoTokenizer` | Tokenizer adapté à n'importe quel modèle ; `apply_chat_template` formate une conversation, `add_tokens` ajoute des tokens |
-| `AddedToken` | Token ajouté avec ses options (espace initial, normalisation) (13) |
+| `AddedToken` | Token ajouté avec ses options (espace initial, normalisation) (FORM13) |
 | `AutoConfig` | Lire ou modifier la configuration (ex. `rope_parameters` en 12) |
 | `AutoModelForCausalLM` | LLM décodeur (LLaMA, Qwen, SmolLM...) : la classe la plus utilisée |
-| `AutoModelForSequenceClassification` | Encodeur + tête de classification, et modèle de récompense (05) |
+| `AutoModelForSequenceClassification` | Encodeur + tête de classification, et modèle de récompense (SIGN05) |
 | `AutoModelForMaskedLM` | Encodeur MLM (01 variante) |
 | `AutoModelForSeq2SeqLM` | Encodeur-décodeur T5 (02 variante) |
 | `AutoModelForImageClassification`, `AutoImageProcessor` | ViT et prétraitement d'images (02 vision) |
 | `WhisperForConditionalGeneration`, `WhisperProcessor` | Reconnaissance vocale (02 audio) |
-| `MixtralConfig`, `MixtralForCausalLM` | Architecture MoE cible de l'upcycling (14) |
+| `MixtralConfig`, `MixtralForCausalLM` | Architecture MoE cible de l'upcycling (FORM14) |
 | `BitsAndBytesConfig` | Chargement 4 bits NF4 ou 8 bits (03 QLoRA, 15) |
-| `TorchAoConfig` | Chargement quantifié par torchao (15) |
-| `pipeline("sentiment-analysis")` | Classifieur prêt à l'emploi pour noter le sentiment (11) |
+| `TorchAoConfig` | Chargement quantifié par torchao (FORM15) |
+| `pipeline("sentiment-analysis")` | Classifieur prêt à l'emploi pour noter le sentiment (EDIT11) |
 
 **Méthodes des modèles**
 
@@ -124,7 +124,7 @@ La bibliothèque centrale : architectures, chargement, génération, entraîneme
 | `from_pretrained(nom, dtype=..., device_map=...)` | Charger poids et configuration |
 | `save_pretrained`, `trainer.save_model` | Sauvegarder |
 | `generate(**entrées, max_new_tokens, do_sample, temperature, num_return_sequences)` | Générer du texte token par token avec cache KV |
-| `resize_token_embeddings`, `get_input_embeddings`, `get_output_embeddings`, `tie_weights` | Agrandir et initialiser les matrices d'embedding (13, 14) |
+| `resize_token_embeddings`, `get_input_embeddings`, `get_output_embeddings`, `tie_weights` | Agrandir et initialiser les matrices d'embedding (FORM13, FORM14) |
 | `gradient_checkpointing_enable` | Recalculer les activations au backward pour économiser la mémoire |
 | `get_memory_footprint` | Taille des poids en mémoire |
 
@@ -137,7 +137,7 @@ La bibliothèque centrale : architectures, chargement, génération, entraîneme
 | `DataCollatorForLanguageModeling(mlm=False / True)` | Lots de texte brut : prochain token (CLM) ou tokens masqués (MLM) |
 | `DataCollatorWithPadding`, `DataCollatorForSeq2Seq` | Padding dynamique des lots |
 | `TrainerCallback` | Action à chaque pas (16 : réappliquer les masques d'élagage) |
-| `utils.get_json_schema` | Schéma JSON d'un outil à partir de sa signature et de sa docstring (19) |
+| `utils.get_json_schema` | Schéma JSON d'un outil à partir de sa signature et de sa docstring (EXEC19) |
 
 ### accelerate (1.15)
 
@@ -177,8 +177,8 @@ Entraîneurs spécialisés du post-entraînement, tous construits sur `Trainer`.
 
 | Classe | Rôle |
 |---|---|
-| `SentenceTransformer(nom).encode(textes, normalize_embeddings=True)` | Embeddings de phrases : recherche dense (18), few-shot par similarité (17) |
-| `CrossEncoder(nom).predict(paires)` | Reranker : score précis d'un couple (question, passage) (18) |
+| `SentenceTransformer(nom).encode(textes, normalize_embeddings=True)` | Embeddings de phrases : recherche dense (EXEC18), few-shot par similarité (EXEC17) |
+| `CrossEncoder(nom).predict(paires)` | Reranker : score précis d'un couple (question, passage) (EXEC18) |
 
 ### diffusers (0.40)
 

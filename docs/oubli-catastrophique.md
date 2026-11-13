@@ -8,19 +8,19 @@ Toujours suivre, avant et après, au moins une métrique **hors de la tâche vis
 
 - perplexité sur du texte général : `evaluation.perplexite_generale: true` dans les configs, sur wikitext ;
 - quelques benchmarks généraux : `commun/infra/evaluer_lm_eval.sh` (MMLU, HellaSwag, IFEval) ;
-- exactitude sur les connaissances voisines à préserver (`retenu` en [10](../10-desapprentissage), `specificite` en [09](../09-edition-connaissances)).
+- exactitude sur les connaissances voisines à préserver (`retenu` en [EDIT10](../10-desapprentissage), `specificite` en [EDIT09](../09-edition-connaissances)).
 
 ## Le limiter
 
 | Technique | Principe | Où dans le dépôt |
 |---|---|---|
-| **Replay** | Mélanger 5 à 30 % de données générales aux données du domaine | `donnees.replay_ratio` en [01](../01-pre-entrainement-continu) |
+| **Replay** | Mélanger 5 à 30 % de données générales aux données du domaine | `donnees.replay_ratio` en [DATA01](../01-pre-entrainement-continu) |
 | **LR faible et entraînement court** | Moins de pas, moins de dérive | Toutes les configs `entrainement.lr` |
-| **PEFT (LoRA)** | Les poids d'origine ne bougent pas ; « LoRA learns less and forgets less » | [03](../03-peft) |
-| **Régularisation vers le modèle d'origine** | Pénalité KL (RL, DPO) ou distance aux poids (EWC, L2-SP) | `beta` en [04](../04-optimisation-preferences) et [05](../05-rl-en-ligne) |
-| **Fusion avec l'original** | Interpoler le modèle spécialisé avec l'original (WiSE-FT) | [08](../08-fusion-modeles), méthode `lineaire` ou `slerp` |
-| **Expansion de blocs** | Ajouter des couches entraînables et geler les couches d'origine | `expansion_blocs` en [14](../14-croissance-architecture) |
-| **Ne pas toucher aux poids** | RAG, outils, prompts | [17](../17-optimisation-prompt) à [20](../20-calcul-inference) |
+| **PEFT (LoRA)** | Les poids d'origine ne bougent pas ; « LoRA learns less and forgets less » | [DATA03](../03-peft) |
+| **Régularisation vers le modèle d'origine** | Pénalité KL (RL, DPO) ou distance aux poids (EWC, L2-SP) | `beta` en [SIGN04](../04-optimisation-preferences) et [SIGN05](../05-rl-en-ligne) |
+| **Fusion avec l'original** | Interpoler le modèle spécialisé avec l'original (WiSE-FT) | [EDIT08](../08-fusion-modeles), méthode `lineaire` ou `slerp` |
+| **Expansion de blocs** | Ajouter des couches entraînables et geler les couches d'origine | `expansion_blocs` en [FORM14](../14-croissance-architecture) |
+| **Ne pas toucher aux poids** | RAG, outils, prompts | [EXEC17](../17-optimisation-prompt) à [EXEC20](../20-calcul-inference) |
 
 ## EWC en quelques lignes
 

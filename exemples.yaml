@@ -48,21 +48,28 @@ contraintes:
     verificateur: réponses vérifiables
   remelange: remélanger du général
 
+# code : 4 lettres lisibles en anglais comme en français ; une méthode est désignée par le code de sa
+# catégorie suivi de son numéro (SIGN05), accepté aussi par EX= dans les commandes make.
 categories:
   - id: donnees
+    code: DATA
     titre: Apprendre à partir de données
     resume: Entraîner les poids sur des exemples, texte brut ou paires question/réponse.
   - id: signal
+    code: SIGN
     titre: Apprendre à partir d'un signal
     resume: Apprendre d'un jugement, d'une récompense, d'un enseignant ou de ses propres sorties filtrées.
   - id: chirurgie
+    code: EDIT
     titre: Chirurgie du modèle
     resume: Combiner des modèles, corriger, effacer ou orienter un savoir ou un comportement précis.
   - id: remodeler
+    code: FORM
     titre: "Remodeler : étendre ou compresser"
     resume: Changer la forme du modèle (fenêtre de contexte, vocabulaire, couches, précision, taille).
   - id: inference
-    titre: Sans toucher aux poids
+    code: EXEC
+    titre: "À l'exécution, sans toucher aux poids"
     resume: Améliorer le résultat autour du modèle ; fonctionne aussi avec un modèle fermé via API.
 
 methodes:

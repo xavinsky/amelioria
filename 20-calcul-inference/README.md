@@ -23,7 +23,7 @@ Un modèle qui se trompe une fois sur deux en génération gloutonne produit sou
 
 Les stratégies de sélection partagent **les mêmes N échantillons**. La courbe `vote_majoritaire.courbe` (N = 1, 2, 4, 8, 16) montre la loi d'échelle : le gain rapide des premiers échantillons, puis le plateau.
 
-Les **modèles de raisonnement** (o1/o3, DeepSeek-R1, Qwen3 en mode thinking) intègrent cette idée dans les poids : entraînés par RL ([05](../05-rl-en-ligne)), ils génèrent eux-mêmes une longue réflexion avec vérifications et retours en arrière. Le « budget de réflexion » (nombre maximal de tokens) devient un réglage de calcul à l'inférence.
+Les **modèles de raisonnement** (o1/o3, DeepSeek-R1, Qwen3 en mode thinking) intègrent cette idée dans les poids : entraînés par RL ([SIGN05](../05-rl-en-ligne)), ils génèrent eux-mêmes une longue réflexion avec vérifications et retours en arrière. Le « budget de réflexion » (nombre maximal de tokens) devient un réglage de calcul à l'inférence.
 
 ## Modèles concernés
 
@@ -40,7 +40,7 @@ Les **modèles de raisonnement** (o1/o3, DeepSeek-R1, Qwen3 en mode thinking) in
 
 - ✅ Tâches à réponse vérifiable ou comparable (maths, code, QCM, extraction).
 - ✅ Quand la latence et le coût par requête sont acceptables : N générations coûtent environ N fois plus.
-- ✅ Pour mesurer le **potentiel** d'un modèle avant de l'entraîner : un écart important entre `glouton` et `oracle_pass_a_N` indique un modèle qui gagnera beaucoup avec du RL ou du rejection sampling ([05](../05-rl-en-ligne), [07](../07-donnees-synthetiques)).
+- ✅ Pour mesurer le **potentiel** d'un modèle avant de l'entraîner : un écart important entre `glouton` et `oracle_pass_a_N` indique un modèle qui gagnera beaucoup avec du RL ou du rejection sampling ([SIGN05](../05-rl-en-ligne), [SIGN07](../07-donnees-synthetiques)).
 - ❌ Réponses ouvertes non comparables (rédaction) : le vote ne s'applique pas, il faut un juge ou un RM.
 
 ## Composants de l'exemple
@@ -80,7 +80,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=20` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, stratégies, nombre d'échantillons, température, modèle de récompense, données) et charge 100 problèmes du test de GSM8K depuis le Hugging Face Hub. Toutes les stratégies partagent les mêmes 16 échantillons par question, pour être comparées à coût égal. Aucun poids n'est modifié. Le modèle est chargé en local par défaut ; avec `make run EX=20 API=http://localhost:11434/v1 MODELE=qwen3:8b`, il est servi par une API compatible OpenAI.
+`make run EX=EXEC20` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, stratégies, nombre d'échantillons, température, modèle de récompense, données) et charge 100 problèmes du test de GSM8K depuis le Hugging Face Hub. Toutes les stratégies partagent les mêmes 16 échantillons par question, pour être comparées à coût égal. Aucun poids n'est modifié. Le modèle est chargé en local par défaut ; avec `make run EX=EXEC20 API=http://localhost:11434/v1 MODELE=qwen3:8b`, il est servi par une API compatible OpenAI.
 
 - **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-1.5B-Instruct et du modèle de récompense Skywork-Reward-V2-Qwen3-0.6B, ainsi que le jeu `openai/gsm8k`, sont téléchargés depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.

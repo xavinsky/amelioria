@@ -31,7 +31,7 @@ Choix d'une variante d'algorithme : toujours par la config (`--set methode=...`,
 
 | Section | Contenu |
 |---|---|
-| `modele` | `nom` (id Hugging Face ou dossier local), `dtype`, `api_base` pour les méthodes 17 à 20 |
+| `modele` | `nom` (id Hugging Face ou dossier local), `dtype`, `api_base` pour les méthodes EXEC17 à EXEC20 |
 | `donnees` | `source` (`arith`, `faits`, `gsm8k`, `hf`...), tailles, `graine` |
 | `entrainement` | Clés courtes traduites en `TrainingArguments` : `lr`, `epochs`, `max_steps`, `batch`, `accumulation`, `warmup`, `scheduler`, `gradient_checkpointing` (désactivé si absent, alors que les configs TRL l'activent par défaut), `optim` (ex. `adamw_bnb_8bit`), `logging_steps`, `autres: {...}` pour tout le reste |
 | `evaluation` | `mode` (`nombre` ou `contient`), `n`, `max_new_tokens`, `perplexite_generale`, `activer` |

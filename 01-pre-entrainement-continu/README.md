@@ -18,14 +18,14 @@ Trois réglages font la différence :
 - **Replay** : on mélange 5 à 30 % de texte général au corpus du domaine. Sans ça, l'oubli catastrophique est quasi certain (voir [docs/oubli-catastrophique.md](../docs/oubli-catastrophique.md)).
 - **Diversité des formulations** : un fait vu sous une seule formulation est mémorisé mais rarement réutilisable en question-réponse. D'où plusieurs paraphrases par fait dans l'exemple.
 
-Le pré-entraînement continu est en général suivi d'un SFT ([02](../02-fine-tuning-supervise)) pour récupérer le comportement d'assistant.
+Le pré-entraînement continu est en général suivi d'un SFT ([DATA02](../02-fine-tuning-supervise)) pour récupérer le comportement d'assistant.
 
 ## Modèles concernés
 
 | Type de modèle | Applicable | Remarques |
 |---|---|---|
 | LLM décodeur de base (LLaMA, Qwen, Mistral, Gemma, Phi, GPT-2, SmolLM...) | ✅ cas principal | `run.py`, tout `AutoModelForCausalLM` |
-| LLM instruct / chat | ⚠️ | Fonctionne, mais le format de chat se dégrade. Préférer : base -> pré-entraînement continu -> SFT, ou fusionner ensuite avec l'instruct ([08](../08-fusion-modeles)) |
+| LLM instruct / chat | ⚠️ | Fonctionne, mais le format de chat se dégrade. Préférer : base -> pré-entraînement continu -> SFT, ou fusionner ensuite avec l'instruct ([EDIT08](../08-fusion-modeles)) |
 | Encodeur (BERT, RoBERTa, DeBERTa, CamemBERT) | ✅ | [`variantes/mlm-encodeur`](variantes/mlm-encodeur) : objectif MLM |
 | Encodeur-décodeur (T5, BART) | ✅ | Même idée avec l'objectif de débruitage d'origine (span corruption) |
 | Vision (ViT, DINOv2) / audio (wav2vec2) | ✅ | Objectifs auto-supervisés d'origine (MAE, DINO, contrastif) sur images ou sons du domaine |
@@ -36,8 +36,8 @@ Le pré-entraînement continu est en général suivi d'un SFT ([02](../02-fine-t
 
 - ✅ Le domaine a un vocabulaire et une distribution de texte très différents du web (biomédical, juridique, langue rare, code propriétaire).
 - ✅ Vous avez beaucoup de texte brut non annoté : de 10 M à plusieurs dizaines de milliards de tokens.
-- ❌ Pour des connaissances qui changent souvent ou doivent être citées : préférer le RAG ([18](../18-rag)).
-- ❌ Pour changer un format ou un comportement : préférer le SFT ([02](../02-fine-tuning-supervise)) ou LoRA ([03](../03-peft)).
+- ❌ Pour des connaissances qui changent souvent ou doivent être citées : préférer le RAG ([EXEC18](../18-rag)).
+- ❌ Pour changer un format ou un comportement : préférer le SFT ([DATA02](../02-fine-tuning-supervise)) ou LoRA ([DATA03](../03-peft)).
 
 ## Composants de l'exemple
 
@@ -75,7 +75,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=01` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle de base, données, réglages) et génère en mémoire, sans téléchargement, une base de 40 personnages fictifs décrits chacun par 4 phrases de formulations différentes : 3 servent à l'entraînement, la 4e est gardée pour mesurer la perplexité du domaine. Le texte général (paragraphes Wikipédia de wikitext-2) vient du Hub.
+`make run EX=DATA01` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle de base, données, réglages) et génère en mémoire, sans téléchargement, une base de 40 personnages fictifs décrits chacun par 4 phrases de formulations différentes : 3 servent à l'entraînement, la 4e est gardée pour mesurer la perplexité du domaine. Le texte général (paragraphes Wikipédia de wikitext-2) vient du Hub.
 
 - **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-0.5B (environ 1 Go, safetensors) et `datasets` télécharge wikitext-2 (7,5 Mo, fichiers parquet), depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
@@ -147,7 +147,7 @@ Pré-entraînement continu impossible en local au-delà de ~1,5B de paramètres 
 ## Pièges
 
 - **Oubli catastrophique** : suivre `perplexite_generale`, garder du replay.
-- **Tokenizer inadapté** : une langue ou un domaine mal découpés en tokens coûtent cher et apprennent mal. Voir l'extension de vocabulaire ([13](../13-extension-vocabulaire)).
+- **Tokenizer inadapté** : une langue ou un domaine mal découpés en tokens coûtent cher et apprennent mal. Voir l'extension de vocabulaire ([FORM13](../13-extension-vocabulaire)).
 - **Re-warmup** : repartir avec le lr maximal provoque un pic de perte. Un warmup court suffit.
 - **Qualité des données** : dédupliquer et filtrer le corpus compte plus que sa taille.
 

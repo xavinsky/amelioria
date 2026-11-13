@@ -35,7 +35,7 @@ Mesures : exactitude sans outils, exactitude avec outils, nombre moyen d'appels.
 |---|---|---|
 | LLM instruct entraînés au tool calling (Qwen2.5/3, Llama 3.1+, Mistral, Hermes, GLM, DeepSeek) | ✅ cas principal | Le chat template doit accepter `tools` |
 | LLM fermés via API (GPT, Claude, Gemini) | ✅ | `modele.api_base` |
-| Petits modèles (< 3B) ou sans entraînement aux outils | ⚠️ | Appels mal formés. Solution : SFT sur des traces d'appels ([02](../02-fine-tuning-supervise), [03](../03-peft)) ou génération contrainte (JSON schema) |
+| Petits modèles (< 3B) ou sans entraînement aux outils | ⚠️ | Appels mal formés. Solution : SFT sur des traces d'appels ([DATA02](../02-fine-tuning-supervise), [DATA03](../03-peft)) ou génération contrainte (JSON schema) |
 | Multimodal | ✅ | Agents « computer use » : captures d'écran en entrée, actions en sortie |
 | Encodeurs, diffusion | ❌ | Pas de boucle de décision. Ils peuvent en revanche *être* des outils |
 
@@ -80,7 +80,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=19` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, consignes système, nombre maximal de tours, données) et génère en mémoire, sans téléchargement, 30 personnages inventés et 60 questions qui exigent un outil : une sur deux est un gros calcul (`What is a * b + c?`), l'autre demande l'écart entre l'année de naissance d'un personnage et 2024. Deux outils sont de simples fonctions Python : `calculer`, qui évalue une expression arithmétique, et `chercher_fiche`, qui renvoie la fiche d'un personnage. Aucun poids n'est modifié. Le modèle est chargé en local par défaut ; avec `make run EX=19 API=http://localhost:11434/v1 MODELE=qwen3:8b`, il est servi par une API compatible OpenAI.
+`make run EX=EXEC19` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, consignes système, nombre maximal de tours, données) et génère en mémoire, sans téléchargement, 30 personnages inventés et 60 questions qui exigent un outil : une sur deux est un gros calcul (`What is a * b + c?`), l'autre demande l'écart entre l'année de naissance d'un personnage et 2024. Deux outils sont de simples fonctions Python : `calculer`, qui évalue une expression arithmétique, et `chercher_fiche`, qui renvoie la fiche d'un personnage. Aucun poids n'est modifié. Le modèle est chargé en local par défaut ; avec `make run EX=EXEC19 API=http://localhost:11434/v1 MODELE=qwen3:8b`, il est servi par une API compatible OpenAI.
 
 - **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-3B-Instruct depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
@@ -125,7 +125,7 @@ Pour aller plus loin en local (agents complets, Ollama, Hermes Agent, frameworks
 ## Grosse infra
 
 - [`infra/lancer.sh`](infra/lancer.sh) : Qwen2.5-72B servi par vLLM avec analyse native des appels (`--enable-auto-tool-choice --tool-call-parser hermes`), puis `run.py` en mode API ([`infra/config.yaml`](infra/config.yaml)).
-- **Améliorer le modèle lui-même** pour les outils : SFT sur traces d'appels réussis, puis **RL multi-tours** avec récompense de réussite de la tâche. `GRPOTrainer(tools=..., environment_factory=...)` du dossier [05](../05-rl-en-ligne), verl, SkyRL.
+- **Améliorer le modèle lui-même** pour les outils : SFT sur traces d'appels réussis, puis **RL multi-tours** avec récompense de réussite de la tâche. `GRPOTrainer(tools=..., environment_factory=...)` du dossier [SIGN05](../05-rl-en-ligne), verl, SkyRL.
 
 ## Pièges
 

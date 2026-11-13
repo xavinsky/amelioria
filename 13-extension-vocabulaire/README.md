@@ -21,7 +21,7 @@ Un tokenizer entraîné sur du web anglais découpe mal un nom propre inventé, 
 1. **Choisir les tokens** : mots fréquents dans le corpus qui coûtent plusieurs tokens, classés par nombre de tokens économisés. Ou une liste explicite.
 2. **Agrandir** : `resize_token_embeddings`. **Initialiser** chaque nouvel embedding à la *moyenne des embeddings de ses anciens sous-tokens*. Le modèle « comprend » ainsi déjà à peu près le nouveau token avant tout entraînement : la perte de départ est bien plus basse qu'avec une initialisation aléatoire (`vocabulaire.init=aleatoire` pour comparer).
 3. **Phase 1** : n'entraîner que les embeddings d'entrée et de sortie, à lr élevé. Le reste du réseau, gelé, n'est pas perturbé par des vecteurs encore mal placés.
-4. **Phase 2** : entraînement complet à lr faible. En pratique, c'est un pré-entraînement continu ([01](../01-pre-entrainement-continu)).
+4. **Phase 2** : entraînement complet à lr faible. En pratique, c'est un pré-entraînement continu ([DATA01](../01-pre-entrainement-continu)).
 
 Mesures **comparables entre tokenizers** :
 
@@ -90,7 +90,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=13` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, nombre de tokens à ajouter, initialisation, réglages des deux phases) et génère en mémoire, sans téléchargement, 80 personnages fictifs aux noms inventés, décrits chacun par 4 courtes notices : 320 textes. Un texte sur cinq est mis de côté pour la mesure (64 textes), les 256 autres servent à l'entraînement.
+`make run EX=FORM13` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, nombre de tokens à ajouter, initialisation, réglages des deux phases) et génère en mémoire, sans téléchargement, 80 personnages fictifs aux noms inventés, décrits chacun par 4 courtes notices : 320 textes. Un texte sur cinq est mis de côté pour la mesure (64 textes), les 256 autres servent à l'entraînement.
 
 - **① Téléchargement.** Au premier lancement, transformers télécharge le tokenizer et les poids de Qwen2.5-0.5B, modèle de base (environ 1 Go, safetensors), depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
@@ -161,7 +161,7 @@ Sur une base de 80 personnages fictifs aux noms inventés, très mal découpés 
 - **Embeddings liés** : sur Qwen2.5-0.5B, l'entrée et la sortie partagent la même matrice. Ne pas l'initialiser deux fois.
 - **Espaces et added tokens** : un added token est extrait avant le BPE, y compris au milieu d'un mot plus long. Sans son espace initial, il laisse un token « espace » isolé devant chaque occurrence : `run.py` ajoute `AddedToken(" mot", normalized=False)`. Vérifier le découpage de « le mot » et de « lemot ».
 - **Phase 1 sautée** : des gradients énormes sur des vecteurs mal placés déstabilisent tout le réseau.
-- **Compatibilité** : un modèle au vocabulaire modifié n'est plus fusionnable avec ses « frères » ([08](../08-fusion-modeles)) ni utilisable en décodage spéculatif avec le draft d'origine.
+- **Compatibilité** : un modèle au vocabulaire modifié n'est plus fusionnable avec ses « frères » ([EDIT08](../08-fusion-modeles)) ni utilisable en décodage spéculatif avec le draft d'origine.
 
 ## Références
 

@@ -81,7 +81,7 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=10` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, données, implantation, désapprentissage, évaluation) et génère en mémoire, sans téléchargement, 40 personnages fictifs aux noms inventés, avec 4 questions chacun (ville, année de naissance, métier, création) : 160 questions. 10 % des personnages, soit 4 personnages et 16 questions, sont tirés pour être oubliés ; les 144 autres questions sont à retenir.
+`make run EX=EDIT10` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, données, implantation, désapprentissage, évaluation) et génère en mémoire, sans téléchargement, 40 personnages fictifs aux noms inventés, avec 4 questions chacun (ville, année de naissance, métier, création) : 160 questions. 10 % des personnages, soit 4 personnages et 16 questions, sont tirés pour être oubliés ; les 144 autres questions sont à retenir.
 
 - **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-0.5B-Instruct (environ 1 Go, safetensors) depuis le Hugging Face Hub, par HTTPS. À la première mesure, la bibliothèque datasets télécharge aussi wikitext-2, qui sert à la perplexité générale.
 - **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
