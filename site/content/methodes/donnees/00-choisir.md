@@ -24,7 +24,7 @@ Les trois méthodes de cette catégorie font la même chose : elles **ajustent l
 
 Des documents du domaine, sans questions ni réponses : rapports, contrats, articles médicaux, textes dans une langue mal couverte. Le [pré-entraînement continu](#pre-entrainement-continu) reprend l'entraînement du modèle sur ce texte pour qu'il en apprenne le vocabulaire et le style.
 
-C'est la méthode la plus coûteuse de la catégorie : il faut beaucoup de texte (des dizaines de millions de tokens au moins) et plusieurs GPU pendant des jours. Elle rend le modèle plus à l'aise dans le domaine, mais **ne le rend pas capable de répondre à des questions sur ce texte** : l'exemple du dépôt le montre, la perplexité du domaine s'effondre sans que le modèle sache restituer les faits appris. On la fait donc suivre d'un entraînement sur la tâche visée.
+C'est la méthode la plus coûteuse de la catégorie : il faut beaucoup de texte (des dizaines de millions de tokens au moins) et plusieurs GPU pendant des jours. Elle rend le modèle plus à l'aise dans le domaine, mais **ne le rend pas capable de répondre à des questions sur ce texte** : l'exemple de code le montre, la perplexité du domaine s'effondre sans que le modèle sache restituer les faits appris. On la fait donc suivre d'un entraînement sur la tâche visée.
 
 ## Vous avez des exemples entrée → sortie : LoRA d'abord
 

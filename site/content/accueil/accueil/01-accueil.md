@@ -16,7 +16,7 @@ Vous avez un modèle d'IA, ouvert ou accessible par API, et il ne fait pas tout 
 ## Ce que propose le site
 
 - **[Choisir une méthode](#choisir-une-methode)** : un arbre de décision qui part de ce qui ne va pas, puis six cas détaillés. Chaque méthode y affiche son coût (calcul, temps) et ses contraintes (accès au modèle, données à fournir).
-- **[Les méthodes](#choisir-data)** : {{methodes}} méthodes rangées en {{categories}} catégories, de l'entraînement sur vos données jusqu'aux améliorations qui ne touchent pas aux poids. Pour chacune, une page qui explique le concept et ses références, et une page qui décrit l'exemple du dépôt : composants, étapes, résultats mesurés, commandes.
+- **[Les méthodes](#choisir-data)** : {{methodes}} méthodes rangées en {{categories}} catégories, de l'entraînement sur vos données jusqu'aux améliorations qui ne touchent pas aux poids. Pour chacune, une page qui explique le concept et ses références, et une page qui décrit l'exemple de code : composants, étapes, résultats mesurés, commandes.
 - **[Le code](#installer)** : un dépôt où chaque méthode a un exemple exécutable sur un seul GPU de 12 Go, avec les mêmes commandes partout (`make test`, `make run`).
 - **[Le lexique](#lexique)** : les sigles et les noms de modèles, d'algorithmes et d'outils cités.
 

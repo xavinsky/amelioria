@@ -29,7 +29,7 @@ En tête de chaque catégorie, une page écrite à la main, `content/methodes/<c
 | Page | Contenu | Source |
 |---|---|---|
 | Concept (`#<id>`) | Introduction, repères (catégorie, coûts, contraintes), Principe, Modèles concernés, Quand l'utiliser, Pièges, Références | `NN-…/README.md` (citation d'introduction et sections du même nom), `exemples.yaml`, section de la méthode dans `docs/references.md` |
-| Exemple du dépôt (`#<id>-exemple`) | Ce que fait l'exemple, statut et résultats, commandes `make`, Utilisation, Paramètres principaux, Grosse infra | `NN-…/README.md`, `exemples.yaml` |
+| Exemple de code (`#<id>-exemple`) | Ce que fait l'exemple, statut et résultats, commandes `make`, Utilisation, Paramètres principaux, Grosse infra | `NN-…/README.md`, `exemples.yaml` |
 
 L'`id` est le nom du dossier sans son numéro (`peft`, `rag`), sauf s'il est fixé dans `NN-…/fiche.yaml`. Ce fichier facultatif, propre au site, donne aussi `aka` (autre nom de la méthode) et `schema` (schéma d'intégration, format de la docstring de `build/schema.py`).
 

@@ -1,5 +1,5 @@
 """Pages de méthode générées depuis le dépôt : pour chaque méthode, une page « Concept » et une page
-« Exemple du dépôt », tirées du README.md de son dossier.
+« Exemple de code », tirées du README.md de son dossier.
 
 Source unique du texte : le README du dossier, dont toutes les sections ont les mêmes titres.
   Concept : citation d'introduction, Principe, Modèles concernés, Quand l'utiliser, Pièges, puis les
@@ -116,7 +116,7 @@ class Generateur:
                        + self.sections(readme, CONCEPT, m["dossier"])
                        + (f"\n\n## Références\n\n{refs}" if refs else "")
                        + f"\n\n## Dans le dépôt\n\nExemple, résultats mesurés et commandes : "
-                       f"[{m['titre']} : exemple du dépôt](#{ident}-exemple).\n")
+                       f"[{m['titre']} : exemple de code](#{ident}-exemple).\n")
             exemple = (f"Ce que le dossier `{m['dossier']}/` fournit pour cette méthode. Principe et références : "
                        f"[{m['titre']}](#{ident}).\n\n"
                        + self.sections(readme, ["Ce que fait l'exemple", "Composants de l'exemple"], m["dossier"])
@@ -125,7 +125,7 @@ class Generateur:
             base = {"subgroup": f"{self.depot.ident(num)} · {m['titre']}", "aka": extra.get("aka")}
             sortie.append((chemin, {**base, "title": m["titre"], "nav": "Concept", "id": ident,
                                     "schema": extra.get("schema"), "description": intro}, concept))
-            sortie.append((chemin, {**base, "title": f"Exemple du dépôt : {m['titre']}", "nav": "Exemple du dépôt",
+            sortie.append((chemin, {**base, "title": f"Exemple de code : {m['titre']}", "nav": "Exemple de code",
                                     "id": f"{ident}-exemple",
                                     "description": f"{m['titre']} : l'exemple exécutable du dépôt, son statut, "
                                                    "ses résultats mesurés et ses commandes."}, exemple))

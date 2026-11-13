@@ -4,7 +4,7 @@ id: statut-des-exemples
 catalogue: true
 ---
 
-Chaque exemple du dépôt porte un statut honnête. Un exemple **démontré** traite un besoin réel, part d'un modèle qui échoue sur ce besoin, et mesure un gain net dans les mêmes conditions avant et après. Un exemple **non prouvé** s'exécute, mais son résultat ne montre pas encore le gain de la méthode : la raison est écrite à côté. Les versions grosse infra (dossiers `infra/`) n'ont jamais été exécutées.
+Chaque exemple de code porte un statut honnête. Un exemple **démontré** traite un besoin réel, part d'un modèle qui échoue sur ce besoin, et mesure un gain net dans les mêmes conditions avant et après. Un exemple **non prouvé** s'exécute, mais son résultat ne montre pas encore le gain de la méthode : la raison est écrite à côté. Les versions grosse infra (dossiers `infra/`) n'ont jamais été exécutées.
 
 ## Ce qu'exige une preuve
 

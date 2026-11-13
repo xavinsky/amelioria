@@ -122,7 +122,7 @@ class Catalogue:
                 + (f"- **Contre l'oubli** : <span class=\"contrainte\">{self.picto('remelange', True)} "
                    f"{esc(self.contraintes['remelange'])}</span>\n" if m.get("remelange") else "")
                 + 
-                f"- **GPU local 12 Go** (exemple du dépôt) : {m['local']}\n"
+                f"- **GPU local 12 Go** (exemple de code) : {m['local']}\n"
                 f"- **Dossier du dépôt** : `{m['dossier']}/`\n")
 
     def essayer(self, num, source):
@@ -166,7 +166,7 @@ class Catalogue:
         return "\n\n".join(blocs) + "\n"
 
     def comparatif(self, cat_id):
-        """Tableau des méthodes d'une catégorie : coût, contraintes et statut des exemples du dépôt."""
+        """Tableau des méthodes d'une catégorie : coût, contraintes et statut des exemples de code."""
         if cat_id not in self.categories:
             raise ValueError(f"comparatif : catégorie « {cat_id} » absente de exemples.yaml")
         lignes = []
@@ -179,7 +179,7 @@ class Catalogue:
                         self.contrainte(num, "donnees"), oubli, statuts]
             # Une ligne de tableau Markdown tient sur une ligne : les SVG inline sont mis à plat
             lignes.append("| " + " | ".join(" ".join(c.split()) for c in cellules) + " |")
-        return ("| Méthode | Calcul | Temps | Données à fournir | Remélanger du général | Exemples du dépôt |\n"
+        return ("| Méthode | Calcul | Temps | Données à fournir | Remélanger du général | Exemples de code |\n"
                 "|---|---|---|---|---|---|\n" + "\n".join(lignes)
                 + f"\n\nCalcul et temps : {self.couts['hypothese']}. Statuts des exemples : "
                 "[Statut des exemples](#statut-des-exemples).\n")

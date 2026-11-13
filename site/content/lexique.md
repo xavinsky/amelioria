@@ -156,7 +156,7 @@ Modèle qui lit ensemble une question et un passage pour noter leur pertinence :
 
 ## CUDA
 
-Plateforme de calcul des GPU NVIDIA. PyTorch y envoie des « noyaux », petits programmes qui font les multiplications de matrices sur le GPU. Voir [PEFT, exemple du dépôt](#peft-exemple).
+Plateforme de calcul des GPU NVIDIA. PyTorch y envoie des « noyaux », petits programmes qui font les multiplications de matrices sur le GPU. Voir [PEFT, exemple de code](#peft-exemple).
 
 ## DAPO
 
@@ -268,7 +268,7 @@ Génération de données synthétiques qui complexifie pas à pas des instructio
 
 ## Exactitude
 
-Part des réponses justes sur un jeu de test. Les exemples du dépôt l'affichent avant et après la méthode. Voir [Statut des exemples](#statut-des-exemples).
+Part des réponses justes sur un jeu de test. Les exemples de code l'affichent avant et après la méthode. Voir [Statut des exemples](#statut-des-exemples).
 
 ## Falcon, OPT, BLOOM, MPT
 
@@ -296,7 +296,7 @@ Modèle ouvert de génération d'images de Black Forest Labs, à base de transfo
 
 ## Forward, backward
 
-Passe avant (calcul de la sortie à partir de l'entrée) et passe arrière (calcul des gradients de la perte par rapport aux poids). Un pas d'entraînement fait les deux. Voir [PEFT, exemple du dépôt](#peft-exemple).
+Passe avant (calcul de la sortie à partir de l'entrée) et passe arrière (calcul des gradients de la perte par rapport aux poids). Un pas d'entraînement fait les deux. Voir [PEFT, exemple de code](#peft-exemple).
 
 ## FP8
 
@@ -348,7 +348,7 @@ Quantification calibrée qui corrige les erreurs d'arrondi colonne par colonne �
 
 ## GPU
 
-Processeur graphique, fait pour les calculs massivement parallèles : c'est lui qui exécute les modèles. Sa mémoire (12 Go sur le poste de référence) limite la taille des modèles utilisables. Voir [PEFT, exemple du dépôt](#peft-exemple).
+Processeur graphique, fait pour les calculs massivement parallèles : c'est lui qui exécute les modèles. Sa mémoire (12 Go sur le poste de référence) limite la taille des modèles utilisables. Voir [PEFT, exemple de code](#peft-exemple).
 
 ## GQA
 
@@ -384,7 +384,7 @@ Fonction branchée sur une couche d'un modèle PyTorch, appelée à chaque passe
 
 ## Hugging Face Hub
 
-Plateforme qui héberge modèles et jeux de données ; transformers y télécharge les poids au premier lancement, puis les garde en cache. Voir [PEFT, exemple du dépôt](#peft-exemple).
+Plateforme qui héberge modèles et jeux de données ; transformers y télécharge les poids au premier lancement, puis les garde en cache. Voir [PEFT, exemple de code](#peft-exemple).
 
 ## IA³
 
@@ -672,7 +672,7 @@ Stocker les poids (et parfois les activations) sur 8, 4 ou 3 bits au lieu de 16.
 
 ## Qwen
 
-Famille de modèles ouverts d'Alibaba (Qwen2.5, Qwen3), de 0,5 à plus de 200 milliards de paramètres, déclinée en versions code (Coder), maths (Math) et vision (VL). Modèles principaux des exemples du dépôt. Voir [Fusion de modèles](#fusion-modeles).
+Famille de modèles ouverts d'Alibaba (Qwen2.5, Qwen3), de 0,5 à plus de 200 milliards de paramètres, déclinée en versions code (Coder), maths (Math) et vision (VL). Modèles principaux des exemples de code. Voir [Fusion de modèles](#fusion-modeles).
 
 ## Qwen-VL
 
@@ -772,7 +772,7 @@ Sparse autoencoder : décompose les activations d'un modèle en de nombreux conc
 
 ## Safetensors
 
-Format de fichier des poids de modèle, rapide à charger et sans exécution de code, standard du Hugging Face Hub. Voir [PEFT, exemple du dépôt](#peft-exemple).
+Format de fichier des poids de modèle, rapide à charger et sans exécution de code, standard du Hugging Face Hub. Voir [PEFT, exemple de code](#peft-exemple).
 
 ## SCRUB
 
@@ -908,7 +908,7 @@ Classe de transformers qui gère la boucle d'entraînement (lots, optimiseur, sa
 
 ## transformers
 
-Bibliothèque Hugging Face qui charge, exécute et entraîne la plupart des modèles du Hub. Voir [PEFT, exemple du dépôt](#peft-exemple).
+Bibliothèque Hugging Face qui charge, exécute et entraîne la plupart des modèles du Hub. Voir [PEFT, exemple de code](#peft-exemple).
 
 ## TRL
 
@@ -984,7 +984,7 @@ Corpus d'articles Wikipédia en anglais, utilisé dans le dépôt pour mesurer l
 
 ## Wilson (intervalle de)
 
-Intervalle de confiance d'un taux de réussite mesuré sur n questions ; il reste juste près de 0 et de 1. Les exemples du dépôt l'affichent à côté de chaque exactitude. Voir [Statut des exemples](#statut-des-exemples).
+Intervalle de confiance d'un taux de réussite mesuré sur n questions ; il reste juste près de 0 et de 1. Les exemples de code l'affichent à côté de chaque exactitude. Voir [Statut des exemples](#statut-des-exemples).
 
 ## WMDP
 
