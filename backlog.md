@@ -28,8 +28,8 @@ Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et
 
 ## 2. Outils de preuve (socle)
 
-- [ ] `evaluation.exactitude` : intervalle de confiance à 95 % (Wilson) dans `resultats.json` et le tableau.
-- [ ] Option de répétition sur plusieurs graines (moyenne ± écart) pour les entraînements courts.
+- [x] Intervalle de confiance à 95 % (Wilson) et comparaisons appariées (bootstrap, McNemar) dans `resultats.json` et le tableau (`commun/preuve.py`).
+- [x] Répétition sur plusieurs graines : `make graines` (moyenne ± écart type).
 - [ ] Témoin intégré là où l'effet peut avoir une autre cause (13, 14).
 
 ## 3. Refondre les exemples sur de vrais besoins

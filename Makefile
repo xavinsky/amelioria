@@ -20,6 +20,8 @@ API ?=
 MODELE ?=
 CUDA ?=
 EXTRAS ?=
+N ?= 3
+QUICK ?=
 # Préfixe de lancement facultatif (ex. LANCEUR="nice -n 10" ou un gestionnaire de file GPU).
 LANCEUR ?=
 
@@ -35,7 +37,7 @@ PY_EXEMPLE := $(if $(filter methode=gptq methode=awq,$(SET)),$(PY_GPTQ),$(PY))
 ARGS_SET := $(foreach s,$(SET),--set $(s)) $(if $(API),--set modele.api_base=$(API)) $(if $(MODELE),--set modele.nom=$(MODELE))
 ARGS_VERIF := $(foreach s,$(SET),--set $(s)) $(if $(API),--api $(API))
 
-.PHONY: help install install-gptq install-llamacpp liste readme site verifier test run selecteurs smoke complet
+.PHONY: help install install-gptq install-llamacpp liste readme site verifier test run graines selecteurs smoke complet
 
 help: ## cette aide
 	@echo "AmeliorIA — améliorer un modèle d'IA sans le réentraîner de zéro"
@@ -90,6 +92,11 @@ run: | $(PY) ## exemple complet (config.yaml), résultats dans sorties/
 	@$(PY) scripts/catalogue.py verifier "$(EX)" "$(VAR)" $(ARGS_VERIF) --complet
 	@d=$$(python3 scripts/catalogue.py chemin "$(EX)" "$(VAR)") && set -x && \
 	  $(LANCEUR) $(PY_EXEMPLE) $$d/run.py $(ARGS_SET)
+
+graines: | $(PY) ## répète un exemple sur N graines (N=3 ; QUICK=1 : test rapide), moyenne ± écart type
+	@$(PY) scripts/catalogue.py verifier "$(EX)" "$(VAR)" $(ARGS_VERIF) $(if $(QUICK),,--complet)
+	@d=$$(python3 scripts/catalogue.py chemin "$(EX)" "$(VAR)") && set -x && \
+	  $(LANCEUR) $(PY_EXEMPLE) scripts/graines.py $$d --n $(N) $(if $(QUICK),--quick) --python $(PY_EXEMPLE) $(ARGS_SET)
 
 selecteurs: | $(PY) ## chaque valeur des sélecteurs (méthode, algo...) en --quick (EX facultatif)
 	$(LANCEUR) bash scripts/selecteurs.sh $(NUM_EX)

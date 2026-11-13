@@ -41,4 +41,11 @@ Avant de lancer quoi que ce soit, `make test` et `make run` vérifient les modul
 
 ## Ce que produit un exemple
 
-Chaque exemple mesure le modèle avant, applique la méthode, puis remesure dans les mêmes conditions. Il affiche un tableau avant/après et écrit `sorties/<dossier>/resultats.json`, avec le modèle ou l'adaptateur produit. Le statut de chaque exemple et ses résultats de référence sont dans [Statut des exemples](#statut-des-exemples).
+Chaque exemple mesure le modèle avant, applique la méthode, puis remesure dans les mêmes conditions. Il affiche un tableau avant/après et écrit `sorties/<dossier>/resultats.json`, avec le modèle ou l'adaptateur produit.
+
+Chaque exactitude porte son intervalle de confiance à 95 %. Quand deux étapes ont répondu aux mêmes questions, le rapport les compare question par question et dit si l'écart est net (intervalle de la différence qui exclut 0, test de McNemar). Pour vérifier qu'un résultat n'est pas un coup de chance :
+
+```bash
+make graines EX=EDIT09 N=3           # trois exécutions (graines 42, 43, 44) : moyenne ± écart type
+make graines EX=EDIT09 N=3 QUICK=1   # même chose sur le test rapide
+``` Le statut de chaque exemple et ses résultats de référence sont dans [Statut des exemples](#statut-des-exemples).

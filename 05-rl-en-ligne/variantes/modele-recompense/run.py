@@ -18,13 +18,13 @@ from transformers import AutoModelForSequenceClassification  # noqa: E402
 from trl import RewardConfig, RewardTrainer  # noqa: E402
 
 import preferences  # noqa: E402
-from commun import config, entrainement, modeles, rapport  # noqa: E402
+from commun import config, entrainement, modeles, preuve, rapport  # noqa: E402
 
 
 @torch.no_grad()
 def exactitude(model, tok, paires):
     model.eval()
-    ok = 0
+    ok = []
     for ex in paires:
         scores = []
         for cle in ("chosen", "rejected"):
@@ -34,8 +34,8 @@ def exactitude(model, tok, paires):
                 texte = ex["prompt"] + ex[cle]
             enc = tok(texte, return_tensors="pt", truncation=True, max_length=1024).to(model.device)
             scores.append(model(**enc).logits[0, 0].item())
-        ok += scores[0] > scores[1]
-    return {"exactitude_preferences": round(ok / len(paires), 4)}
+        ok.append(scores[0] > scores[1])
+    return preuve.taux(ok, "exactitude_preferences")
 
 
 def main():

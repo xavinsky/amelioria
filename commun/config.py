@@ -6,6 +6,7 @@ Chaque dossier de méthode contient un `config.yaml`. La ligne de commande est l
     python run.py --quick                  # applique la section `quick:` (test rapide, petit modèle)
     python run.py --set modele.nom=Qwen/Qwen2.5-1.5B-Instruct --set entrainement.lr=1e-5
     python run.py --config infra/config.yaml   # réglages grosse infra
+    python run.py --set graine=1           # autre graine : initialisation, ordre des données, tirages
 """
 
 from __future__ import annotations
@@ -82,7 +83,13 @@ def poser(cfg: dict, chemin: str, valeur_texte: str) -> None:
     noeud[cles[-1]] = valeur
 
 
+# Graine de l'exécution en cours : les arguments des Trainer la reprennent (commun/entrainement.py).
+GRAINE = 42
+
+
 def fixer_graine(graine: int) -> None:
+    global GRAINE
+    GRAINE = graine
     random.seed(graine)
     try:
         import numpy as np

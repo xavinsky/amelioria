@@ -13,7 +13,7 @@ sys.path.insert(0, str(next(p for p in pathlib.Path(__file__).resolve().parents 
 
 import torch
 
-from commun import config, donnees, evaluation, modeles, rapport
+from commun import config, donnees, evaluation, modeles, preuve, rapport
 from commun.generateur import Generateur
 
 
@@ -49,7 +49,7 @@ def main():
     res = {}
 
     gloutons = gen.chat([conv(q) for q in qs], max_new_tokens=ev.max_new_tokens)
-    res["glouton"] = {"exactitude": round(sum(ok(s, q) for s, q in zip(gloutons, qs)) / len(qs), 4), "generations": len(qs)}
+    res["glouton"] = {**preuve.taux([ok(s, q) for s, q in zip(gloutons, qs)]), "generations": len(qs)}
 
     N = cfg.n_echantillons
     ech = gen.chat([conv(q) for q in qs], max_new_tokens=ev.max_new_tokens, temperature=cfg.temperature, n=N)
@@ -58,9 +58,10 @@ def main():
     courbe = {}
     for n in [k for k in (1, 2, 4, 8, 16, 32, 64) if k <= N]:
         courbe[f"N={n}"] = round(sum(vote(e[:n]) == q["cible"] for e, q in zip(ech, qs)) / len(qs), 4)
-    res["vote_majoritaire"] = {"exactitude": courbe[f"N={N}"] if f"N={N}" in courbe else list(courbe.values())[-1],
+    n_max = max(int(k[2:]) for k in courbe)
+    res["vote_majoritaire"] = {**preuve.taux([vote(e[:n_max]) == q["cible"] for e, q in zip(ech, qs)]),
                                "generations": N * len(qs), "courbe": courbe}
-    res["oracle_pass_a_N"] = {"exactitude": round(sum(any(ok(r, q) for r in e) for e, q in zip(ech, qs)) / len(qs), 4)}
+    res["oracle_pass_a_N"] = preuve.taux([any(ok(r, q) for r in e) for e, q in zip(ech, qs)])
 
     if "best_of_n_vraisemblance" in cfg.strategies and gen.model is not None:
         choix = []
@@ -69,12 +70,12 @@ def main():
             lp = modeles.logprob_suites(gen.model, gen.tok, [prompt] * len(e), e)
             longueurs = torch.tensor([max(len(gen.tok(r, add_special_tokens=False)["input_ids"]), 1) for r in e])
             choix.append(e[int((lp / longueurs).argmax())])
-        res["best_of_n_vraisemblance"] = {"exactitude": round(sum(ok(c, q) for c, q in zip(choix, qs)) / len(qs), 4)}
+        res["best_of_n_vraisemblance"] = preuve.taux([ok(c, q) for c, q in zip(choix, qs)])
 
     if "best_of_n_recompense" in cfg.strategies:
         scores = scores_recompense(cfg.modele_recompense, qs, ech)
         choix = [e[max(range(len(e)), key=lambda i: s[i])] for e, s in zip(ech, scores)]
-        res["best_of_n_recompense"] = {"exactitude": round(sum(ok(c, q) for c, q in zip(choix, qs)) / len(qs), 4),
+        res["best_of_n_recompense"] = {**preuve.taux([ok(c, q) for c, q in zip(choix, qs)]),
                                        "modele_recompense": cfg.modele_recompense}
 
     if "auto_correction" in cfg.strategies:
@@ -86,7 +87,7 @@ def main():
                                                                          "End with 'Answer: <number>'."}]
                                   for q, r in zip(qs, courantes)], max_new_tokens=ev.max_new_tokens)
             courantes = critiques
-        res["auto_correction"] = {"exactitude": round(sum(ok(s, q) for s, q in zip(courantes, qs)) / len(qs), 4),
+        res["auto_correction"] = {**preuve.taux([ok(s, q) for s, q in zip(courantes, qs)]),
                                   "generations": len(qs) * (1 + cfg.tours_correction)}
 
     rapport.enregistrer(cfg, **res)

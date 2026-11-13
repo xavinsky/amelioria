@@ -16,7 +16,7 @@ sys.path.insert(0, str(next(p for p in pathlib.Path(__file__).resolve().parents 
 import torch
 from transformers import pipeline
 
-from commun import config, modeles, rapport
+from commun import config, modeles, preuve, rapport
 
 SUJETS = ["the weather", "my new job", "this restaurant", "the movie", "our neighbourhood", "the train journey",
           "the concert", "my phone", "the meeting", "the holiday", "this book", "the city", "the hotel", "school", "the game"]
@@ -75,7 +75,7 @@ def mesurer(model, tok, classifieur, consignes, cfg):
     prompts = [modeles.prompt_texte(tok, c) for c in consignes]
     textes = modeles.generer(model, tok, prompts, max_new_tokens=cfg.evaluation.max_new_tokens, batch=16)
     labels = classifieur([t[:500] or "." for t in textes])
-    return {"taux_positif": round(sum(l["label"].upper().startswith("POS") for l in labels) / len(labels), 4),
+    return {**preuve.taux([l["label"].upper().startswith("POS") for l in labels], "taux_positif"),
             "exemple": textes[0].strip()[:200]}
 
 

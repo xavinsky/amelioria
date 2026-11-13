@@ -19,7 +19,7 @@ import torch.nn.functional as F
 from datasets import load_dataset
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from commun import config, modeles, rapport
+from commun import config, modeles, preuve, rapport
 
 
 @torch.no_grad()
@@ -29,7 +29,7 @@ def exactitude(model, tok, textes, labels, dev):
     for i in range(0, len(textes), 64):
         enc = tok(textes[i : i + 64], return_tensors="pt", padding=True, truncation=True, max_length=128).to(dev)
         preds += model(**enc).logits.argmax(-1).tolist()
-    return round(float((np.array(preds) == np.array(labels)).mean()), 4)
+    return preuve.taux((np.array(preds) == np.array(labels)).tolist())
 
 
 def entrainer(cfg, eleve, tok_e, enseignant, tok_t, textes, labels, alpha, dev):
@@ -76,16 +76,16 @@ def main():
     eleve_init = AutoModelForSequenceClassification.from_pretrained(cfg.eleve.nom, num_labels=2).to(dev)
 
     xt, yt = test[d.colonne_texte], test[d.colonne_label]
-    res = {"enseignant": {"exactitude": exactitude(enseignant, tok_t, xt, yt, dev),
+    res = {"enseignant": {**exactitude(enseignant, tok_t, xt, yt, dev),
                           "parametres_M": round(sum(p.numel() for p in enseignant.parameters()) / 1e6, 1)},
-           "eleve_avant": {"exactitude": exactitude(eleve_init, tok_e, xt, yt, dev),
+           "eleve_avant": {**exactitude(eleve_init, tok_e, xt, yt, dev),
                            "parametres_M": round(sum(p.numel() for p in eleve_init.parameters()) / 1e6, 1)}}
 
     sans = entrainer(cfg, copy.deepcopy(eleve_init), tok_e, None, None, train[d.colonne_texte], train[d.colonne_label], 0.0, dev)
-    res["eleve_sans_enseignant"] = {"exactitude": exactitude(sans, tok_e, xt, yt, dev)}
+    res["eleve_sans_enseignant"] = exactitude(sans, tok_e, xt, yt, dev)
     avec = entrainer(cfg, eleve_init, tok_e, enseignant, tok_t, list(train[d.colonne_texte]) + list(transfert),
                      list(train[d.colonne_label]) + [-100] * len(transfert), cfg.kd.alpha, dev)
-    res["eleve_distille"] = {"exactitude": exactitude(avec, tok_e, xt, yt, dev)}
+    res["eleve_distille"] = exactitude(avec, tok_e, xt, yt, dev)
 
     if cfg.get("sauvegarder", True):
         modeles.sauvegarder(avec, tok_e, f"{cfg.sortie}/eleve")

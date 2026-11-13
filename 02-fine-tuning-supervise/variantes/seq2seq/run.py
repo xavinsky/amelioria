@@ -13,21 +13,21 @@ import torch
 from datasets import Dataset
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, DataCollatorForSeq2Seq, Seq2SeqTrainer, Seq2SeqTrainingArguments
 
-from commun import config, donnees, entrainement, evaluation, modeles, rapport
+from commun import config, donnees, entrainement, evaluation, modeles, preuve, rapport
 
 
 @torch.no_grad()
 def exactitude(model, tok, exemples, cfg):
     model.eval()
-    ok, sorties = 0, []
+    ok, sorties = [], []
     for i in range(0, len(exemples), 32):
         lot = exemples[i : i + 32]
         enc = tok([ex["question"] for ex in lot], return_tensors="pt", padding=True).to(model.device)
         out = model.generate(**enc, max_new_tokens=cfg.evaluation.max_new_tokens)
         textes = tok.batch_decode(out, skip_special_tokens=True)
         sorties += textes
-        ok += sum(evaluation.correct(t, ex["cible"], cfg.evaluation.mode) for t, ex in zip(textes, lot))
-    return {"exactitude": round(ok / len(exemples), 4), "exemple": sorties[0]}
+        ok += [evaluation.correct(t, ex["cible"], cfg.evaluation.mode) for t, ex in zip(textes, lot)]
+    return {**preuve.taux(ok), "exemple": sorties[0]}
 
 
 def main():

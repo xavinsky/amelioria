@@ -14,7 +14,7 @@ sys.path.insert(0, str(next(p for p in pathlib.Path(__file__).resolve().parents 
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM
 
-from commun import config, donnees, entrainement, evaluation, modeles, rapport
+from commun import config, donnees, entrainement, evaluation, modeles, preuve, rapport
 
 REMPLISSAGE = "The grass is green. The sky is blue. The sun is yellow. Here we go. There and back again. "
 
@@ -57,14 +57,14 @@ def mesurer(model, tok, cfg, longs):
     """
     res = {}
     for L in cfg.evaluation.longueurs:
-        ok = 0
+        ok = []
         for g in range(cfg.evaluation.n_cles):
             prompt, cle = prompt_cle(tok, L, g)
             rng = random.Random(1000 + g)
             candidates = [cle] + [str(rng.randint(10000, 99999)) for _ in range(9)]
             lp = modeles.logprob_suites(model, tok, [prompt] * len(candidates), [" " + c for c in candidates])
-            ok += int(lp.argmax()) == 0
-        res[f"cle_{L}"] = round(ok / cfg.evaluation.n_cles, 3)
+            ok.append(int(lp.argmax()) == 0)
+        res[f"cle_{L}"] = preuve.taux(ok, "taux")
     res[f"perplexite_{cfg.evaluation.longueur_ppl}"] = evaluation.perplexite(model, tok, longs, cfg.evaluation.longueur_ppl, batch=1)
     return res
 

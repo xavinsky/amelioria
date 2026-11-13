@@ -31,7 +31,7 @@ make run  EX=FORM15                  # exemple complet (GPU ~12 Go), résultats 
 | `API`, `MODELE` | Modèle servi par une API compatible OpenAI (EXEC17 à EXEC20) | `API=http://localhost:11434/v1 MODELE=qwen3:8b` |
 | `LANCEUR` | Préfixe de lancement | `LANCEUR="nice -n 10"` |
 
-Dans un dossier de méthode, les mêmes cibles marchent sans `EX` : `cd 03-peft && make test VAR=diffusion-lora`. Autres cibles : `make install-gptq` (venv séparé pour GPTQ/AWQ), `make install-llamacpp` (variante GGUF), `make smoke` (tous les tests rapides), `make complet` (tous les exemples complets), `make selecteurs` (chaque valeur des sélecteurs), `make help`.
+Dans un dossier de méthode, les mêmes cibles marchent sans `EX` : `cd 03-peft && make test VAR=diffusion-lora`. Autres cibles : `make install-gptq` (venv séparé pour GPTQ/AWQ), `make install-llamacpp` (variante GGUF), `make smoke` (tous les tests rapides), `make complet` (tous les exemples complets), `make graines` (répéter un exemple sur `N` graines : moyenne ± écart type), `make selecteurs` (chaque valeur des sélecteurs), `make help`.
 
 ## Les méthodes
 
@@ -112,7 +112,7 @@ Améliorer le résultat autour du modèle ; fonctionne aussi avec un modèle fer
 ## Organisation
 
 ```
-commun/                  socle partagé : config, modèles, données, évaluation, entraînement, générateur local/API, rapport
+commun/                  socle partagé : config, modèles, données, évaluation, preuve, entraînement, générateur local/API, rapport
 commun/infra/            accelerate FSDP2 / DeepSpeed ZeRO-3, Slurm multi-nœuds, évaluation lm-eval + vLLM
 NN-methode/              README.md, Makefile, run.py, config.yaml, [modules], [variantes/<nom>/], infra/
 docs/                    documentation transverse

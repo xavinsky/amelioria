@@ -12,7 +12,7 @@ import sys
 
 sys.path.insert(0, str(next(p for p in pathlib.Path(__file__).resolve().parents if (p / "commun").is_dir())))
 
-from commun import config, donnees, evaluation, rapport
+from commun import config, donnees, evaluation, preuve, rapport
 from commun.generateur import Generateur
 
 
@@ -102,7 +102,7 @@ def main():
     def exactitude(convs):
         sorties = gen.chat(convs, max_new_tokens=ev.max_new_tokens)
         ok = [evaluation.correct(s, q["cible"], "contient") for s, q in zip(sorties, questions)]
-        return {"exactitude": round(sum(ok) / len(ok), 4), "exemple": sorties[0].strip()[:200]}
+        return {**preuve.taux(ok), "exemple": sorties[0].strip()[:200]}
 
     sans = exactitude([[{"role": "user", "content": q["question"] + " Answer briefly."}] for q in questions])
     avec = exactitude([[{"role": "user", "content": cfg.gabarit.format(

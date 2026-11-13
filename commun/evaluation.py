@@ -7,7 +7,7 @@ import time
 
 import torch
 
-from . import donnees, modeles
+from . import donnees, modeles, preuve
 
 
 def correct(sortie: str, cible: str, mode: str) -> bool:
@@ -20,14 +20,13 @@ def correct(sortie: str, cible: str, mode: str) -> bool:
 
 def exactitude(model, tok, exemples: list[dict], mode: str = "nombre", max_new_tokens: int = 96,
                systeme: str | None = None, batch: int = 16, prompts: list[str] | None = None) -> dict:
-    """Taux de bonnes réponses en génération gloutonne."""
+    """Taux de bonnes réponses en génération gloutonne, avec son intervalle à 95 % et le détail par question."""
     prompts = prompts or [modeles.prompt_texte(tok, ex["question"], systeme) for ex in exemples]
     t0 = time.time()
     sorties = modeles.generer(model, tok, prompts, max_new_tokens=max_new_tokens, batch=batch)
     ok = [correct(s, ex["cible"], mode) for s, ex in zip(sorties, exemples)]
     return {
-        "exactitude": round(sum(ok) / max(len(ok), 1), 4),
-        "n": len(ok),
+        **preuve.taux(ok),
         "secondes": round(time.time() - t0, 1),
         "exemples": [{"question": ex["question"], "sortie": s.strip()[:300], "attendu": ex["cible"], "ok": o}
                      for ex, s, o in list(zip(exemples, sorties, ok))[:3]],

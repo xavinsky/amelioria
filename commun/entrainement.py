@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datasets import Dataset
 
-from . import modeles
+from . import config, modeles
 
 # Clés courtes de la section `entrainement` des configs -> champs de transformers.TrainingArguments
 _CORRESPONDANCE = {
@@ -31,7 +31,7 @@ def arguments(e, sortie: str, **extra) -> dict:
         "save_strategy": "no",
         "logging_steps": 5,
         "bf16": modeles.bf16_actif(),
-        "seed": 42,
+        "seed": config.GRAINE,
         "remove_unused_columns": True,
         "gradient_checkpointing": False,   # les configs TRL l'activent par défaut : seule la clé de config décide ici
     }

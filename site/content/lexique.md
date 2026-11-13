@@ -86,6 +86,10 @@ Agrandir un modèle en intercalant des blocs initialisés pour ne rien changer a
 
 Score de recherche lexicale qui pondère les mots de la requête par leur rareté dans le corpus. Brique de base du [RAG](#rag).
 
+## Bootstrap
+
+Estimer l'incertitude d'une mesure en la recalculant des milliers de fois sur des échantillons tirés au hasard, avec remise, parmi les questions de test. Apparié, il tire les mêmes questions pour les deux modèles comparés. Voir [Statut des exemples](#statut-des-exemples).
+
 ## BPE
 
 Byte Pair Encoding : méthode de construction d'un tokenizer qui fusionne pas à pas les paires de caractères les plus fréquentes. Voir [Extension de vocabulaire](#extension-vocabulaire).
@@ -358,6 +362,10 @@ Désapprentissage le plus direct : remonter la perte sur les données à oublier
 
 Ne garde qu'une partie des activations pendant la passe avant et recalcule les autres pendant la passe arrière : beaucoup moins de mémoire, un peu plus de temps de calcul. Voir [Fine-tuning supervisé](#fine-tuning-supervise).
 
+## Graine
+
+Nombre qui fixe le hasard d'une exécution (initialisation, ordre des données, tirages). Répéter un entraînement sur plusieurs graines montre si un résultat est stable ou dû à la chance. Voir [Statut des exemples](#statut-des-exemples).
+
 ## GRPO
 
 Group Relative Policy Optimization : RL qui fait générer plusieurs réponses par question et compare chacune à la moyenne de son groupe, sans modèle de valeur. Voir [RL en ligne](#rl-en-ligne).
@@ -489,6 +497,10 @@ Variante multimodale de RoPE qui encode trois positions : temps, hauteur et larg
 ## Mamba, RWKV, Jamba
 
 Architectures sans attention, ou hybrides, dont le coût croît linéairement avec la longueur du texte : Mamba (modèle à espace d'états), RWKV (récurrent), Jamba (Mamba et attention mélangés). Voir [Extension de contexte](#extension-contexte).
+
+## McNemar (test de)
+
+Test qui compare deux modèles sur les mêmes questions en ne regardant que celles où un seul des deux a raison ; sa p-valeur dit si l'écart peut être dû au hasard. Voir [Statut des exemples](#statut-des-exemples).
 
 ## MEMIT
 
@@ -969,6 +981,10 @@ Modèle encodeur-décodeur d'OpenAI pour la transcription de la parole. Voir [Fi
 ## wikitext
 
 Corpus d'articles Wikipédia en anglais, utilisé dans le dépôt pour mesurer la perplexité générale et comme textes de calibration. Voir [Quantification](#quantification).
+
+## Wilson (intervalle de)
+
+Intervalle de confiance d'un taux de réussite mesuré sur n questions ; il reste juste près de 0 et de 1. Les exemples du dépôt l'affichent à côté de chaque exactitude. Voir [Statut des exemples](#statut-des-exemples).
 
 ## WMDP
 

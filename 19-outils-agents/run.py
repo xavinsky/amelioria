@@ -16,7 +16,7 @@ import urllib.request
 
 sys.path.insert(0, str(next(p for p in pathlib.Path(__file__).resolve().parents if (p / "commun").is_dir())))
 
-from commun import config, donnees, evaluation, modeles, rapport
+from commun import config, donnees, evaluation, modeles, preuve, rapport
 
 _OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv,
         ast.FloorDiv: operator.floordiv, ast.Mod: operator.mod, ast.Pow: operator.pow, ast.USub: operator.neg}
@@ -155,9 +155,9 @@ def main():
         avec.append(rep)
         n_appels.append(k)
 
-    score = lambda sorties: round(sum(evaluation.correct(s, q["cible"], "nombre") for s, q in zip(sorties, qs)) / len(qs), 4)
-    rapport.enregistrer(cfg, sans_outils={"exactitude": score(sans), "exemple": sans[0].strip()[:200]},
-                        avec_outils={"exactitude": score(avec), "appels_outils_moyens": round(sum(n_appels) / len(qs), 2),
+    score = lambda sorties: preuve.taux([evaluation.correct(s, q["cible"], "nombre") for s, q in zip(sorties, qs)])
+    rapport.enregistrer(cfg, sans_outils={**score(sans), "exemple": sans[0].strip()[:200]},
+                        avec_outils={**score(avec), "appels_outils_moyens": round(sum(n_appels) / len(qs), 2),
                                      "exemple": avec[0].strip()[:200]})
 
 

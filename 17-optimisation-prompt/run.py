@@ -12,7 +12,7 @@ import sys
 
 sys.path.insert(0, str(next(p for p in pathlib.Path(__file__).resolve().parents if (p / "commun").is_dir())))
 
-from commun import config, donnees, evaluation, rapport
+from commun import config, donnees, evaluation, preuve, rapport
 from commun.generateur import Generateur
 
 INSTRUCTION = "Solve the problem. Show the intermediate calculations, then finish with 'Answer: <number>'."
@@ -43,7 +43,7 @@ def conversations(strategie, questions, instruction, exemples_train, cfg, index_
 def score(gen, convs, questions, cfg):
     sorties = gen.chat(convs, max_new_tokens=cfg.evaluation.max_new_tokens)
     ok = [evaluation.correct(s, q["cible"], cfg.evaluation.mode) for s, q in zip(sorties, questions)]
-    return round(sum(ok) / len(ok), 4), sorties
+    return preuve.taux(ok), sorties
 
 
 def voisins(train, questions, k, nom_modele):
@@ -58,7 +58,7 @@ def voisins(train, questions, k, nom_modele):
 
 def optimiser_instruction(gen, optimiseur, dev, train, cfg):
     """Boucle OPRO : l'optimiseur voit les instructions déjà essayées avec leur score et en propose de meilleures."""
-    historique = [(INSTRUCTION, score(gen, conversations("instruction", dev, INSTRUCTION, train, cfg), dev, cfg)[0])]
+    historique = [(INSTRUCTION, score(gen, conversations("instruction", dev, INSTRUCTION, train, cfg), dev, cfg)[0]["exactitude"])]
     exemples = "\n".join(f"- {d['question']}" for d in train[:2])
     for tour in range(cfg.optimisation.tours):
         essais = "\n".join(f"<instruction>{ins}</instruction> accuracy: {sc:.2f}" for ins, sc in sorted(historique, key=lambda x: x[1]))
@@ -76,7 +76,7 @@ def optimiser_instruction(gen, optimiseur, dev, train, cfg):
             # Instruction entre balises, ou texte court ; une longue réponse est une résolution, pas une consigne.
             ins = m.group(1).strip() if m else (p.strip() if len(p.strip()) <= 400 else "")
             if ins and ins not in dict(historique):
-                historique.append((ins, score(gen, conversations("optimisation", dev, ins, train, cfg), dev, cfg)[0]))
+                historique.append((ins, score(gen, conversations("optimisation", dev, ins, train, cfg), dev, cfg)[0]["exactitude"]))
         print(f"[optimisation] tour {tour + 1} : meilleur score {max(s for _, s in historique):.3f}")
     return max(historique, key=lambda x: x[1]), historique
 
@@ -99,10 +99,10 @@ def main():
         sim_test = voisins(train, test, cfg.k_exemples, cfg.embeddings) if strategie == "few_shot_similaires" else None
         s_dev, _ = score(gen, conversations(strategie, dev, ins, train, cfg, sim_dev), dev, cfg)
         s_test, sorties = score(gen, conversations(strategie, test, ins, train, cfg, sim_test), test, cfg)
-        resultats[strategie] = {"exactitude_dev": s_dev, "exactitude_test": s_test, "exemple": sorties[0].strip()[:200]}
-        print(f"[prompt] {strategie:22s} dev {s_dev:.3f}  test {s_test:.3f}")
+        resultats[strategie] = {"dev": s_dev, "test": s_test, "exemple": sorties[0].strip()[:200]}
+        print(f"[prompt] {strategie:22s} dev {s_dev['exactitude']:.3f}  test {s_test['exactitude']:.3f}")
 
-    meilleure = max((k for k in cfg.strategies), key=lambda k: resultats[k]["exactitude_dev"])
+    meilleure = max((k for k in cfg.strategies), key=lambda k: resultats[k]["dev"]["exactitude"])
     rapport.enregistrer(cfg, **{k: v for k, v in resultats.items() if k in cfg.strategies},
                         meilleure_strategie_dev=meilleure, instruction_optimisee=instruction_optimisee,
                         historique=resultats.get("historique_optimisation"))

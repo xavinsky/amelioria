@@ -12,7 +12,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import torch  # noqa: E402
 
 import edition  # noqa: E402
-from commun import config, donnees, modeles, rapport  # noqa: E402
+from commun import config, donnees, modeles, preuve, rapport  # noqa: E402
 
 
 def prefere(model, tok, prompt, a, b) -> bool:
@@ -28,8 +28,8 @@ def mesurer(model, tok, editions) -> dict:
         gen += [prefere(model, tok, p, e["nouvelle"], e["ancienne"]) for p in e["paraphrases"]]
         spe += [prefere(model, tok, p, vraie, e["nouvelle"]) for p, vraie in e["voisins"]]   # les voisins ne doivent pas changer
         textes[e["sujet"]] = modeles.generer(model, tok, [e["prompt"]], max_new_tokens=8)[0].strip()
-    moy = lambda x: round(sum(x) / len(x), 4)
-    return {"efficacite": moy(eff), "generalisation": moy(gen), "specificite": moy(spe), "completions": textes}
+    return {"efficacite": preuve.taux(eff, "taux"), "generalisation": preuve.taux(gen, "taux"),
+            "specificite": preuve.taux(spe, "taux"), "completions": textes}
 
 
 def main():

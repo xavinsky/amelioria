@@ -43,10 +43,17 @@ Choix d'une variante d'algorithme : toujours par la config (`--set methode=...`,
 `sorties/<dossier>[-quick]/` contient :
 
 - `config_effective.yaml` : la configuration réellement utilisée ;
-- `resultats.json` : métriques de chaque étape (`avant`, `apres`, ou étapes nommées) ;
+- `resultats.json` : métriques de chaque étape (`avant`, `apres`, ou étapes nommées), et `comparaisons` quand des étapes ont répondu aux mêmes questions ;
 - le modèle ou l'adaptateur produit.
 
-Le terminal affiche un tableau « métrique × étape » identique d'un exemple à l'autre.
+Le terminal affiche un tableau « métrique × étape » identique d'un exemple à l'autre. Chaque exactitude y porte son intervalle de confiance à 95 % (Wilson) : `0.67 [0.602, 0.732]`.
+
+## Mêmes outils de preuve
+
+- **Comparaison appariée.** Quand deux étapes ont répondu aux mêmes questions (avant et après, avec et sans RAG, deux stratégies de prompt), chacune est comparée à la première étape, question par question : différence d'exactitude, intervalle à 95 % par bootstrap apparié, p-valeur du test exact de McNemar. Le rapport conclut « écart net » quand l'intervalle exclut 0.
+- **Graines.** `make graines EX=… [N=3] [QUICK=1]` répète l'exemple avec les graines 42, 43… (la première reproduit l'exécution par défaut), puis affiche moyenne, écart type, minimum et maximum de chaque métrique, comparaisons comprises. Agrégat : `sorties/<dossier>--graines/resultats.json`. La graine change l'initialisation, l'ordre des données d'entraînement et les tirages ; les jeux de test restent les mêmes.
+
+Un gain est démontré quand l'intervalle de la différence exclut 0 et que le résultat se reproduit sur plusieurs graines pour les entraînements courts (critères : [cahier-des-charges.md](cahier-des-charges.md)).
 
 ## Mêmes données fil rouge
 
@@ -63,11 +70,12 @@ Les jeux réels (GSM8K, UltraFeedback, TOFU, SST-2, CIFAR-10, MLS...) se branche
 
 | Module | Rôle |
 |---|---|
-| `config.py` | Ligne de commande, fusion `quick`, `--set`, dossier de sortie, graine |
+| `config.py` | Ligne de commande, fusion `quick`, `--set`, dossier de sortie, graine (reprise par les arguments des Trainer) |
 | `modeles.py` | Chargement de LLM (bf16/fp32, bitsandbytes, multi-GPU), prompts, génération, log-probs, couches. `sans_autocast` retire l'autocast qu'accelerate laisse sur le modèle après un entraînement : les mesures avant/après se font dans la même précision |
 | `donnees.py` | Jeux fil rouge et chargeurs Hugging Face |
-| `evaluation.py` | Exactitude, perplexité, évaluation pilotée par la config |
+| `evaluation.py` | Exactitude (avec intervalle à 95 % et détail par question), perplexité, évaluation pilotée par la config |
+| `preuve.py` | Intervalle de Wilson, comparaison appariée (bootstrap, McNemar), agrégation de plusieurs graines |
 | `entrainement.py` | Arguments communs, SFT (TRL), LM causal, tokenisation pour boucles manuelles, LoRA. `liberer` rend la mémoire de l'optimiseur après l'entraînement |
 | `generateur.py` | Chat unifié modèle local / API compatible OpenAI |
-| `rapport.py` | `resultats.json` + tableau |
+| `rapport.py` | `resultats.json` + tableau, intervalles et comparaisons appariées |
 | `infra/` | accelerate FSDP2 et DeepSpeed ZeRO-3, Slurm multi-nœuds, évaluation lm-eval + vLLM |

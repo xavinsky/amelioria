@@ -53,8 +53,8 @@ Un panorama exécutable des méthodes pour améliorer un modèle d'IA : 20 dossi
 
 ### 3. Outils de preuve dans le socle
 
-- [ ] Intervalle de confiance à 95 % (Wilson) sur les exactitudes, dans `resultats.json` et le tableau du rapport.
-- [ ] Répétition sur plusieurs graines (moyenne ± écart) pour les entraînements courts.
+- [x] Intervalle de confiance à 95 % (Wilson) sur les exactitudes et comparaisons appariées (bootstrap, McNemar), dans `resultats.json` et le tableau du rapport (`commun/preuve.py`).
+- [x] Répétition sur plusieurs graines : `make graines EX=… N=3`.
 - [ ] Témoin intégré là où l'effet peut avoir une autre cause.
 
 ### 4. Refondre les exemples, dans cet ordre

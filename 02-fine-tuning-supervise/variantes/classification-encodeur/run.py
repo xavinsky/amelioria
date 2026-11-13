@@ -13,7 +13,7 @@ import numpy as np
 from datasets import load_dataset
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, DataCollatorWithPadding, Trainer, TrainingArguments
 
-from commun import config, entrainement, modeles, rapport
+from commun import config, entrainement, modeles, preuve, rapport
 
 
 def main():
@@ -33,8 +33,11 @@ def main():
     train = train.map(encoder, batched=True).rename_column(d.colonne_label, "labels")
     test = test.map(encoder, batched=True).rename_column(d.colonne_label, "labels")
 
+    dernier = {}   # détail par exemple de la dernière évaluation, pour l'intervalle et la comparaison appariée
+
     def metriques(pred):
-        return {"exactitude": float((np.argmax(pred.predictions, -1) == pred.label_ids).mean())}
+        dernier["succes"] = (np.argmax(pred.predictions, -1) == pred.label_ids).tolist()
+        return {"exactitude": float(np.mean(dernier["succes"]))}
 
     trainer = Trainer(
         model=model,
@@ -43,15 +46,15 @@ def main():
         data_collator=DataCollatorWithPadding(tok), compute_metrics=metriques,
     )
     avant = trainer.evaluate()  # tête de classification aléatoire : ~ hasard
+    avant_taux = preuve.taux(dernier["succes"])
     trainer.train()
     apres = trainer.evaluate()
 
     if cfg.get("sauvegarder", True):
         trainer.save_model(f"{cfg.sortie}/modele")
         tok.save_pretrained(f"{cfg.sortie}/modele")
-    garder = ("eval_exactitude", "eval_loss")
-    rapport.enregistrer(cfg, avant={k: round(v, 4) for k, v in avant.items() if k in garder},
-                        apres={k: round(v, 4) for k, v in apres.items() if k in garder})
+    rapport.enregistrer(cfg, avant={**avant_taux, "perte": round(avant["eval_loss"], 4)},
+                        apres={**preuve.taux(dernier["succes"]), "perte": round(apres["eval_loss"], 4)})
 
 
 if __name__ == "__main__":
