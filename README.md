@@ -1,6 +1,6 @@
 # Améliorer un modèle d'IA sans le réentraîner de zéro
 
-Site d'explication, avec l'arbre de décision et une page par méthode : **[AmeliorIA](https://xavinsky.github.io/amelioria/)**. Projet en cours ; licence MIT ([LICENSE](LICENSE)).
+Site d'explication, avec l'arbre de décision et une page par méthode : **[AmeliorIA](https://tekio.org/amelioria/)**. Projet en cours ; licence MIT ([LICENSE](LICENSE)).
 
 Panorama exécutable des méthodes pour améliorer un modèle existant : un dossier par méthode (ou groupe de méthodes qui se pratiquent de la même façon), avec pour chacun :
 
