@@ -175,6 +175,7 @@ body{
 }
 .top-tab:hover{background:var(--sidebar-hover); color:#fff;}
 .top-tab.active{background:var(--topnav-tab-active-bg); color:var(--topnav-tab-active-text); font-weight:600;}
+.top-tab-github{display:inline-flex; align-items:center; gap:6px; text-decoration:none;}
 
 /* ---------- Recherche ---------- */
 .topnav-search{

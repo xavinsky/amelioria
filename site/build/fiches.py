@@ -10,10 +10,12 @@ Source unique du texte : le README du dossier, dont toutes les sections ont les 
 Propre au site, facultatif : NN-dossier/fiche.yaml (`id`, `aka` : autre nom, `schema` : schéma
 d'intégration décrit comme pour build/schema.py).
 
-Liens du README réécrits pour le site : un autre dossier de méthode mène à sa page Concept, une
-variante à la page Exemple ; les autres chemins relatifs (fichiers du dépôt) deviennent du texte.
+Liens du README réécrits pour le site : un autre dossier de méthode mène à sa page Concept ; les autres
+chemins relatifs (fichiers, variantes, socle commun) mènent au code sur GitHub (dépôt de site.yml), ou deviennent
+du texte s'ils n'existent pas.
 """
 
+import os
 import re
 from pathlib import Path
 
@@ -87,9 +89,10 @@ class Generateur:
                 num = self.dossiers[autre.group(1)]
                 suite = "-exemple" if autre.group(2).startswith("variantes") else ""
                 return f"[{libelle}](#{self.ids[num]}{suite})"
-            if cible.startswith("variantes"):
-                return f"[{libelle}](#{self.ids[self.dossiers[dossier]]}-exemple)"
-            return libelle
+            # Autre chemin relatif (fichier, variante, socle commun) : lien vers le code sur GitHub s'il existe.
+            chemin = os.path.normpath(f"{dossier}/{cible.split('#')[0]}")
+            url = self.depot.url_code(chemin) if not chemin.startswith("..") and (DEPOT / chemin).exists() else None
+            return f"[{libelle}]({url})" if url else libelle
         return LIEN.sub(remplacer, texte)
 
     def sections(self, readme, titres, dossier):
@@ -117,7 +120,8 @@ class Generateur:
                        + (f"\n\n## Références\n\n{refs}" if refs else "")
                        + f"\n\n## Dans le dépôt\n\nExemple, résultats mesurés et commandes : "
                        f"[{m['titre']} : exemple de code](#{ident}-exemple).\n")
-            exemple = (f"Ce que le dossier `{m['dossier']}/` fournit pour cette méthode. Principe et références : "
+            exemple = (f"Ce que le dossier {self.depot.lien_code(m['dossier'])} fournit pour cette méthode. "
+                       "Principe et références : "
                        f"[{m['titre']}](#{ident}).\n\n"
                        + self.sections(readme, ["Ce que fait l'exemple", "Composants de l'exemple"], m["dossier"])
                        + "\n\n" + self.depot.essayer(num, chemin) + "\n\n"

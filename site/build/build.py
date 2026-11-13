@@ -616,6 +616,7 @@ def main():
     depot = cat_depot.Catalogue()
     try:
         depot.fiches = fiches.ids_des_methodes(depot)
+        depot.github = site.get("github")
         depot.verifier_menu(next(p["groups"] for p in site["pages"] if p["key"] == "methodes"))
     except ValueError as err:
         raise BuildError(str(err)) from None
@@ -629,6 +630,7 @@ def main():
         del sec["description"]
     data = {
         "title": site["title"],
+        "github": site.get("github"),
         "updated": last_updated(),
         "pages": site["pages"],
         "sections": sections,

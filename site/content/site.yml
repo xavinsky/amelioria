@@ -5,6 +5,8 @@
 # (code et titre) est repris de exemples.yaml par le build.
 
 title: AmeliorIA
+# Dépôt public du code : onglet « GitHub » du menu, liens des exemples vers leur dossier (branche main).
+github: https://github.com/xavinsky/amelioria
 
 pages:
   - key: accueil

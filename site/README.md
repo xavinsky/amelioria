@@ -9,6 +9,7 @@ make site                 # depuis la racine du dépôt : build, puis ouvrir sit
 | Élément | Rôle |
 |---|---|
 | `content/site.yml` | Onglets et groupes du menu ; les groupes de l'onglet Méthodes sont les catégories de `exemples.yaml`, dont le build reprend le libellé (code et titre) |
+| `content/site.yml`, clé `github` | Dépôt public du code : onglet « GitHub » en fin de menu, et liens du site vers le dossier ou le fichier de chaque exemple (branche `main`). Les liens relatifs des README (fichiers, variantes, `commun/`) y mènent aussi |
 | `content/accueil/` | Page d'accueil, premier onglet, ouverte par défaut. Ses chiffres (exemples démontrés, versions infra...) s'écrivent `{{demontres}}`, `{{exemples}}`, `{{non_prouves}}`, `{{infra}}`, `{{methodes}}`, `{{categories}}` avec `compteurs: true` : le build les tire de `exemples.yaml` |
 | `content/<onglet>/<groupe>/<NN>-<slug>.md` | Une section ; `id` du front matter ou slug du nom de fichier |
 | `content/lexique.md` | Un terme par titre `## Terme`, avec un lien vers la section qui le détaille |

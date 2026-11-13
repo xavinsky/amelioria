@@ -72,6 +72,21 @@ class Catalogue:
         self.couts = data["couts"]
         self.contraintes = data["contraintes"]
         self.fiches = {}  # numéro de méthode -> id de la section qui la présente
+        self.github = None  # URL du dépôt public (site.yml) : liens vers le code de chaque exemple
+
+    def url_code(self, chemin):
+        """URL GitHub d'un dossier ou d'un fichier du dépôt (branche main), ou None sans dépôt configuré."""
+        if not self.github:
+            return None
+        chemin = chemin.strip("/")
+        sorte = "tree" if (DEPOT / chemin).is_dir() else "blob"
+        return f"{self.github.rstrip('/')}/{sorte}/main/{chemin}"
+
+    def lien_code(self, chemin, libelle=None):
+        """Lien Markdown vers le code d'un exemple sur GitHub (texte en code si aucun dépôt n'est configuré)."""
+        libelle = libelle or f"`{chemin.strip('/')}/`"
+        url = self.url_code(chemin)
+        return f"[{libelle}]({url})" if url else libelle
 
     def methode(self, num, source=""):
         num = f"{int(num):02d}"
@@ -123,7 +138,7 @@ class Catalogue:
                    f"{esc(self.contraintes['remelange'])}</span>\n" if m.get("remelange") else "")
                 + 
                 f"- **GPU local 12 Go** (exemple de code) : {m['local']}\n"
-                f"- **Dossier du dépôt** : `{m['dossier']}/`\n")
+                f"- **Code** : {self.lien_code(m['dossier'])}\n")
 
     def essayer(self, num, source):
         """Section « Essayer dans le dépôt » : exemples, statut, résultat mesuré, commandes."""
@@ -131,7 +146,7 @@ class Catalogue:
         lignes = []
         for e in self.exemples_de(num):
             var = self.variante(e)
-            nom = f"variante `{var}`" if var else "exemple principal"
+            nom = self.lien_code(e["chemin"], f"variante `{var}`" if var else "exemple principal")
             opt = f" VAR={var}" if var else ""
             reserve = f" — *{cellule(e['reserve'])}*" if e.get("reserve") else ""
             lignes.append(f"| {nom} | {MARQUEURS[e['statut']]} | {cellule(e['resultat'])}{reserve} "
@@ -156,9 +171,9 @@ class Catalogue:
                 if m["categorie"] != cat["id"]:
                     continue
                 for e in self.exemples_de(num):
-                    var = self.variante(e) or "principal"
+                    var = self.lien_code(e["chemin"], f"`{self.variante(e) or 'principal'}`")
                     reserve = f" — *{cellule(e['reserve'])}*" if e.get("reserve") else ""
-                    lignes.append(f"| {self.lien(num)} | `{var}` | {MARQUEURS[e['statut']]} "
+                    lignes.append(f"| {self.lien(num)} | {var} | {MARQUEURS[e['statut']]} "
                                   f"| {cellule(e['resultat'])}{reserve} | {self.durees(e)} |")
             blocs.append(f"## {cat['code']} · {cat['titre']}\n\n{cat['resume']}\n\n"
                          "| Méthode | Exemple | Statut | Résultat mesuré | Durée |\n|---|---|---|---|---|\n"
@@ -191,7 +206,7 @@ class Catalogue:
         for num, m in self.methodes.items():
             for e in self.exemples_de(num):
                 var = self.variante(e)
-                nom = self.lien(num) + (f" · `{var}`" if var else "")
+                nom = self.lien(num) + (f" · `{var}`" if var else "") + f" · {self.lien_code(e['chemin'], 'code')}"
                 ligne = f"| {nom} | {cellule(e.get('fait', ''))} | {cellule(e['resultat'])} |"
                 if e["statut"] == "demontre":
                     demontres.append(ligne)
