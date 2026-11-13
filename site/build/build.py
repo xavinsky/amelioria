@@ -31,7 +31,8 @@ du dépôt (build/fiches.py), une page Concept et une page Exemple par méthode,
 exemples.yaml et docs/references.md (build/catalogue.py). `references` (libellé → URL) donne la section
 « Références ». `arbre` décrit l'arbre de décision général et `decision` le graphe de décision d'un cas, rendus
 en SVG en tête de la section ;
-`catalogue: true` insère le tableau de tous les exemples ; `comparatif: <catégorie>` le tableau comparatif des
+`catalogue: true` insère le tableau de tous les exemples ; `compteurs: true` remplace `{{demontres}}`,
+`{{exemples}}`, `{{infra}}`... par les chiffres du catalogue (Catalogue.compteurs) ; `comparatif: <catégorie>` le tableau comparatif des
 méthodes d'une catégorie. Marqueurs de statut des exemples :
 `[!DEMONTRE]`, `[!NONPROUVE]`, `[!NONTESTE]`.
 
@@ -322,6 +323,11 @@ def insert_depot(body, meta, depot, path):
             head, sep, rest = body.partition("\n## ")
             body = head.rstrip() + "\n\n" + depot.en_bref(num, path) + (sep + rest if sep else "")
             body = body.rstrip() + "\n\n" + depot.essayer(num, path)
+        if meta.get("compteurs"):
+            for cle, valeur in depot.compteurs().items():
+                body = body.replace("{{" + cle + "}}", str(valeur))
+            if "{{" in body:
+                raise BuildError(f"{path}: compteur inconnu {re.search(r'{{[^}]*}}', body).group(0)}")
         if meta.get("comparatif"):
             body = body.rstrip() + "\n\n## Comparer les méthodes\n\n" + depot.comparatif(meta["comparatif"])
         if meta.get("catalogue"):

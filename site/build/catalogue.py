@@ -184,6 +184,13 @@ class Catalogue:
                 + f"\n\nCalcul et temps : {self.couts['hypothese']}. Statuts des exemples : "
                 "[Statut des exemples](#statut-des-exemples).\n")
 
+    def compteurs(self):
+        """Chiffres du dépôt pour les pages qui les citent (`{{cle}}` dans le texte, front matter `compteurs: true`)."""
+        n = {k: sum(e["statut"] == k for e in self.exemples) for k in MARQUEURS}
+        return {"methodes": len(self.methodes), "categories": len(self.categories), "exemples": len(self.exemples),
+                "demontres": n["demontre"], "non_prouves": n["non-prouve"],
+                "infra": sum((DEPOT / m["dossier"] / "infra").is_dir() for m in self.methodes.values())}
+
     def bilan(self):
         """Phrase de bilan : nombre d'exemples par statut."""
         n = {k: sum(e["statut"] == k for e in self.exemples) for k in MARQUEURS}
