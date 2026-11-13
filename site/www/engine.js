@@ -65,25 +65,21 @@ function applyScrollbarPref(visible){
 scrollbarToggleBtn.addEventListener("click", () => applyScrollbarPref(!sidebarScrollEl.classList.contains("scrollbar-visible")));
 applyScrollbarPref(store.get(SCROLLBAR_KEY) === "1");
 
-/* Menu latéral masquable (classe sur <html>, posée dès le chargement par index.html) */
+/* Menu latéral masquable (classe sur <html>, posée dès le chargement par index.html) : bouton en bas du menu pour
+   le masquer, icône en haut à gauche pour le réafficher, touche M pour basculer. */
 const SIDEBAR_KEY = "amelioria-sidebar-cachee";
-const sidebarToggleBtn = document.getElementById("sidebar-toggle");
 function applySidebarPref(cachee){
   document.documentElement.classList.toggle("sidebar-cachee", cachee);
-  sidebarToggleBtn.setAttribute("aria-pressed", String(cachee));
-  sidebarToggleBtn.setAttribute("aria-label", cachee ? "Afficher le menu latéral" : "Masquer le menu latéral");
-  sidebarToggleBtn.querySelector(".sidebar-toggle-libelle").textContent = cachee ? "Afficher le menu" : "Masquer le menu";
   store.set(SIDEBAR_KEY, cachee ? "1" : "0");
 }
-const basculerSidebar = () => applySidebarPref(!document.documentElement.classList.contains("sidebar-cachee"));
-sidebarToggleBtn.addEventListener("click", basculerSidebar);
-/* Touche M : bascule le menu, sauf pendant une saisie (recherche) */
+document.getElementById("sidebar-toggle").addEventListener("click", () => applySidebarPref(true));
+document.getElementById("sidebar-show").addEventListener("click", () => applySidebarPref(false));
 document.addEventListener("keydown", e => {
   const cible = e.target;
   if (e.key.toLowerCase() !== "m" || e.ctrlKey || e.metaKey || e.altKey) return;
   if (cible.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName)) return;
   e.preventDefault();
-  basculerSidebar();
+  applySidebarPref(!document.documentElement.classList.contains("sidebar-cachee"));
 });
 applySidebarPref(store.get(SIDEBAR_KEY) === "1");
 
