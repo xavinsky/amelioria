@@ -18,16 +18,16 @@ Ce que le SFT apprend bien : le format, le style, la langue de réponse, une tâ
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Exemple dans ce dossier |
-|---|---|---|
-| LLM décodeur (LLaMA, Qwen, Mistral, Gemma, Phi, SmolLM, GPT-2...) | ✅ | [`run.py`](run.py) : SFT sur problèmes à réponse vérifiable |
-| Encodeur (BERT, RoBERTa, ModernBERT, DeBERTa, CamemBERT) | ✅ | [`variantes/classification-encodeur`](variantes/classification-encodeur) : sentiment SST-2 |
-| Encodeur-décodeur (T5, FLAN-T5, BART, mT5, NLLB) | ✅ | [`variantes/seq2seq`](variantes/seq2seq) |
-| Vision (ViT, DeiT, DINOv2, ConvNeXt, Swin) | ✅ | [`variantes/vision`](variantes/vision) : CIFAR-10 |
-| Audio / speech (Whisper, wav2vec2) | ✅ | [`variantes/audio-whisper`](variantes/audio-whisper) : français, mesure du WER |
-| Multimodal (Qwen2.5-VL, LLaVA, Idefics) | ✅ | Même `SFTTrainer`, avec des messages contenant des images (voir la doc TRL « VLM SFT ») |
-| Diffusion (Stable Diffusion, Flux) | ✅ | Fine-tuning complet ou DreamBooth : voir [03 variante diffusion](../03-peft/variantes/diffusion-lora), en passant de LoRA à `train_text_to_image.py` |
-| Modèle fermé via API | ⚠️ | Fine-tuning « as a service » (OpenAI, Vertex AI Gemini, Bedrock) : on envoie un JSONL au même format prompt/réponse, sans accès aux poids |
+| Type de modèle | Exemples de modèles | Applicable | Exemple dans ce dossier |
+|---|---|---|---|
+| LLM décodeur | LLaMA, Qwen, Mistral, Gemma, Phi, SmolLM, GPT-2 | ✅ | [`run.py`](run.py) : SFT sur problèmes à réponse vérifiable |
+| Encodeur | BERT, RoBERTa, ModernBERT, DeBERTa, CamemBERT | ✅ | [`variantes/classification-encodeur`](variantes/classification-encodeur) : sentiment SST-2 |
+| Encodeur-décodeur | T5, FLAN-T5, BART, mT5, NLLB | ✅ | [`variantes/seq2seq`](variantes/seq2seq) |
+| Vision | ViT, DeiT, DINOv2, ConvNeXt, Swin | ✅ | [`variantes/vision`](variantes/vision) : CIFAR-10 |
+| Audio / speech | Whisper, wav2vec2 | ✅ | [`variantes/audio-whisper`](variantes/audio-whisper) : français, mesure du WER |
+| Multimodal | Qwen2.5-VL, LLaVA, Idefics | ✅ | Même `SFTTrainer`, avec des messages contenant des images (voir la doc TRL « VLM SFT ») |
+| Diffusion | Stable Diffusion, Flux | ✅ | Fine-tuning complet ou DreamBooth : voir [03 variante diffusion](../03-peft/variantes/diffusion-lora), en passant de LoRA à `train_text_to_image.py` |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ⚠️ | Fine-tuning « as a service » (OpenAI, Vertex AI Gemini, Bedrock) : on envoie un JSONL au même format prompt/réponse, sans accès aux poids |
 
 ## Quand l'utiliser
 

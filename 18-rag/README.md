@@ -31,14 +31,14 @@ Cette même base de faits sert au pré-entraînement continu ([DATA01](../01-pre
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| Tout LLM instruct, local ou via API | ✅ cas principal | `modele.api_base` pour une API |
-| Petits modèles (< 3B) | ✅ | Le RAG compense beaucoup leur manque de connaissances ; ils suivent moins bien la consigne « seulement le contexte » |
-| Multimodal | ✅ | RAG sur images et PDF (ColPali, embeddings multimodaux) |
-| Encodeurs | ✅ comme briques | Ce sont eux qui font la recherche (embeddings, rerankers) et qu'on fine-tune pour l'améliorer |
-| Diffusion | ⚠️ | « Retrieval-augmented diffusion » : images de référence (IP-Adapter), usage de niche |
-| Modèles fermés | ✅ | La méthode standard pour brancher des données privées sur GPT, Claude ou Gemini |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| Tout LLM instruct, local ou via API | Llama-3.1-8B-Instruct, Qwen2.5-7B-Instruct, Mistral-7B-Instruct | ✅ cas principal | `modele.api_base` pour une API |
+| Petits modèles (< 3B) | Qwen2.5-0.5B / 1.5B, Llama-3.2-1B, SmolLM2 | ✅ | Le RAG compense beaucoup leur manque de connaissances ; ils suivent moins bien la consigne « seulement le contexte » |
+| Multimodal | Qwen2.5-VL, LLaVA, Idefics | ✅ | RAG sur images et PDF (ColPali, embeddings multimodaux) |
+| Encodeurs | BERT, RoBERTa, ModernBERT | ✅ comme briques | Ce sont eux qui font la recherche (embeddings, rerankers) et qu'on fine-tune pour l'améliorer |
+| Diffusion | Stable Diffusion, SDXL, Flux | ⚠️ | « Retrieval-augmented diffusion » : images de référence (IP-Adapter), usage de niche |
+| Modèles fermés | GPT-4o, Claude, Gemini | ✅ | La méthode standard pour brancher des données privées sur GPT, Claude ou Gemini |
 
 ## Quand l'utiliser
 

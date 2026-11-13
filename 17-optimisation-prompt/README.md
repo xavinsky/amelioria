@@ -27,14 +27,14 @@ Toutes les méthodes des dossiers 17 à 20 passent par [`commun/generateur.py`](
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM instruct / chat, local ou via API (GPT, Claude, Gemini, Mistral…) | ✅ cas principal | `modele.api_base` pour une API |
-| LLM de base | ✅ | Le few-shot est alors *la* façon de spécifier la tâche. Pas d'instruction système |
-| Encodeurs / classifieurs | ⚠️ | Prompts « à trous » (PET), peu utilisés aujourd'hui |
-| Multimodal (VLM) | ✅ | Mêmes stratégies avec des images dans les messages |
-| Diffusion (texte → image) | ✅ | Réécriture et optimisation de prompts (LLM rewriter, « prompt expansion ») |
-| Tout modèle fermé | ✅ | La seule famille de méthodes avec RAG, outils et calcul à l'inférence (18 à 20) |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM instruct / chat, local ou via API | GPT, Claude, Gemini, Mistral | ✅ cas principal | `modele.api_base` pour une API |
+| LLM de base | Llama-3.1-8B, Qwen2.5-7B, Mistral-7B (versions de base) | ✅ | Le few-shot est alors *la* façon de spécifier la tâche. Pas d'instruction système |
+| Encodeurs / classifieurs | BERT, RoBERTa, ModernBERT | ⚠️ | Prompts « à trous » (PET), peu utilisés aujourd'hui |
+| Multimodal (VLM) | Qwen2.5-VL, GPT-4o | ✅ | Mêmes stratégies avec des images dans les messages |
+| Diffusion (texte → image) | Stable Diffusion, SDXL, Flux | ✅ | Réécriture et optimisation de prompts (LLM rewriter, « prompt expansion ») |
+| Tout modèle fermé | GPT-4o, Claude, Gemini | ✅ | La seule famille de méthodes avec RAG, outils et calcul à l'inférence (18 à 20) |
 
 ## Quand l'utiliser
 

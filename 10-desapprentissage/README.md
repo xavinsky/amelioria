@@ -31,13 +31,13 @@ Mesures :
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM décodeur (toutes familles) | ✅ cas principal | [`run.py`](run.py) |
-| LLM avec LoRA | ✅ | Désapprentissage sur adaptateur : réversible, moins destructeur |
-| Classifieurs (vision, texte) | ✅ | Même idée (gradient ascent sur les exemples à oublier, SCRUB, fine-tuning sur le retain set) |
-| Diffusion | ✅ très étudié | Oublier un style, un concept, une personne : ESD, concept ablation, UCE |
-| Modèle fermé via API | ❌ | Seulement des filtres en entrée et en sortie |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM décodeur (toutes familles) | Llama 3, Qwen2.5, Mistral 7B, Gemma 2 | ✅ cas principal | [`run.py`](run.py) |
+| LLM avec LoRA | Llama 3, Qwen2.5 + adaptateur LoRA | ✅ | Désapprentissage sur adaptateur : réversible, moins destructeur |
+| Classifieurs (vision, texte) | BERT, ViT, ResNet | ✅ | Même idée (gradient ascent sur les exemples à oublier, SCRUB, fine-tuning sur le retain set) |
+| Diffusion | Stable Diffusion, SDXL, Flux | ✅ très étudié | Oublier un style, un concept, une personne : ESD, concept ablation, UCE |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ❌ | Seulement des filtres en entrée et en sortie |
 
 ## Quand l'utiliser
 

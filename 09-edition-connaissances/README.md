@@ -30,15 +30,15 @@ Les métriques sont celles de CounterFact :
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM décodeur (GPT-2, GPT-J, LLaMA, Qwen, Mistral...) | ✅ cas principal | Indiquer le module (`edition.module`) : `model.layers.{}.mlp.down_proj` pour LLaMA/Qwen/Mistral |
-| GPT-2 (couches `Conv1D`) | ⚠️ | Poids transposés : adapter `rome()` (`W.T`) ou utiliser EasyEdit |
-| MoE (Mixtral, Qwen-MoE) | ⚠️ | Le fait peut être réparti entre experts. Méthodes spécifiques ou mémoire externe (GRACE) |
-| Encodeur (BERT), seq2seq (T5) | ⚠️ | MEND et KE ont été proposés pour ces architectures, moins courant |
-| Multimodal (BLIP-2, LLaVA) | ⚠️ | EasyEdit propose l'édition multimodale (MMEdit) |
-| Diffusion | ✅ | Même principe sur le cross-attention (TIME, UCE : « changer ce que signifie un mot ») |
-| Modèle fermé via API | ❌ | Seul le RAG ([EXEC18](../18-rag)) permet de corriger un fait |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM décodeur | GPT-2, GPT-J, LLaMA, Qwen, Mistral | ✅ cas principal | Indiquer le module (`edition.module`) : `model.layers.{}.mlp.down_proj` pour LLaMA/Qwen/Mistral |
+| GPT-2 (couches `Conv1D`) | GPT-2 | ⚠️ | Poids transposés : adapter `rome()` (`W.T`) ou utiliser EasyEdit |
+| MoE | Mixtral, Qwen-MoE | ⚠️ | Le fait peut être réparti entre experts. Méthodes spécifiques ou mémoire externe (GRACE) |
+| Encodeur, seq2seq | BERT, T5 | ⚠️ | MEND et KE ont été proposés pour ces architectures, moins courant |
+| Multimodal | BLIP-2, LLaVA | ⚠️ | EasyEdit propose l'édition multimodale (MMEdit) |
+| Diffusion | Stable Diffusion, SDXL, Flux | ✅ | Même principe sur le cross-attention (TIME, UCE : « changer ce que signifie un mot ») |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ❌ | Seul le RAG ([EXEC18](../18-rag)) permet de corriger un fait |
 
 ## Quand l'utiliser
 

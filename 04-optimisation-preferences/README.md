@@ -36,15 +36,15 @@ Le **DPO itératif / on-policy** ([`variantes/dpo-iteratif`](variantes/dpo-itera
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM décodeur, idéalement après un SFT | ✅ cas principal | [`run.py`](run.py) |
-| LLM instruct du commerce (Qwen-Instruct, Llama-Instruct...) | ✅ | Déjà SFT, on peut appliquer DPO directement |
-| Modèle de base (sans SFT) | ⚠️ | Préférer ORPO, qui combine SFT et préférences, ou faire un SFT d'abord |
-| Multimodal (Qwen2.5-VL, LLaVA, Idefics) | ✅ | `DPOTrainer` gère les images dans les prompts (réduction des hallucinations visuelles) |
-| Diffusion (SD, SDXL) | ✅ | Diffusion-DPO : même idée appliquée à la perte de débruitage (scripts diffusers `train_diffusion_dpo`) |
-| Encodeur (BERT) / classifieur | ❌ | Pas de génération, rien à préférer |
-| Modèle fermé via API | ⚠️ | OpenAI propose un « preference fine-tuning » (DPO) sur ses modèles |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM décodeur, idéalement après un SFT | Llama 3, Qwen2.5, Mistral 7B, Gemma 2 | ✅ cas principal | [`run.py`](run.py) |
+| LLM instruct du commerce | Qwen2.5-7B-Instruct, Llama-3.1-8B-Instruct | ✅ | Déjà SFT, on peut appliquer DPO directement |
+| Modèle de base (sans SFT) | Llama-3.1-8B, Qwen2.5-7B (versions de base) | ⚠️ | Préférer ORPO, qui combine SFT et préférences, ou faire un SFT d'abord |
+| Multimodal | Qwen2.5-VL, LLaVA, Idefics | ✅ | `DPOTrainer` gère les images dans les prompts (réduction des hallucinations visuelles) |
+| Diffusion | Stable Diffusion, SDXL | ✅ | Diffusion-DPO : même idée appliquée à la perte de débruitage (scripts diffusers `train_diffusion_dpo`) |
+| Encodeur / classifieur | BERT | ❌ | Pas de génération, rien à préférer |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ⚠️ | OpenAI propose un « preference fine-tuning » (DPO) sur ses modèles |
 
 ## Quand l'utiliser
 

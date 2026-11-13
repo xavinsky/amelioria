@@ -30,14 +30,14 @@ Lien avec les données synthétiques ([SIGN07](../07-donnees-synthetiques)) : le
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM décodeur, enseignant et élève de la **même famille** | ✅ cas principal | [`run.py`](run.py) : tous les modes (Qwen2.5-1.5B → 0.5B, Llama-3.1-8B → 3.2-1B) |
-| LLM de familles différentes | ⚠️ | Mode `sequence` seulement ; les modes à logits demandent le même vocabulaire (ou un alignement de tokenizers, ULD) |
-| Encodeurs / classifieurs (BERT, RoBERTa) | ✅ | [`variantes/encodeur-classification`](variantes/encodeur-classification) : KD sur les logits de classes, tokenizers différents possibles |
-| Vision (ViT, CNN) | ✅ | Même perte sur les logits de classes (DeiT ajoute un token de distillation) |
-| Diffusion | ✅ | Distillation de pas d'échantillonnage (LCM, SDXL-Turbo, consistency models) : moins de pas plutôt que moins de paramètres |
-| Modèle fermé via API | ✅ comme enseignant | Mode `sequence` uniquement (pas de logits), en respectant les conditions d'utilisation du fournisseur |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM décodeur, enseignant et élève de la **même famille** | Llama 3, Qwen2.5, Mistral 7B, Gemma 2 | ✅ cas principal | [`run.py`](run.py) : tous les modes (Qwen2.5-1.5B → 0.5B, Llama-3.1-8B → 3.2-1B) |
+| LLM de familles différentes | Llama 3 → Qwen2.5 | ⚠️ | Mode `sequence` seulement ; les modes à logits demandent le même vocabulaire (ou un alignement de tokenizers, ULD) |
+| Encodeurs / classifieurs | BERT, RoBERTa | ✅ | [`variantes/encodeur-classification`](variantes/encodeur-classification) : KD sur les logits de classes, tokenizers différents possibles |
+| Vision | ViT, CNN | ✅ | Même perte sur les logits de classes (DeiT ajoute un token de distillation) |
+| Diffusion | Stable Diffusion, SDXL, Flux | ✅ | Distillation de pas d'échantillonnage (LCM, SDXL-Turbo, consistency models) : moins de pas plutôt que moins de paramètres |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ✅ comme enseignant | Mode `sequence` uniquement (pas de logits), en respectant les conditions d'utilisation du fournisseur |
 
 ## Quand l'utiliser
 

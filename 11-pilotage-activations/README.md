@@ -21,14 +21,14 @@ L'exemple utilise le **sentiment**, mesuré par un classifieur externe (DistilBE
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM décodeur (LLaMA, Qwen, Mistral, Gemma, Phi, GPT-2) | ✅ cas principal | [`run.py`](run.py) trouve les couches automatiquement (`commun/modeles.py:couches_decodeur`) |
-| MoE | ✅ | Le flux résiduel est partagé : même méthode |
-| Multimodal (LLaVA, Qwen-VL) | ✅ | Pilotage de la partie langage |
-| Encodeurs (BERT) | ⚠️ | Directions extractibles (sondes linéaires), pilotage moins utile sans génération |
-| Diffusion | ✅ | Directions dans l'espace des embeddings de texte ou dans l'UNet (« concept sliders ») |
-| Modèle fermé via API | ❌ | Pas d'accès aux activations |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM décodeur | LLaMA, Qwen, Mistral, Gemma, Phi, GPT-2 | ✅ cas principal | [`run.py`](run.py) trouve les couches automatiquement (`commun/modeles.py:couches_decodeur`) |
+| MoE | Mixtral 8x7B, Qwen3-30B-A3B, DeepSeek-V3 | ✅ | Le flux résiduel est partagé : même méthode |
+| Multimodal | LLaVA, Qwen-VL | ✅ | Pilotage de la partie langage |
+| Encodeurs | BERT | ⚠️ | Directions extractibles (sondes linéaires), pilotage moins utile sans génération |
+| Diffusion | Stable Diffusion, SDXL, Flux | ✅ | Directions dans l'espace des embeddings de texte ou dans l'UNet (« concept sliders ») |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ❌ | Pas d'accès aux activations |
 
 ## Quand l'utiliser
 

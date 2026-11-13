@@ -28,14 +28,14 @@ Les implémentations sont dans [`fusion.py`](fusion.py) : environ 100 lignes lis
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM décodeur : fine-tunes d'un **même** modèle de base | ✅ cas principal | Mêmes formes de tenseurs. Les fusions entre familles différentes (Llama + Qwen) ne marchent pas |
-| Adaptateurs LoRA d'une même base | ✅ | `peft` : `model.add_weighted_adapter([...], weights, combination_type="ties")` |
-| Encodeurs, ViT, CLIP, Whisper | ✅ | Model soups sur CLIP/ViT (papier d'origine), WiSE-FT (fusion modèle fine-tuné / zéro-shot) |
-| Diffusion (SD, SDXL) | ✅ très courant | Fusion de checkpoints et de LoRA de style (outils : Automatic1111, ComfyUI, `sd-mecha`) |
-| Modèles de tailles ou d'architectures différentes | ❌ | Il faut passer par la distillation ([SIGN06](../06-distillation)) |
-| Modèle fermé via API | ❌ | Pas d'accès aux poids |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM décodeur : fine-tunes d'un **même** modèle de base | Llama 3, Qwen2.5, Mistral 7B, Gemma 2 | ✅ cas principal | Mêmes formes de tenseurs. Les fusions entre familles différentes (Llama + Qwen) ne marchent pas |
+| Adaptateurs LoRA d'une même base | — | ✅ | `peft` : `model.add_weighted_adapter([...], weights, combination_type="ties")` |
+| Encodeurs, ViT, CLIP, Whisper | BERT, ViT, CLIP, Whisper | ✅ | Model soups sur CLIP/ViT (papier d'origine), WiSE-FT (fusion modèle fine-tuné / zéro-shot) |
+| Diffusion | Stable Diffusion, SDXL | ✅ très courant | Fusion de checkpoints et de LoRA de style (outils : Automatic1111, ComfyUI, `sd-mecha`) |
+| Modèles de tailles ou d'architectures différentes | — | ❌ | Il faut passer par la distillation ([SIGN06](../06-distillation)) |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ❌ | Pas d'accès aux poids |
 
 ## Quand l'utiliser
 

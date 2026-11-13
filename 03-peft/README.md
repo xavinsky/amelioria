@@ -32,15 +32,15 @@ Intérêts pratiques :
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM décodeur (toutes familles HF) | ✅ cas principal | [`run.py`](run.py). `all-linear` cible toutes les couches linéaires, quelle que soit l'architecture |
-| LLM quantifié (bitsandbytes 4/8 bits, GPTQ, AWQ) | ✅ | QLoRA. Entraîner une LoRA sur un modèle GPTQ/AWQ est aussi possible |
-| Encodeur (BERT...) / seq2seq (T5) / Whisper | ✅ | Même API, `task_type="SEQ_CLS"`, `"SEQ_2_SEQ_LM"`... |
-| Vision (ViT, CLIP) / multimodal (Qwen2.5-VL, LLaVA) | ✅ | Cibler les couches linéaires de la tour vision et/ou du LLM |
-| Diffusion (Stable Diffusion, SDXL, Flux) | ✅ très courant | [`variantes/diffusion-lora`](variantes/diffusion-lora) : apprendre un sujet ou un style en quelques images |
-| Tout `nn.Module` PyTorch personnalisé | ✅ | PEFT accepte des modèles quelconques via `target_modules` |
-| Modèle fermé via API | ⚠️ | Certains fournisseurs font du LoRA côté serveur (fine-tuning « as a service ») |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM décodeur (toutes familles HF) | Llama 3, Qwen2.5, Mistral 7B, Gemma 2 | ✅ cas principal | [`run.py`](run.py). `all-linear` cible toutes les couches linéaires, quelle que soit l'architecture |
+| LLM quantifié (bitsandbytes 4/8 bits, GPTQ, AWQ) | Qwen2.5-7B-Instruct-AWQ, Llama-3.1-8B en NF4 | ✅ | QLoRA. Entraîner une LoRA sur un modèle GPTQ/AWQ est aussi possible |
+| Encodeur / seq2seq / Whisper | BERT, T5, Whisper | ✅ | Même API, `task_type="SEQ_CLS"`, `"SEQ_2_SEQ_LM"`... |
+| Vision / multimodal | ViT, CLIP, Qwen2.5-VL, LLaVA | ✅ | Cibler les couches linéaires de la tour vision et/ou du LLM |
+| Diffusion | Stable Diffusion, SDXL, Flux | ✅ très courant | [`variantes/diffusion-lora`](variantes/diffusion-lora) : apprendre un sujet ou un style en quelques images |
+| Tout `nn.Module` PyTorch personnalisé | — | ✅ | PEFT accepte des modèles quelconques via `target_modules` |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ⚠️ | Certains fournisseurs font du LoRA côté serveur (fine-tuning « as a service ») |
 
 ## Quand l'utiliser
 

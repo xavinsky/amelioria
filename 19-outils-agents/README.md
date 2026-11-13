@@ -31,13 +31,13 @@ Mesures : exactitude sans outils, exactitude avec outils, nombre moyen d'appels.
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM instruct entraînés au tool calling (Qwen2.5/3, Llama 3.1+, Mistral, Hermes, GLM, DeepSeek) | ✅ cas principal | Le chat template doit accepter `tools` |
-| LLM fermés via API (GPT, Claude, Gemini) | ✅ | `modele.api_base` |
-| Petits modèles (< 3B) ou sans entraînement aux outils | ⚠️ | Appels mal formés. Solution : SFT sur des traces d'appels ([DATA02](../02-fine-tuning-supervise), [DATA03](../03-peft)) ou génération contrainte (JSON schema) |
-| Multimodal | ✅ | Agents « computer use » : captures d'écran en entrée, actions en sortie |
-| Encodeurs, diffusion | ❌ | Pas de boucle de décision. Ils peuvent en revanche *être* des outils |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM instruct entraînés au tool calling | Qwen2.5/3, Llama 3.1+, Mistral, Hermes, GLM, DeepSeek | ✅ cas principal | Le chat template doit accepter `tools` |
+| LLM fermés via API | GPT, Claude, Gemini | ✅ | `modele.api_base` |
+| Petits modèles (< 3B) ou sans entraînement aux outils | Qwen2.5-0.5B / 1.5B, Llama-3.2-1B, SmolLM2 | ⚠️ | Appels mal formés. Solution : SFT sur des traces d'appels ([DATA02](../02-fine-tuning-supervise), [DATA03](../03-peft)) ou génération contrainte (JSON schema) |
+| Multimodal | Qwen2.5-VL, LLaVA, Idefics | ✅ | Agents « computer use » : captures d'écran en entrée, actions en sortie |
+| Encodeurs, diffusion | BERT, Stable Diffusion | ❌ | Pas de boucle de décision. Ils peuvent en revanche *être* des outils |
 
 ## Quand l'utiliser
 

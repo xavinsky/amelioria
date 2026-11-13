@@ -25,15 +25,15 @@ Mesures (référence bf16 puis modèle quantifié) : mémoire du modèle, tokens
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM décodeur (toutes familles) | ✅ cas principal | [`run.py`](run.py) |
-| MoE (Mixtral, Qwen-MoE, DeepSeek) | ✅ | Experts quantifiés, routeur souvent laissé en haute précision |
-| Encodeurs (BERT) | ✅ | int8 dynamique (`torch.ao`, ONNX Runtime, Optimum) très courant en CPU |
-| Vision / VLM | ✅ | Tour vision souvent gardée en 16 bits, LLM quantifié |
-| Diffusion (SDXL, Flux) | ✅ | NF4/FP8 du transformer de diffusion (diffusers + bitsandbytes/torchao), GGUF pour Flux |
-| Whisper | ✅ | int8 (CTranslate2 / faster-whisper), GGUF (whisper.cpp) |
-| Modèle fermé via API | ❌ | Le fournisseur le fait, ou pas |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM décodeur (toutes familles) | Llama 3, Qwen2.5, Mistral 7B, Gemma 2 | ✅ cas principal | [`run.py`](run.py) |
+| MoE | Mixtral, Qwen-MoE, DeepSeek | ✅ | Experts quantifiés, routeur souvent laissé en haute précision |
+| Encodeurs | BERT | ✅ | int8 dynamique (`torch.ao`, ONNX Runtime, Optimum) très courant en CPU |
+| Vision / VLM | Qwen2.5-VL, LLaVA, Idefics | ✅ | Tour vision souvent gardée en 16 bits, LLM quantifié |
+| Diffusion | SDXL, Flux | ✅ | NF4/FP8 du transformer de diffusion (diffusers + bitsandbytes/torchao), GGUF pour Flux |
+| Whisper | Whisper | ✅ | int8 (CTranslate2 / faster-whisper), GGUF (whisper.cpp) |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ❌ | Le fournisseur le fait, ou pas |
 
 ## Quand l'utiliser
 

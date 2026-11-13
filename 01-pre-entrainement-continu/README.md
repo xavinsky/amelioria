@@ -22,15 +22,15 @@ Le pré-entraînement continu est en général suivi d'un SFT ([DATA02](../02-fi
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM décodeur de base (LLaMA, Qwen, Mistral, Gemma, Phi, GPT-2, SmolLM...) | ✅ cas principal | `run.py`, tout `AutoModelForCausalLM` |
-| LLM instruct / chat | ⚠️ | Fonctionne, mais le format de chat se dégrade. Préférer : base -> pré-entraînement continu -> SFT, ou fusionner ensuite avec l'instruct ([EDIT08](../08-fusion-modeles)) |
-| Encodeur (BERT, RoBERTa, DeBERTa, CamemBERT) | ✅ | [`variantes/mlm-encodeur`](variantes/mlm-encodeur) : objectif MLM |
-| Encodeur-décodeur (T5, BART) | ✅ | Même idée avec l'objectif de débruitage d'origine (span corruption) |
-| Vision (ViT, DINOv2) / audio (wav2vec2) | ✅ | Objectifs auto-supervisés d'origine (MAE, DINO, contrastif) sur images ou sons du domaine |
-| Diffusion | ⚠️ | Équivaut à un fine-tuning complet sur les images du domaine (voir [03 variante diffusion](../03-peft/variantes/diffusion-lora)) |
-| Modèle fermé via API | ❌ | Pas d'accès aux poids |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM décodeur de base | LLaMA, Qwen, Mistral, Gemma, Phi, GPT-2, SmolLM | ✅ cas principal | `run.py`, tout `AutoModelForCausalLM` |
+| LLM instruct / chat | Llama-3.1-8B-Instruct, Qwen2.5-7B-Instruct, Mistral-7B-Instruct | ⚠️ | Fonctionne, mais le format de chat se dégrade. Préférer : base -> pré-entraînement continu -> SFT, ou fusionner ensuite avec l'instruct ([EDIT08](../08-fusion-modeles)) |
+| Encodeur | BERT, RoBERTa, DeBERTa, CamemBERT | ✅ | [`variantes/mlm-encodeur`](variantes/mlm-encodeur) : objectif MLM |
+| Encodeur-décodeur | T5, BART | ✅ | Même idée avec l'objectif de débruitage d'origine (span corruption) |
+| Vision / audio | ViT, DINOv2, wav2vec2 | ✅ | Objectifs auto-supervisés d'origine (MAE, DINO, contrastif) sur images ou sons du domaine |
+| Diffusion | Stable Diffusion, SDXL, Flux | ⚠️ | Équivaut à un fine-tuning complet sur les images du domaine (voir [03 variante diffusion](../03-peft/variantes/diffusion-lora)) |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ❌ | Pas d'accès aux poids |
 
 ## Quand l'utiliser
 

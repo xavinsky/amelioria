@@ -42,15 +42,15 @@ Et les variantes d'algorithme (`--set algo=...`) :
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM décodeur instruct ou après SFT | ✅ cas principal | Le modèle doit déjà réussir *parfois* : une récompense toujours nulle ne donne aucun signal |
-| LLM de base | ⚠️ | Possible (R1-Zero) mais demande un modèle ≥ 7B et un format simple |
-| Multimodal (Qwen2.5-VL...) | ✅ | `GRPOTrainer` accepte les images. RLVR sur des questions visuelles vérifiables |
-| Agents / usage d'outils | ✅ | `GRPOTrainer(tools=..., environment_factory=...)` : récompense sur la réussite de la tâche multi-tours |
-| Diffusion | ✅ | DDPO, Flow-GRPO : récompense esthétique ou d'alignement texte-image (bibliothèques dédiées) |
-| Encodeur / classifieur | ❌ | Pas de génération |
-| Modèle fermé via API | ⚠️ | OpenAI « Reinforcement Fine-Tuning » : on fournit des prompts et un grader |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM décodeur instruct ou après SFT | Llama 3, Qwen2.5, Mistral 7B, Gemma 2 | ✅ cas principal | Le modèle doit déjà réussir *parfois* : une récompense toujours nulle ne donne aucun signal |
+| LLM de base | Llama-3.1-8B, Qwen2.5-7B, Mistral-7B (versions de base) | ⚠️ | Possible (R1-Zero) mais demande un modèle ≥ 7B et un format simple |
+| Multimodal | Qwen2.5-VL | ✅ | `GRPOTrainer` accepte les images. RLVR sur des questions visuelles vérifiables |
+| Agents / usage d'outils | Qwen2.5-Instruct, Llama-3.1-Instruct, Hermes 3 | ✅ | `GRPOTrainer(tools=..., environment_factory=...)` : récompense sur la réussite de la tâche multi-tours |
+| Diffusion | Stable Diffusion, SDXL, Flux | ✅ | DDPO, Flow-GRPO : récompense esthétique ou d'alignement texte-image (bibliothèques dédiées) |
+| Encodeur / classifieur | BERT, RoBERTa, ModernBERT | ❌ | Pas de génération |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ⚠️ | OpenAI « Reinforcement Fine-Tuning » : on fournit des prompts et un grader |
 
 ## Quand l'utiliser
 

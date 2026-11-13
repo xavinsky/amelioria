@@ -28,14 +28,14 @@ Lien avec la distillation ([SIGN06](../06-distillation)) : si le générateur es
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM décodeur instruct | ✅ cas principal | Le modèle doit réussir la tâche au moins de temps en temps (`rejet`), ou savoir suivre des consignes (`critique_revision`) |
-| LLM de base | ⚠️ | Utiliser un générateur instruct distinct (`generateur.nom`) |
-| Encodeur / classifieur | ✅ | Un LLM génère des textes étiquetés pour entraîner un petit classifieur (variante courante de `self_instruct`, voir *Grosse infra*) |
-| Vision / multimodal | ✅ | Légendes générées par un VLM et filtrées par CLIP-score (recette de nombreux jeux image-texte) |
-| Diffusion | ✅ | Prompts réécrits par un LLM (légendes synthétiques détaillées, recette DALL-E 3) |
-| Modèle fermé via API | ✅ comme générateur | Générer avec GPT/Claude/Gemini pour entraîner un modèle ouvert, en respectant leurs conditions d'utilisation |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM décodeur instruct | Llama 3, Qwen2.5, Mistral 7B, Gemma 2 | ✅ cas principal | Le modèle doit réussir la tâche au moins de temps en temps (`rejet`), ou savoir suivre des consignes (`critique_revision`) |
+| LLM de base | Llama-3.1-8B, Qwen2.5-7B, Mistral-7B (versions de base) | ⚠️ | Utiliser un générateur instruct distinct (`generateur.nom`) |
+| Encodeur / classifieur | BERT, RoBERTa, ModernBERT | ✅ | Un LLM génère des textes étiquetés pour entraîner un petit classifieur (variante courante de `self_instruct`, voir *Grosse infra*) |
+| Vision / multimodal | Qwen2.5-VL, LLaVA, Idefics | ✅ | Légendes générées par un VLM et filtrées par CLIP-score (recette de nombreux jeux image-texte) |
+| Diffusion | Stable Diffusion, SDXL, Flux | ✅ | Prompts réécrits par un LLM (légendes synthétiques détaillées, recette DALL-E 3) |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ✅ comme générateur | Générer avec GPT/Claude/Gemini pour entraîner un modèle ouvert, en respectant leurs conditions d'utilisation |
 
 ## Quand l'utiliser
 

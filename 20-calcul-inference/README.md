@@ -27,14 +27,14 @@ Les **modèles de raisonnement** (o1/o3, DeepSeek-R1, Qwen3 en mode thinking) in
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM instruct, local ou via API | ✅ cas principal | `best_of_n_vraisemblance` demande un modèle local (log-probs) |
-| Modèles de raisonnement | ✅ | Budget de réflexion. Le vote reste utile au-dessus |
-| Code | ✅ très efficace | Sélection par exécution des tests (vérificateur exact) |
-| Multimodal | ✅ | Mêmes stratégies |
-| Diffusion | ✅ | Best-of-N d'images notées par un modèle esthétique ou d'alignement (ImageReward, PickScore) ; recherche sur le bruit initial |
-| Encodeurs / classifieurs | ⚠️ | Équivalent : test-time augmentation et ensembles |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM instruct, local ou via API | Llama-3.1-8B-Instruct, Qwen2.5-7B-Instruct, Mistral-7B-Instruct | ✅ cas principal | `best_of_n_vraisemblance` demande un modèle local (log-probs) |
+| Modèles de raisonnement | DeepSeek-R1, QwQ-32B, Qwen3 | ✅ | Budget de réflexion. Le vote reste utile au-dessus |
+| Code | Qwen2.5-Coder, DeepSeek-Coder, StarCoder2 | ✅ très efficace | Sélection par exécution des tests (vérificateur exact) |
+| Multimodal | Qwen2.5-VL, LLaVA, Idefics | ✅ | Mêmes stratégies |
+| Diffusion | Stable Diffusion, SDXL, Flux | ✅ | Best-of-N d'images notées par un modèle esthétique ou d'alignement (ImageReward, PickScore) ; recherche sur le bruit initial |
+| Encodeurs / classifieurs | BERT, RoBERTa, ModernBERT | ⚠️ | Équivalent : test-time augmentation et ensembles |
 
 ## Quand l'utiliser
 

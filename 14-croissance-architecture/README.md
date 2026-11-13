@@ -32,14 +32,14 @@ Le rapport contient :
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM famille LLaMA / Mistral / SmolLM (sans biais) | ✅ cas principal | [`croissance.py`](croissance.py) : les trois méthodes |
-| Qwen2, Gemma, Phi | ⚠️ | `profondeur` et `expansion_blocs` fonctionnent si les noms de modules sont les mêmes. `moe` : la cible est l'équivalent MoE de la famille (Qwen2 → Qwen2-MoE, avec biais d'attention) |
-| Encodeurs (BERT) / ViT | ✅ | Principe identique : empilement (stacking de BERT), expansion identité |
-| Vision / multimodal | ✅ | Upcycling MoE de ViT (V-MoE) et de VLM (MoE-LLaVA) |
-| Diffusion | ⚠️ | Rare, mais des DiT MoE existent |
-| Modèle fermé via API | ❌ | |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM famille LLaMA / Mistral / SmolLM (sans biais) | Llama 3, Mistral 7B, SmolLM2 | ✅ cas principal | [`croissance.py`](croissance.py) : les trois méthodes |
+| Qwen2, Gemma, Phi | Qwen2, Gemma, Phi-3 | ⚠️ | `profondeur` et `expansion_blocs` fonctionnent si les noms de modules sont les mêmes. `moe` : la cible est l'équivalent MoE de la famille (Qwen2 → Qwen2-MoE, avec biais d'attention) |
+| Encodeurs / ViT | BERT, ViT | ✅ | Principe identique : empilement (stacking de BERT), expansion identité |
+| Vision / multimodal | Qwen2.5-VL, LLaVA, Idefics | ✅ | Upcycling MoE de ViT (V-MoE) et de VLM (MoE-LLaVA) |
+| Diffusion | Stable Diffusion, SDXL, Flux | ⚠️ | Rare, mais des DiT MoE existent |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ❌ | |
 
 ## Quand l'utiliser
 

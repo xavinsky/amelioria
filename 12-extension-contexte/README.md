@@ -32,15 +32,15 @@ Pour chacun, on mesure le **test de la clé cachée** (passkey retrieval, retrou
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM avec RoPE (LLaMA, Qwen, Mistral, Gemma, Phi-3, SmolLM, DeepSeek) | ✅ cas principal | [`run.py`](run.py) |
-| LLM avec ALiBi (BLOOM, MPT) | ⚠️ | Extrapole un peu nativement ; pas de réglage RoPE, fine-tuning long seulement |
-| LLM à positions absolues apprises (GPT-2, OPT) | ⚠️ | Il faut agrandir la table de positions (copie ou interpolation) puis entraîner |
-| Encodeurs (BERT 512 → ModernBERT 8k) | ⚠️ | ModernBERT utilise RoPE : même méthode. BERT : positions apprises |
-| Mamba / RWKV / hybrides | ✅ | Pas de limite positionnelle : fine-tuning sur textes longs uniquement |
-| Vision / vidéo (Qwen2-VL, M-RoPE) | ✅ | RoPE multi-axes, même logique pour plus d'images ou de frames |
-| Modèle fermé via API | ❌ | |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM avec RoPE | LLaMA, Qwen, Mistral, Gemma, Phi-3, SmolLM, DeepSeek | ✅ cas principal | [`run.py`](run.py) |
+| LLM avec ALiBi | BLOOM, MPT | ⚠️ | Extrapole un peu nativement ; pas de réglage RoPE, fine-tuning long seulement |
+| LLM à positions absolues apprises | GPT-2, OPT | ⚠️ | Il faut agrandir la table de positions (copie ou interpolation) puis entraîner |
+| Encodeurs (BERT 512 → ModernBERT 8k) | BERT, ModernBERT | ⚠️ | ModernBERT utilise RoPE : même méthode. BERT : positions apprises |
+| Mamba / RWKV / hybrides | Mamba, RWKV, Jamba | ✅ | Pas de limite positionnelle : fine-tuning sur textes longs uniquement |
+| Vision / vidéo | Qwen2-VL, Qwen2.5-VL (M-RoPE) | ✅ | RoPE multi-axes, même logique pour plus d'images ou de frames |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ❌ | |
 
 ## Quand l'utiliser
 

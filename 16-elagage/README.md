@@ -29,15 +29,15 @@ Chaque étape est mesurée (origine → élagué → cicatrisé) : paramètres, 
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM LLaMA / Qwen / Mistral / SmolLM | ✅ cas principal | [`elagage.py`](elagage.py) : noms `q/k/v/o_proj`, `gate/up/down_proj` |
-| Autres LLM (GPT-2, Phi, Falcon) | ⚠️ | Adapter `NOMS_LINEAIRES` et les attributs MLP |
-| MoE | ✅ | Élaguer des experts entiers (fréquence de routage) : très efficace |
-| Encodeurs (BERT) | ✅ très étudié | Élagage de têtes d'attention, movement pruning, `nn_pruning` |
-| Vision (CNN, ViT) | ✅ | Élagage de filtres / canaux (torch-pruning), tokens (ToMe) |
-| Diffusion | ✅ | Suppression de blocs de l'UNet + distillation (BK-SDM, SSD-1B) |
-| Modèle fermé via API | ❌ | |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM LLaMA / Qwen / Mistral / SmolLM | Llama 3, Qwen2.5, Mistral 7B, SmolLM2 | ✅ cas principal | [`elagage.py`](elagage.py) : noms `q/k/v/o_proj`, `gate/up/down_proj` |
+| Autres LLM | GPT-2, Phi, Falcon | ⚠️ | Adapter `NOMS_LINEAIRES` et les attributs MLP |
+| MoE | Mixtral 8x7B, Qwen3-30B-A3B, DeepSeek-V3 | ✅ | Élaguer des experts entiers (fréquence de routage) : très efficace |
+| Encodeurs | BERT | ✅ très étudié | Élagage de têtes d'attention, movement pruning, `nn_pruning` |
+| Vision | ResNet, ViT | ✅ | Élagage de filtres / canaux (torch-pruning), tokens (ToMe) |
+| Diffusion | Stable Diffusion, SDXL, Flux | ✅ | Suppression de blocs de l'UNet + distillation (BK-SDM, SSD-1B) |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ❌ | |
 
 ## Quand l'utiliser
 

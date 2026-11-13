@@ -37,14 +37,14 @@ Deux techniques d'ajout :
 
 ## Modèles concernés
 
-| Type de modèle | Applicable | Remarques |
-|---|---|---|
-| LLM décodeur (toutes familles) | ✅ cas principal | Embeddings liés ou non liés gérés (`tie_word_embeddings`) |
-| Encodeur (BERT, RoBERTa) / seq2seq (T5, mBART) | ✅ | Même procédure. Ajouter des termes médicaux à BERT est un classique |
-| Modèle multimodal | ✅ | Ajout de tokens spéciaux (`<image>`, `<box>`) : c'est ainsi que les VLM sont construits |
-| Speech (Whisper) | ⚠️ | Tokens de nouvelle langue possibles, peu courant |
-| Tokenizer « byte-level » sans vocabulaire (ByT5, modèles à patchs) | ❌ | Rien à étendre |
-| Modèle fermé via API | ❌ | |
+| Type de modèle | Exemples de modèles | Applicable | Remarques |
+|---|---|---|---|
+| LLM décodeur (toutes familles) | Llama 3, Qwen2.5, Mistral 7B, Gemma 2 | ✅ cas principal | Embeddings liés ou non liés gérés (`tie_word_embeddings`) |
+| Encodeur / seq2seq | BERT, RoBERTa, T5, mBART | ✅ | Même procédure. Ajouter des termes médicaux à BERT est un classique |
+| Modèle multimodal | Qwen2.5-VL, LLaVA, Idefics | ✅ | Ajout de tokens spéciaux (`<image>`, `<box>`) : c'est ainsi que les VLM sont construits |
+| Speech | Whisper | ⚠️ | Tokens de nouvelle langue possibles, peu courant |
+| Tokenizer « byte-level » sans vocabulaire | ByT5, BLT | ❌ | Rien à étendre |
+| Modèle fermé via API | GPT-4o, Claude, Gemini | ❌ | |
 
 ## Quand l'utiliser
 
