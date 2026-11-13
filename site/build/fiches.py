@@ -120,7 +120,8 @@ class Generateur:
                        + (f"\n\n## Références\n\n{refs}" if refs else "")
                        + f"\n\n## Dans le dépôt\n\nExemple, résultats mesurés et commandes : "
                        f"[{m['titre']} : exemple de code](#{ident}-exemple).\n")
-            exemple = (f"Ce que le dossier {self.depot.lien_code(m['dossier'])} fournit pour cette méthode. "
+            exemple = (self.depot.avertissement(num, chemin)
+                       + f"Ce que le dossier {self.depot.lien_code(m['dossier'])} fournit pour cette méthode. "
                        "Principe et références : "
                        f"[{m['titre']}](#{ident}).\n\n"
                        + self.sections(readme, ["Ce que fait l'exemple", "Composants de l'exemple"], m["dossier"])

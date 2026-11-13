@@ -140,6 +140,33 @@ class Catalogue:
                 f"- **GPU local 12 Go** (exemple de code) : {m['local']}\n"
                 f"- **Code** : {self.lien_code(m['dossier'])}\n")
 
+    def avertissement(self, num, source):
+        """Encart d'avertissement d'une page Exemple de code quand un de ses exemples locaux n'est pas démontré."""
+        num, m = self.methode(num, source)
+        exemples = self.exemples_de(num)
+        nom = lambda e: f"variante `{self.variante(e)}`" if self.variante(e) else "exemple principal"
+        demontres = [nom(e) for e in exemples if e["statut"] == "demontre"]
+        autres = [nom(e) for e in exemples if e["statut"] != "demontre"]
+        if not autres:
+            return ""
+        if not demontres:
+            texte = ("**Pas encore démontré.** " + (
+                "L'exemple de code de cette méthode s'exécute, mais son résultat ne prouve pas encore le gain "
+                "de la méthode." if len(exemples) == 1 else
+                f"Aucun des {len(exemples)} exemples de code de cette méthode ne démontre encore son gain : "
+                "ils s'exécutent, mais leur résultat ne le prouve pas."))
+        else:
+            texte = (f"**Démontré en partie.** {len(demontres)} exemple{'s' if len(demontres) > 1 else ''} "
+                     f"sur {len(exemples)} démontre{'nt' if len(demontres) > 1 else ''} le gain de la méthode "
+                     f"({', '.join(demontres)}). "
+                     + ("Les autres s'exécutent, mais leur résultat" if len(autres) > 1
+                        else "L'autre s'exécute, mais son résultat")
+                     + f" ne le prouve pas encore ({', '.join(autres)}).")
+        if (DEPOT / m["dossier"] / "infra").is_dir():
+            texte += " La version grosse infra n'a jamais été exécutée."
+        return (f"> [!WARNING]\n> {texte} La raison figure dans le tableau « Essayer dans le dépôt » ; "
+                "les pistes pour y arriver : [Travail en cours](#travail-en-cours).\n\n")
+
     def essayer(self, num, source):
         """Section « Essayer dans le dépôt » : exemples, statut, résultat mesuré, commandes."""
         num, m = self.methode(num, source)
