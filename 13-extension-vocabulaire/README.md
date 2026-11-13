@@ -138,7 +138,7 @@ python run.py --set donnees.source=hf --set donnees.nom=wikimedia/wikipedia --se
 Sur une base de 80 personnages fictifs aux noms inventés, très mal découpés :
 
 - `avant` : tokens et bits par caractère avec le tokenizer d'origine ;
-- `apres_init` : ~200 tokens ajoutés, initialisés par moyenne. Le corpus est nettement plus court, avec des bits par caractère proches de `avant` ;
+- `apres_init` : ~200 tokens ajoutés, initialisés par moyenne. Le corpus est nettement plus court, et les bits par caractère sont déjà plus bas que `avant` (1,92 → 1,63 dans l'exemple complet) : la moyenne donne d'emblée un sens approché aux nouveaux tokens ;
 - `apres_phase1` puis `apres_phase2` : les bits par caractère descendent sous la valeur d'origine.
 
 ## Paramètres principaux (`config.yaml`)

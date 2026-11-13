@@ -26,6 +26,7 @@ Une ligne par étape terminée, exemple validé ou en échec, la plus récente e
 | 2026-11-12 | Six graphes de décision par cas (pages « Cas : … »), pictogrammes d'accès au modèle et de données à fournir, tableau des critères retiré | Build sans erreur, rendu vérifié en clair et en sombre | `make site` |
 | 2026-11-12 | Pages de méthode générées depuis les README (Concept, Exemple), durées mesurées, schéma des composants et texte des étapes pour les 20 exemples | 20 schémas Mermaid rendus sans erreur, numérotation schéma/texte cohérente | `make site` |
 | 2026-11-12 | 13 vocabulaire : initialisation par moyenne des nouveaux tokens corrigée (ids dans les lignes de réserve de la matrice) | Code corrigé, vérifié sur le tokenizer ; résultats à remesurer (GPU) | — |
+| 2026-11-13 | Passe complète finale terminée : FORM13, EXEC17 à EXEC20, FORM16, FORM15 GGUF ; test rapide de DATA02 audio-whisper | 8/8 sans erreur ; résultats inchangés sauf FORM13 (bits par caractère 0,57 → 0,42 avec l'initialisation corrigée) | `logs/relance.txt`, `logs/complet/` |
 
 ## Environnement
 

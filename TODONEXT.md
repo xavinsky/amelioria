@@ -40,9 +40,7 @@ Un panorama exécutable des méthodes pour améliorer un modèle d'IA : 20 dossi
 ### 1. Clore la passe finale
 
 - [x] Relever les résultats déjà produits de 12, 13, 14 et 15 et les reporter dans `exemples.yaml`.
-- [ ] Relancer `make run EX=FORM13` (initialisation par moyenne corrigée) et `make run EX=EXEC17` (sorties produites avec l'ancienne configuration arithmétique), puis reporter les résultats dans `exemples.yaml`.
-- [ ] Quand le GPU est de nouveau disponible : `setsid nohup bash -c 'COMPLET=1 bash scripts/smoke.sh 15 16 17 18 19 20 > logs/complet_final_suite.txt 2>&1' &` (le filtre `15` relance aussi 15, qui prend une minute), puis relever 15 GGUF et 16 à 20.
-- [ ] Relancer `bash scripts/smoke.sh 02` : la section quick de `02 audio-whisper` a été corrigée après la passe `--quick`.
+- [x] FORM13 et EXEC17 relancés, 15 GGUF et 16 à 20 en complet, test rapide de 02 audio-whisper : résultats et durées dans `exemples.yaml` (journaux : `logs/complet/`, `logs/relance.txt`, `logs/test/`).
 
 ### 2. Site AmeliorIA et installation de bout en bout
 

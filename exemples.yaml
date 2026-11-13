@@ -462,9 +462,9 @@ exemples:
   - chemin: 13-extension-vocabulaire
     statut: non-prouve
     duree_test: "8 s"
-    duree_complet: "23 s"
-    resultat: "tokens du corpus −22 % ; bits par caractère 1,92 → 0,57"
-    reserve: pas de témoin entraîné sans nouveaux tokens à budget égal ; résultat mesuré sans l'initialisation par moyenne, à remesurer
+    duree_complet: "37 s"
+    resultat: "tokens du corpus −22 % ; bits par caractère 1,92 → 1,63 (initialisation seule) → 0,42"
+    reserve: pas de témoin entraîné sans nouveaux tokens à budget égal
     prerequis: {gpu: requis}
 
   - chemin: 14-croissance-architecture
@@ -502,22 +502,22 @@ exemples:
   - chemin: 17-optimisation-prompt
     statut: non-prouve
     duree_test: "18 s"
-    duree_complet: "5 min"
-    resultat: "GSM8K : zéro-shot 0,60 ; instruction 0,67 ; CoT 0,67 ; few-shot 0,535 ; OPRO sans gain"
+    duree_complet: "20 min"
+    resultat: "GSM8K : zéro-shot 0,60 ; instruction 0,67 ; CoT 0,67 ; few-shot 0,535 ; OPRO 0,575"
     reserve: écarts dans l'intervalle de confiance
     prerequis: {gpu: conseille, api: true}
 
   - chemin: 18-rag
     statut: demontre
     duree_test: "14 s"
-    duree_complet: "49 s"
+    duree_complet: "54 s"
     resultat: "exactitude 0 → 1,0 ; rappel@3 = 1,0"
     prerequis: {gpu: conseille, api: true}
 
   - chemin: 19-outils-agents
     statut: demontre
     duree_test: "10 s"
-    duree_complet: "3 min"
+    duree_complet: "2 min"
     resultat: "0,35 → 0,95"
     prerequis: {gpu: conseille, api: true}
 
