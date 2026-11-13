@@ -348,9 +348,10 @@ exemples:
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/audio-whisper
     statut: non-prouve
+    duree_test: "32 s"
     duree_complet: "9 min"
     resultat: "WER 0,141 → 0,141"
-    reserve: le modèle est déjà bon sur ce jeu ; test rapide à relancer
+    reserve: le modèle est déjà bon sur ce jeu
     prerequis: {gpu: conseille, extras: [torchcodec]}
 
   - chemin: 03-peft
