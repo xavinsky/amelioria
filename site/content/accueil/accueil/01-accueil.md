@@ -10,6 +10,8 @@ Vous avez un modèle d'IA, ouvert ou accessible par API, et il ne fait pas tout 
 
 > [!WARNING]
 > **Projet en cours.** **{{demontres}} exemples sur {{exemples}}** démontrent déjà, en local, un gain net de leur méthode. Les {{non_prouves}} autres s'exécutent, mais leur résultat ne prouve pas encore ce gain : le travail en cours consiste à les refondre sur des tâches réelles pour finir de les démontrer en local. Les {{infra}} versions « grosse infra », qui demandent plusieurs GPU de centre de calcul, sont mises de côté pour le moment : leur code est fourni, mais n'a jamais été exécuté.
+>
+> **Vous pouvez prêter des GPU ?** Pour tester ces versions grosse infra, je cherche un accès à une machine multi-GPU (idéalement un nœud de 8 GPU de 80 Go, même pour quelques heures). Si vous pouvez en fournir une, je suis preneur : contactez-moi !
 
 ## Ce que propose le site
 
