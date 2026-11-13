@@ -3,9 +3,12 @@
 Étapes : choisir les nouveaux tokens (fréquents et mal découpés) -> agrandir les embeddings (init = moyenne des
 sous-tokens) -> phase 1 : n'entraîner que les embeddings -> phase 2 : entraînement complet -> mesurer.
 Mesures comparables entre tokenizers : nombre de tokens du corpus (fertilité) et bits par caractère.
+Témoin : le modèle d'origine suit les deux mêmes phases, sur les mêmes textes et le même nombre d'époques, avec son
+tokenizer inchangé. L'écart entre les deux mesure ce qu'apportent les nouveaux tokens, et non l'entraînement seul.
 """
 
 import collections
+import gc
 import math
 import pathlib
 import re
@@ -109,8 +112,29 @@ def main():
     if cfg.get("sauvegarder", True):
         trainer.save_model(f"{cfg.sortie}/modele")
         tok.save_pretrained(f"{cfg.sortie}/modele")
+    temoin = None
+    if cfg.get("temoin", True):
+        # Le modèle étendu quitte le GPU avant que le témoin ne s'y charge.
+        entrainement.liberer(trainer)
+        del trainer, model
+        gc.collect()
+        torch.cuda.empty_cache()
+        temoin = entrainer_temoin(cfg, train, mesure)
     rapport.enregistrer(cfg, avant=avant, apres_init=apres_init, apres_phase1=apres_phase1, apres_phase2=apres_phase2,
-                        nouveaux_tokens=nouveaux)
+                        **({"temoin": temoin} if temoin else {}), nouveaux_tokens=nouveaux)
+
+
+def entrainer_temoin(cfg, train, mesure):
+    """Modèle d'origine, tokenizer inchangé, mêmes phases sur les mêmes textes : la part de l'entraînement seul."""
+    model, tok = modeles.charger_llm(cfg.modele.nom, cfg.modele.get("dtype", "auto"))
+    for nom, p in model.named_parameters():
+        p.requires_grad_("embed" in nom or "lm_head" in nom or "wte" in nom)
+    entrainement.lm_causal(model, tok, train, cfg.phase1, f"{cfg.sortie}/temoin-phase1", cfg.donnees.longueur_bloc)
+    for p in model.parameters():
+        p.requires_grad_(True)
+    trainer = entrainement.lm_causal(model, tok, train, cfg.phase2, f"{cfg.sortie}/temoin-phase2",
+                                     cfg.donnees.longueur_bloc)
+    return mesure(trainer.model, tok)
 
 
 if __name__ == "__main__":

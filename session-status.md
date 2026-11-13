@@ -27,6 +27,7 @@ Une ligne par étape terminée, exemple validé ou en échec, la plus récente e
 | 2026-11-12 | Pages de méthode générées depuis les README (Concept, Exemple), durées mesurées, schéma des composants et texte des étapes pour les 20 exemples | 20 schémas Mermaid rendus sans erreur, numérotation schéma/texte cohérente | `make site` |
 | 2026-11-12 | 13 vocabulaire : initialisation par moyenne des nouveaux tokens corrigée (ids dans les lignes de réserve de la matrice) | Code corrigé, vérifié sur le tokenizer ; résultats à remesurer (GPU) | — |
 | 2026-11-13 | Passe complète finale terminée : FORM13, EXEC17 à EXEC20, FORM16, FORM15 GGUF ; test rapide de DATA02 audio-whisper | 8/8 sans erreur ; FORM13 : bits par caractère 1,92 → 0,42 | `logs/relance.txt`, `logs/complet/` |
+| 2026-11-13 | Témoins à budget égal pour FORM13 et FORM14 | FORM13 : témoin 0,41 bit/car. contre 0,42 ; FORM14 : témoin 14,3 de perplexité contre 14,9. Tous deux restent non prouvés | `logs/temoins.txt`, `logs/complet/*_temoin_*` |
 
 ## Environnement
 

@@ -106,6 +106,8 @@ flowchart TD
 - **⑭ Écriture du modèle agrandi** et de son tokenizer dans `sorties/14-croissance-architecture/modele-profondeur/`.
 - **⑮ Écriture du rapport** dans `sorties/14-croissance-architecture/resultats.json`, avec le même tableau affiché dans le terminal.
 
+**Témoin.** Avant ⑮, le modèle agrandi quitte le GPU et SmolLM2-360M d'origine (32 couches) y est rechargé. Il est entraîné comme en ⑩ et ⑪ : mêmes textes, mêmes 600 pas, mêmes réglages, puis mesuré comme en ⑫. L'écart avec `apres_cicatrisation` isole l'effet de la croissance, l'entraînement étant le même. `temoin: false` le désactive.
+
 **Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Il n'y a pas de génération : les mesures (⑤, ⑨, ⑬) sont de simples passes avant sur des textes connus. La croissance (⑦) n'est qu'une copie de tenseurs d'une zone de la mémoire du GPU à une autre, sans calcul. En cicatrisation (⑪), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis la mise à jour par l'optimiseur AdamW, dont l'état existe pour les 519,1 millions de paramètres. Un seul modèle occupe la mémoire du GPU. Le pic mesuré, sur un calibrage aux mêmes réglages de modèle et d'entraînement, est d'environ 9,6 Go.
 
 **Ce qui est écrit.**
@@ -116,7 +118,8 @@ flowchart TD
 | `modele-profondeur/config.json`, `generation_config.json` | L'architecture agrandie (`num_hidden_layers: 48`) et les réglages de génération, pour recharger le modèle avec `AutoModelForCausalLM.from_pretrained` |
 | `modele-profondeur/tokenizer.json`, `tokenizer_config.json` | Le tokenizer, copié pour que le dossier se suffise à lui-même |
 | `modele-profondeur/training_args.bin` | Les réglages d'entraînement utilisés |
-| `resultats.json` | Pour l'origine, le modèle transformé et le modèle cicatrisé : paramètres, nombre de couches, perplexité ; écart maximal de logits avec l'origine pour le modèle transformé |
+| `temoin/` | Dossier de travail du Trainer pour le témoin, sans point de contrôle |
+| `resultats.json` | Pour l'origine, le modèle transformé, le modèle cicatrisé et le témoin : paramètres, nombre de couches, perplexité ; écart maximal de logits avec l'origine pour le modèle transformé |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
 Avec `SET="croissance.methode=expansion_blocs"` ou `"croissance.methode=moe"`, le dossier du modèle s'appelle `modele-expansion_blocs/` ou `modele-moe/`.

@@ -62,6 +62,16 @@ def main():
     if cfg.get("sauvegarder", True):
         trainer.save_model(f"{cfg.sortie}/modele-{c.methode}")
         tok.save_pretrained(f"{cfg.sortie}/modele-{c.methode}")
+
+    if cfg.get("temoin", True):
+        # Témoin : le modèle d'origine, sans croissance, entraîné sur les mêmes textes pendant le même nombre de pas.
+        # Sans lui, le gain de perplexité peut venir du seul entraînement sur des textes proches de ceux du test.
+        entrainement.liberer(trainer)
+        del trainer, model
+        temoin, _ = modeles.charger_llm(cfg.modele.nom, cfg.modele.get("dtype", "auto"))
+        trainer = entrainement.lm_causal(temoin, tok, train, cfg.entrainement, f"{cfg.sortie}/temoin",
+                                         cfg.entrainement.longueur_bloc)
+        res["temoin"] = mesurer(trainer.model, tok, test)
     rapport.enregistrer(cfg, **res)
 
 

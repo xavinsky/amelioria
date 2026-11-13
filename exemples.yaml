@@ -461,18 +461,18 @@ exemples:
 
   - chemin: 13-extension-vocabulaire
     statut: non-prouve
-    duree_test: "8 s"
-    duree_complet: "37 s"
-    resultat: "tokens du corpus −22 % ; bits par caractère 1,92 → 1,63 (initialisation seule) → 0,42"
-    reserve: pas de témoin entraîné sans nouveaux tokens à budget égal
+    duree_test: "16 s"
+    duree_complet: "41 s"
+    resultat: "tokens du corpus −22 % ; bits par caractère 1,92 → 0,42 ; témoin sans nouveaux tokens 0,41"
+    reserve: l'entraînement explique la baisse des bits par caractère ; le gain propre est la compression, à qualité presque égale, sur une seule graine
     prerequis: {gpu: requis}
 
   - chemin: 14-croissance-architecture
     statut: non-prouve
-    duree_test: "10 s"
-    duree_complet: "15 min"
-    resultat: "perplexité 19,9 → 26,9 (transformé) → 14,9 (cicatrisé)"
-    reserve: pas de témoin ; le gain peut venir du seul entraînement sur le domaine mesuré
+    duree_test: "13 s"
+    duree_complet: "24 min"
+    resultat: "perplexité 19,9 → 26,9 (transformé) → 14,9 (cicatrisé) ; témoin sans croissance 14,3"
+    reserve: à entraînement égal, le modèle d'origine fait mieux que le modèle agrandi ; la croissance demande un budget de cicatrisation bien plus grand
     prerequis: {gpu: requis}
 
   - chemin: 15-quantification

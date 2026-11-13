@@ -67,7 +67,7 @@ Pour chacun : relire les papiers, vérifier que le modèle de départ échoue su
 4. [ ] **06 distillation LLM** : GSM8K avec un enseignant nettement meilleur que l'élève ; comprendre la régression observée sur l'arithmétique (décalage entraînement / génération, GKD).
 5. [ ] **04 préférences** : jeu de préférences réel (UltraFeedback ou HelpSteer), taux de victoire mesuré par un modèle de récompense externe, non-régression.
 6. [ ] **01 connaissance interne** : entraînement mixte de *Physics of Language Models 3.1* (documents de tous les personnages + questions-réponses d'une moitié), extraction mesurée sur l'autre moitié.
-7. [ ] **13 vocabulaire et 14 croissance** : témoins entraînés à budget égal (sans nouveaux tokens ; modèle d'origine sans agrandissement).
+7. [x] **13 vocabulaire et 14 croissance** : témoins entraînés à budget égal, dans `run.py` (`temoin: true`). Aucun des deux n'est démontré : le témoin fait aussi bien ou mieux.
 8. [ ] **08 fusion multi-compétences** : fusion de deux fine-tunes réels de Qwen2.5-0.5B-Instruct produits par 02 et 05, mesure des deux tâches.
 9. [ ] **02 seq2seq et 02 Whisper** : tâches où le modèle de départ échoue réellement (traduction ou résumé de domaine ; audio à vocabulaire spécialisé, accent ou bruit).
 10. [ ] **09, 11, 16** : jeux d'évaluation plus larges et IC ; vérifier la récupération de la tâche en 16.

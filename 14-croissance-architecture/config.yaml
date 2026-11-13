@@ -26,6 +26,8 @@ entrainement:
   gradient_checkpointing: true
   logging_steps: 20
 
+temoin: true                        # modèle d'origine entraîné pareil, pour isoler l'effet de la croissance
+
 sauvegarder: true
 
 quick:

@@ -109,6 +109,8 @@ flowchart TD
 - **⑮ Écriture du modèle** et du tokenizer agrandi dans `sorties/13-extension-vocabulaire/modele/`.
 - **⑯ Écriture du rapport** dans `sorties/13-extension-vocabulaire/resultats.json`, avec le même tableau affiché dans le terminal.
 
+**Témoin.** Avant ⑯, le modèle étendu quitte le GPU et Qwen2.5-0.5B d'origine y est rechargé, avec son tokenizer inchangé. Il suit les deux mêmes phases (⑨ à ⑬), sur les mêmes textes et le même nombre d'époques, puis il est mesuré comme en ⑭. L'écart avec `apres_phase2` isole ce qu'apportent les nouveaux tokens, l'entraînement étant le même. `temoin: false` le désactive.
+
 **Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Les mesures (⑤, ⑧, ⑪, ⑭) ne font qu'une passe avant par texte, sans génération. L'agrandissement (⑦) alloue une nouvelle matrice d'embeddings sur le GPU et y recopie les anciennes lignes. En entraînement (⑩, ⑬), chaque pas fait une passe avant, une passe arrière qui calcule les gradients, puis la mise à jour par AdamW : en phase 1, gradients et état de l'optimiseur n'existent que pour la matrice d'embeddings ; en phase 2, pour tout le modèle. Les poids restent en fp32, les calculs d'entraînement se font en bf16.
 
 **Ce qui est écrit.**
@@ -119,8 +121,8 @@ flowchart TD
 | `modele/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer agrandi des 200 nouveaux tokens : il doit accompagner le modèle, l'ancien tokenizer ne correspond plus à ses embeddings |
 | `modele/config.json`, `generation_config.json` | L'architecture, avec `vocab_size: 151936`, et les réglages de génération |
 | `modele/training_args.bin` | Les réglages d'entraînement de la phase 2 |
-| `phase1/`, `phase2/` | Dossiers de travail du Trainer, vides : aucun point de contrôle n'est sauvegardé |
-| `resultats.json` | Pour `avant`, `apres_init`, `apres_phase1` et `apres_phase2` : `tokens_corpus_test` et `bits_par_caractere` ; la liste `nouveaux_tokens` des 200 mots ajoutés |
+| `phase1/`, `phase2/`, `temoin-phase1/`, `temoin-phase2/` | Dossiers de travail du Trainer, vides : aucun point de contrôle n'est sauvegardé |
+| `resultats.json` | Pour `avant`, `apres_init`, `apres_phase1`, `apres_phase2` et `temoin` : `tokens_corpus_test` et `bits_par_caractere` ; la liste `nouveaux_tokens` des 200 mots ajoutés |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
 ## Utilisation
@@ -139,7 +141,8 @@ Sur une base de 80 personnages fictifs aux noms inventés, très mal découpés 
 
 - `avant` : tokens et bits par caractère avec le tokenizer d'origine ;
 - `apres_init` : ~200 tokens ajoutés, initialisés par moyenne. Le corpus est nettement plus court, et les bits par caractère sont déjà plus bas que `avant` (1,92 → 1,63 dans l'exemple complet) : la moyenne donne d'emblée un sens approché aux nouveaux tokens ;
-- `apres_phase1` puis `apres_phase2` : les bits par caractère descendent sous la valeur d'origine.
+- `apres_phase1` puis `apres_phase2` : les bits par caractère descendent sous la valeur d'origine ;
+- `temoin` : le modèle d'origine entraîné pareil, sans nouveaux tokens. Dans l'exemple complet, il atteint 0,41 bit par caractère contre 0,42 pour le modèle étendu : l'entraînement explique la baisse des bits par caractère, et le gain propre aux nouveaux tokens est la compression du texte (22 % de tokens en moins, donc une génération et un contexte plus économes), à qualité presque égale.
 
 ## Paramètres principaux (`config.yaml`)
 

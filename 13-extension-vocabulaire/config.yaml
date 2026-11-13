@@ -37,6 +37,8 @@ phase2:                             # modèle complet
   warmup: 0.05
   logging_steps: 10
 
+temoin: true                        # même entraînement sans nouveaux tokens, pour isoler leur effet
+
 sauvegarder: true
 
 quick:

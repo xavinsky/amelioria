@@ -45,8 +45,8 @@ Relire les papiers de chaque méthode (`docs/references.md`) avant d'implémente
   - 06 distillation : enseignant nettement meilleur que l'élève sur GSM8K (mode `sequence` façon R1-Distill, puis `logits`) ; comprendre la régression mesurée sur l'arithmétique (décalage entraînement / génération, GKD).
 - [ ] **04 préférences** : jeu de préférences réel (UltraFeedback binarisé ou HelpSteer), évaluation par un modèle de récompense externe (taux de victoire contre le modèle de départ) et non-régression (GSM8K ou IFEval).
 - [ ] **01 connaissance interne** : suivre *Physics of Language Models 3.1* : entraînement mixte (documents de tous les personnages + questions-réponses d'une moitié), mesure de l'extraction sur l'autre moitié, avec plusieurs formulations par fait.
-- [ ] **13 vocabulaire** : corpus réel mal tokenisé (langue ou domaine), témoin entraîné à budget égal sans nouveaux tokens, mesures : tokens, bits par caractère, débit (Chinese-LLaMA, FOCUS).
-- [ ] **14 croissance** : témoin = modèle d'origine entraîné avec les mêmes données et le même nombre de pas ; comparer au modèle agrandi (SOLAR, LLaMA Pro).
+- [ ] **13 vocabulaire** : corpus réel mal tokenisé (langue ou domaine), mesures : tokens, bits par caractère, débit (Chinese-LLaMA, FOCUS). Le témoin à budget égal existe : sur les noms inventés, il atteint 0,41 bit par caractère contre 0,42, le gain est la compression seule.
+- [ ] **14 croissance** : le témoin à 600 pas fait mieux que le modèle agrandi (14,3 contre 14,9). Essayer `expansion_blocs` (LLaMA Pro, l'original est préservé) et un budget de cicatrisation plus grand, puis comparer au témoin au même budget.
 - [ ] **08 fusion multi-compétences** : fusionner deux fine-tunes réels de Qwen2.5-0.5B-Instruct produits par le dépôt (routage banking77 et GSM8K), mesurer les deux tâches (TIES, DARE).
 - [ ] **02 seq2seq** : tâche naturellement seq2seq (traduction ou résumé de domaine, métrique chrF/ROUGE) où T5 de départ échoue.
 - [ ] **02 Whisper** : audio où whisper-small se trompe nettement (vocabulaire spécialisé, accent, bruit téléphonique) ; jeu public à identifier.
