@@ -9,7 +9,7 @@ compteurs: true
 Vous avez un modèle d'IA, ouvert ou accessible par API, et il ne fait pas tout à fait ce que vous voulez : il ignore vos documents, se trompe sur votre tâche, raisonne mal, coûte trop cher à servir. **AmeliorIA présente les méthodes pour l'améliorer sans le réentraîner de zéro**, et aide à choisir la bonne.
 
 > [!WARNING]
-> **Projet en cours.** **{{demontres}} exemples sur {{exemples}}** démontrent déjà, en local, un gain net de leur méthode. Les {{non_prouves}} autres s'exécutent, mais leur résultat ne prouve pas encore ce gain : le travail en cours consiste à les refondre sur des tâches réelles pour finir de les démontrer en local. Les {{infra}} versions « grosse infra », qui demandent plusieurs GPU de centre de calcul, sont mises de côté pour le moment : leur code est fourni, mais n'a jamais été exécuté.
+> **Projet en cours.** **{{demontres}} exemples sur {{exemples}}** démontrent déjà, en local, un gain net de leur méthode. Les {{non_prouves}} autres s'exécutent, mais leur résultat ne prouve pas encore ce gain : le travail en cours consiste à les refondre sur des tâches réelles pour finir de les démontrer en local. Les {{infra}} versions « grosse infra », qui demandent plusieurs GPU de centre de calcul, sont mises de côté pour le moment : leur code est fourni, mais n'a jamais été exécuté. Le détail, test par test : [Travail en cours](#travail-en-cours).
 >
 > **Vous pouvez prêter des GPU ?** Pour tester ces versions grosse infra, je cherche un accès à une machine multi-GPU (idéalement un nœud de 8 GPU de 80 Go, même pour quelques heures). Si vous pouvez en fournir une, je suis preneur : [contactez-moi sur GitHub](https://github.com/xavinsky) !
 

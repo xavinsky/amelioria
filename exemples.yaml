@@ -50,6 +50,7 @@ contraintes:
 
 # code : 4 lettres lisibles en anglais comme en français ; une méthode est désignée par le code de sa
 # catégorie suivi de son numéro (SIGN05), accepté aussi par EX= dans les commandes make.
+# infra (chaque méthode) : ce que fait la version grosse infra, le matériel visé et une durée estimée, jamais mesurée.
 categories:
   - id: donnees
     code: DATA
@@ -77,6 +78,7 @@ methodes:
     titre: Pré-entraînement continu
     court: "Pré-entraînement"
     categorie: donnees
+    infra: {fait: "Pré-entraînement continu de Llama-3.1-8B sur environ 2 milliards de tokens.", materiel: "8×H100", duree_estimee: "9 à 12 h"}
     regroupe: "Continued pretraining, DAPT, adaptation à une langue, MLM continu"
     modeles: "LLM de base ; encodeurs (variante MLM) ; seq2seq, vision, audio (même principe)"
     local: "⚠️ ≤ 1,5B · ☁️"
@@ -89,6 +91,7 @@ methodes:
     titre: Fine-tuning supervisé
     court: "SFT"
     categorie: donnees
+    infra: {fait: "SFT complet de Llama-3.1-8B-Instruct sur GSM8K (FSDP2).", materiel: "8×H100", duree_estimee: "20 à 40 min"}
     regroupe: "SFT, instruction tuning, fine-tuning complet"
     modeles: "LLM ; variantes : encodeur (classification), vision (ViT), seq2seq (T5), speech (Whisper)"
     local: "⚠️ ≤ 1B (LLM), ✅ autres"
@@ -101,6 +104,7 @@ methodes:
     titre: "PEFT (LoRA, QLoRA...)"
     court: "LoRA, QLoRA"
     categorie: donnees
+    infra: {fait: "QLoRA sur Llama-3.3-70B.", materiel: "8×H100", duree_estimee: "45 min à 1 h 30"}
     regroupe: "LoRA, QLoRA, DoRA, rsLoRA, PiSSA, LoHa, LoKr, IA³, prompt et prefix tuning"
     modeles: "Tous (couches linéaires) ; variante : diffusion (DreamBooth-LoRA)"
     local: "✅ ≤ 3B (LoRA), ≤ 8B (QLoRA)"
@@ -112,6 +116,7 @@ methodes:
     titre: Optimisation des préférences
     court: "DPO"
     categorie: signal
+    infra: {fait: "DPO recette Tülu 3 sur Llama-3.1-8B, 272 000 paires.", materiel: "8×H100", duree_estimee: "3 à 10 h"}
     regroupe: "DPO, IPO, rDPO, SLiC, APO, NCA, BCO, SPPO, ORPO, SimPO, CPO, KTO ; variante DPO itératif"
     modeles: "LLM (après SFT), VLM, diffusion (Diffusion-DPO)"
     local: "⚠️ ≤ 0,5B complet, ≤ 3B LoRA"
@@ -123,6 +128,7 @@ methodes:
     titre: RL en ligne
     court: "RL"
     categorie: signal
+    infra: {fait: "RL DAPO sur Qwen2.5-7B avec vLLM.", materiel: "8×H100", duree_estimee: "6 à 15 h"}
     regroupe: "RLHF, RLAIF, RLVR ; GRPO, Dr.GRPO, DAPO, GSPO, CISPO, RLOO ; PPO en infra ; variante modèle de récompense"
     modeles: "LLM, VLM, agents ; diffusion (DDPO)"
     local: "⚠️ ≤ 1,5B · ☁️"
@@ -134,6 +140,7 @@ methodes:
     titre: Distillation
     court: "Distillation"
     categorie: signal
+    infra: {fait: "Distillation de Llama-3.1-8B vers Llama-3.2-1B.", materiel: "8×H100", duree_estimee: "20 à 40 min"}
     regroupe: "Logits (KD), séquences, on-policy (GKD) ; variante classifieur encodeur"
     modeles: "LLM (même tokenizer pour logits), encodeurs, vision, diffusion"
     local: "✅ petits couples · ☁️ 70B → 8B"
@@ -145,6 +152,7 @@ methodes:
     titre: Données synthétiques
     court: "Données synth."
     categorie: signal
+    infra: {fait: "Génération par un 72B et rejection sampling, puis SFT d'un 7B.", materiel: "8×H100", duree_estimee: "1 à 2 h"}
     regroupe: "Rejection sampling (RFT/STaR), Self-Instruct, critique-révision (Constitutional AI)"
     modeles: "LLM ; données pour classifieurs, VLM, diffusion"
     local: "✅ ≤ 1B"
@@ -156,6 +164,7 @@ methodes:
     titre: Fusion de modèles
     court: "Fusion"
     categorie: chirurgie
+    infra: {fait: "Fusion de trois 7B spécialisés (instruct, maths, code), puis évaluation.", materiel: "1 GPU", duree_estimee: "~1 h"}
     regroupe: "Model soups, SLERP, task arithmetic, TIES, DARE ; mergekit, fusion évolutionnaire"
     modeles: "Fine-tunes d'une même base : LLM, LoRA, CLIP/ViT, diffusion"
     local: "✅ CPU/RAM"
@@ -167,6 +176,7 @@ methodes:
     titre: Édition de connaissances
     court: "Édition"
     categorie: chirurgie
+    infra: {fait: "ROME et MEMIT sur Llama-3-8B (EasyEdit).", materiel: "1 GPU 80 Go", duree_estimee: "15 à 30 min"}
     regroupe: "ROME, FT-L ; MEMIT, AlphaEdit en infra"
     modeles: "LLM décodeurs ; diffusion (UCE, TIME)"
     local: "✅ ≤ 3B"
@@ -178,6 +188,7 @@ methodes:
     titre: Désapprentissage
     court: "Désapprentissage"
     categorie: chirurgie
+    infra: {fait: "Désapprentissage NPO sur le banc TOFU, Llama-3.1-8B.", materiel: "1 GPU 80 Go", duree_estimee: "30 min à 1 h"}
     regroupe: "Gradient ascent, gradient difference, NPO, IDK ; TOFU, open-unlearning"
     modeles: "LLM ; classifieurs ; diffusion (ESD)"
     local: "✅ ≤ 1B"
@@ -190,6 +201,7 @@ methodes:
     titre: Pilotage par activations
     court: "Pilotage"
     categorie: chirurgie
+    infra: {fait: "Pilotage d'un modèle de 70B, inférence seule.", materiel: "2 à 4 GPU 80 Go", duree_estimee: "20 à 40 min"}
     regroupe: "Steering vectors (ActAdd, CAA), abliteration"
     modeles: "LLM décodeurs (tout flux résiduel) ; diffusion (concept sliders)"
     local: "✅ ≤ 7B"
@@ -201,6 +213,7 @@ methodes:
     titre: Extension de contexte
     court: "Contexte"
     categorie: remodeler
+    infra: {fait: "Extension de Mistral-7B à 32k tokens (YaRN).", materiel: "8×H100", duree_estimee: "5 à 8 h"}
     regroupe: "Position Interpolation, NTK dynamique, YaRN, ABF"
     modeles: "LLM à RoPE ; VLM (M-RoPE) ; encodeurs RoPE"
     local: "⚠️ petits modèles, 8k · ☁️"
@@ -213,6 +226,7 @@ methodes:
     titre: Extension de vocabulaire
     court: "Vocabulaire"
     categorie: remodeler
+    infra: {fait: "Extension de vocabulaire de Llama-3.1-8B pour une nouvelle langue.", materiel: "8×H100", duree_estimee: "10 à 14 h"}
     regroupe: "Added tokens, fusion BPE, init par moyenne, entraînement en 2 phases"
     modeles: "LLM, encodeurs, seq2seq, tokens spéciaux VLM"
     local: "✅ ≤ 1B"
@@ -225,6 +239,7 @@ methodes:
     titre: Croissance d'architecture
     court: "Croissance"
     categorie: remodeler
+    infra: {fait: "Croissance de Mistral-7B à 10,7B paramètres et cicatrisation.", materiel: "8×H100", duree_estimee: "1 à 1,5 jour"}
     regroupe: "Depth up-scaling (SOLAR), block expansion (LLaMA Pro), upcycling MoE"
     modeles: "LLM famille LLaMA/Mistral ; encodeurs, ViT"
     local: "⚠️ transformation ✅, cicatrisation ☁️"
@@ -237,6 +252,7 @@ methodes:
     titre: Quantification
     court: "Quantification"
     categorie: remodeler
+    infra: {fait: "Quantification GPTQ d'un 8B et évaluation.", materiel: "1 GPU 40 à 80 Go", duree_estimee: "~1 h"}
     regroupe: "bitsandbytes, torchao, GPTQ, AWQ, QAT ; variante GGUF llama.cpp"
     modeles: "Tous : LLM, MoE, encodeurs, VLM, diffusion, Whisper"
     local: "✅"
@@ -248,6 +264,7 @@ methodes:
     titre: Élagage
     court: "Élagage"
     categorie: remodeler
+    infra: {fait: "Élagage Minitron de Llama-3.1-8B avec distillation.", materiel: "8×H100", duree_estimee: "~3 jours"}
     regroupe: "Magnitude, Wanda, 2:4, suppression de couches, réduction de largeur + cicatrisation"
     modeles: "LLM ; encodeurs ; CNN/ViT ; diffusion"
     local: "⚠️ ≤ 0,5B avec cicatrisation · ☁️"
@@ -260,6 +277,7 @@ methodes:
     titre: Optimisation du prompt
     court: "Prompt"
     categorie: inference
+    infra: {fait: "Optimisation de prompt sur un 72B servi par vLLM (DSPy).", materiel: "4 GPU", duree_estimee: "1 à 2 h"}
     regroupe: "Instruction, CoT, few-shot (aléatoire / par similarité), OPRO ; DSPy en infra"
     modeles: "Tout LLM local ou API ; VLM ; diffusion (réécriture de prompts)"
     local: "✅"
@@ -271,6 +289,7 @@ methodes:
     titre: RAG
     court: "RAG"
     categorie: inference
+    infra: {fait: "RAG de production : Qdrant, TEI et un 72B AWQ.", materiel: "2 GPU", duree_estimee: "20 à 30 min"}
     regroupe: "BM25, dense, hybride RRF, reranker ; Qdrant + TEI + vLLM en infra"
     modeles: "Tout LLM local ou API"
     local: "✅"
@@ -282,6 +301,7 @@ methodes:
     titre: Outils et agents
     court: "Outils"
     categorie: inference
+    infra: {fait: "Agent à outils sur un 72B servi par vLLM.", materiel: "4 GPU", duree_estimee: "20 à 40 min"}
     regroupe: "Function calling, boucle agentique"
     modeles: "LLM entraînés aux outils (≥ 3B), API"
     local: "✅"
@@ -293,6 +313,7 @@ methodes:
     titre: Calcul à l'inférence
     court: "Inférence"
     categorie: inference
+    infra: {fait: "Calcul à l'inférence : 64 réponses par question et modèle de récompense.", materiel: "8×H100", duree_estimee: "30 min à 1 h"}
     regroupe: "Self-consistency, best-of-N (RM, vraisemblance), self-refine, pass@N"
     modeles: "Tout LLM ; code ; diffusion (best-of-N)"
     local: "✅"
@@ -304,9 +325,12 @@ methodes:
 # Un exemple = le run.py d'un dossier de méthode ou d'une de ses variantes.
 # Résultats : configuration complète sur le matériel de référence, mesures de septembre 2026.
 # duree_test / duree_complet : durée mesurée du test rapide et de l'exemple complet sur ce matériel.
+# fait : ce que fait l'exemple, en une phrase ; piste : pour un exemple non prouvé, ce qui le rendrait démontré.
 exemples:
   - chemin: 01-pre-entrainement-continu
     statut: non-prouve
+    fait: "Poursuit l'entraînement de Qwen2.5-0.5B sur les fiches de 40 personnages inventés, avec du texte général contre l'oubli, puis l'interroge sur eux."
+    piste: "Suivre le protocole de *Physics of Language Models 3.1* : mélanger fiches et questions-réponses pendant l'entraînement, puis mesurer l'extraction sur des personnages jamais questionnés."
     duree_test: "12 s"
     duree_complet: "56 s"
     resultat: "perplexité domaine 130 → 9,5 ; générale 20,2 → 22,6 ; questions sur les faits 0 → 0,04"
@@ -314,6 +338,7 @@ exemples:
     prerequis: {gpu: requis}
   - chemin: 01-pre-entrainement-continu/variantes/mlm-encodeur
     statut: demontre
+    fait: "Poursuit le pré-entraînement par masquage de mots d'un encodeur RoBERTa sur un texte de domaine."
     duree_test: "8 s"
     duree_complet: "17 s"
     resultat: "perte MLM 2,38 → 1,09"
@@ -322,6 +347,8 @@ exemples:
 
   - chemin: 02-fine-tuning-supervise
     statut: non-prouve
+    fait: "Fine-tuning complet de Qwen2.5-0.5B-Instruct sur des problèmes d'arithmétique avec raisonnement pas à pas."
+    piste: "Changer de tâche : routage de demandes clients (banking77, 77 intentions), où le modèle de départ se trompe souvent."
     duree_test: "10 s"
     duree_complet: "2 min"
     resultat: "exactitude 0,955 → 0,885"
@@ -329,18 +356,22 @@ exemples:
     prerequis: {gpu: requis}
   - chemin: 02-fine-tuning-supervise/variantes/classification-encodeur
     statut: demontre
+    fait: "Entraîne ModernBERT à classer le sentiment de critiques de films (SST-2)."
     duree_test: "10 s"
     duree_complet: "76 s"
     resultat: "SST-2 0,54 → 0,95"
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/vision
     statut: demontre
+    fait: "Entraîne un ViT à classer des photos en 10 catégories (CIFAR-10)."
     duree_test: "13 s"
     duree_complet: "84 s"
     resultat: "CIFAR-10 0,10 → 0,97"
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/seq2seq
     statut: non-prouve
+    fait: "Fine-tune FLAN-T5 (encodeur-décodeur) sur des problèmes d'arithmétique."
+    piste: "Une tâche naturellement seq2seq, traduction ou résumé de domaine, mesurée en chrF ou ROUGE."
     duree_test: "10 s"
     duree_complet: "57 s"
     resultat: "exactitude 0 → 0,22"
@@ -348,6 +379,8 @@ exemples:
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/audio-whisper
     statut: non-prouve
+    fait: "Fine-tune Whisper-small pour transcrire de la parole (taux d'erreur sur les mots)."
+    piste: "Un jeu audio où Whisper se trompe nettement : vocabulaire spécialisé, accent, bruit téléphonique."
     duree_test: "32 s"
     duree_complet: "9 min"
     resultat: "WER 0,141 → 0,141"
@@ -356,6 +389,8 @@ exemples:
 
   - chemin: 03-peft
     statut: non-prouve
+    fait: "Entraîne un adaptateur LoRA sur Qwen2.5-1.5B-Instruct, même tâche que le fine-tuning complet, pour comparer."
+    piste: "Même refonte que DATA02 (banking77), LoRA comparée au fine-tuning complet : gain et oubli."
     duree_test: "12 s"
     duree_complet: "3 min"
     resultat: "Qwen2.5-1.5B 0,995 → 1,0"
@@ -363,6 +398,8 @@ exemples:
     prerequis: {gpu: requis, extras_selon: {peft.methode=qlora: [bitsandbytes]}}
   - chemin: 03-peft/variantes/diffusion-lora
     statut: non-prouve
+    fait: "Apprend un nouveau sujet à Stable Diffusion à partir de quelques images (DreamBooth-LoRA)."
+    piste: "Une mesure chiffrée : similarité DINO ou CLIP entre les images générées et le sujet, avant et après."
     duree_test: "20 s"
     duree_complet: "74 s"
     resultat: sujet appris à l'inspection visuelle des images
@@ -371,6 +408,8 @@ exemples:
 
   - chemin: 04-optimisation-preferences
     statut: non-prouve
+    fait: "DPO sur des paires « raisonnement juste / raisonnement avec une erreur de calcul »."
+    piste: "De vraies préférences (UltraFeedback, HelpSteer), un taux de victoire mesuré par un modèle de récompense externe, et un contrôle de non-régression."
     duree_test: "23 s"
     duree_complet: "4 min"
     resultat: "génération 0,955 → 0,985 ; marge de préférence 0,40 → 0,91"
@@ -378,6 +417,8 @@ exemples:
     prerequis: {gpu: requis}
   - chemin: 04-optimisation-preferences/variantes/dpo-iteratif
     statut: non-prouve
+    fait: "DPO en plusieurs tours : le modèle génère ses propres paires, triées par un vérificateur."
+    piste: "Même refonte que l'exemple principal, sur de vraies préférences."
     duree_test: "14 s"
     duree_complet: "21 min"
     resultat: "0,955 → 0,98"
@@ -386,6 +427,8 @@ exemples:
 
   - chemin: 05-rl-en-ligne
     statut: non-prouve
+    fait: "RL (DAPO) avec récompense vérifiable : le modèle est récompensé quand son calcul est juste."
+    piste: "GSM8K, la tâche des papiers de référence, sur ses 1 319 questions de test, avec un modèle qui y échoue souvent."
     duree_test: "21 s"
     duree_complet: "13 min"
     resultat: "exactitude 0,955 → 0,945 ; récompense 0,66 → 0,84"
@@ -393,6 +436,7 @@ exemples:
     prerequis: {gpu: requis, api: true}
   - chemin: 05-rl-en-ligne/variantes/modele-recompense
     statut: demontre
+    fait: "Entraîne un modèle de récompense à préférer la bonne réponse dans des paires."
     duree_test: "13 s"
     duree_complet: "87 s"
     resultat: "exactitude de préférence 0,485 → 0,98"
@@ -400,6 +444,8 @@ exemples:
 
   - chemin: 06-distillation
     statut: non-prouve
+    fait: "Distille Qwen2.5-1.5B (enseignant) vers Qwen2.5-0.5B (élève) en imitant ses probabilités."
+    piste: "GSM8K avec un enseignant nettement meilleur que l'élève, mode séquence puis logits ; comprendre la régression mesurée."
     duree_test: "16 s"
     duree_complet: "3 min"
     resultat: "élève 0,955 → 0,71 ; enseignant 0,995"
@@ -407,6 +453,7 @@ exemples:
     prerequis: {gpu: requis}
   - chemin: 06-distillation/variantes/encodeur-classification
     statut: demontre
+    fait: "Distille un classifieur de sentiment RoBERTa vers un BERT 10 fois plus petit."
     duree_test: "25 s"
     duree_complet: "78 s"
     resultat: "sans enseignant 0,758 ; distillé 0,839"
@@ -414,6 +461,8 @@ exemples:
 
   - chemin: 07-donnees-synthetiques
     statut: non-prouve
+    fait: "Le modèle génère plusieurs solutions, un vérificateur garde les justes, et il s'entraîne dessus (rejection sampling)."
+    piste: "GSM8K, sur lequel le modèle échoue souvent : rejection sampling fine-tuning (RFT, STaR)."
     duree_test: "21 s"
     duree_complet: "19 min"
     resultat: "0,955 → 0,89 → 0,90"
@@ -422,6 +471,7 @@ exemples:
 
   - chemin: 08-fusion-modeles
     statut: demontre
+    fait: "Fusionne Qwen2.5-1.5B-Instruct dans sa base par DARE-TIES, sur CPU, sans données."
     duree_test: "21 s"
     duree_complet: "3 min"
     resultat: "GSM8K : base 0,07 ; Instruct 0,51 ; fusion DARE-TIES 0,55"
@@ -430,6 +480,7 @@ exemples:
 
   - chemin: 09-edition-connaissances
     statut: demontre
+    fait: "Modifie 4 faits réels dans les poids par ROME (la tour Eiffel « passe » à Rome...)."
     duree_test: "12 s"
     duree_complet: "48 s"
     resultat: "efficacité 0 → 1 ; généralisation 0 → 1 ; spécificité 1 → 1"
@@ -438,6 +489,7 @@ exemples:
 
   - chemin: 10-desapprentissage
     statut: demontre
+    fait: "Fait oublier 4 personnages appris par NPO, en gardant les 36 autres."
     duree_test: "20 s"
     duree_complet: "59 s"
     resultat: "oubli 1,0 → 0,0 ; rétention 1,0 → 0,925 ; perplexité 25,8 → 26,6"
@@ -445,6 +497,7 @@ exemples:
 
   - chemin: 11-pilotage-activations
     statut: demontre
+    fait: "Rend les réponses plus positives en ajoutant une direction d'activations pendant la génération."
     duree_test: "12 s"
     duree_complet: "27 s"
     resultat: "taux de réponses positives 0,60 → 0,97"
@@ -453,6 +506,7 @@ exemples:
 
   - chemin: 12-extension-contexte
     statut: demontre
+    fait: "Fait passer SmolLM-360M de 2 048 à 8 192 tokens de contexte par YaRN et un court entraînement."
     duree_test: "15 s"
     duree_complet: "33 min"
     resultat: "perplexité à 8 192 tokens 422 → 19 ; clé retrouvée à 7 000 tokens 0,3 → 1,0"
@@ -461,6 +515,8 @@ exemples:
 
   - chemin: 13-extension-vocabulaire
     statut: non-prouve
+    fait: "Ajoute 200 tokens pour des noms mal découpés, les initialise et les entraîne ; compare à un témoin sans nouveaux tokens."
+    piste: "Un corpus réel mal découpé (langue peu couverte), en mesurant aussi le débit de génération ; le témoin à budget égal existe déjà."
     duree_test: "16 s"
     duree_complet: "41 s"
     resultat: "tokens du corpus −22 % ; bits par caractère 1,92 → 0,42 ; témoin sans nouveaux tokens 0,41"
@@ -469,6 +525,8 @@ exemples:
 
   - chemin: 14-croissance-architecture
     statut: non-prouve
+    fait: "Agrandit SmolLM2-360M de 32 à 48 couches (SOLAR) puis le réentraîne ; compare au modèle d'origine entraîné pareil."
+    piste: "La croissance LLaMA Pro (blocs ajoutés, l'original est préservé) et un budget de cicatrisation plus grand, toujours comparés au témoin."
     duree_test: "13 s"
     duree_complet: "24 min"
     resultat: "perplexité 19,9 → 26,9 (transformé) → 14,9 (cicatrisé) ; témoin sans croissance 14,3"
@@ -477,6 +535,7 @@ exemples:
 
   - chemin: 15-quantification
     statut: demontre
+    fait: "Quantifie Qwen2.5-1.5B-Instruct en 4 bits (NF4) et mesure la perte de qualité, la mémoire et la vitesse."
     duree_test: "15 s"
     duree_complet: "50 s"
     resultat: "NF4 : 2 945 → 1 132 Mo ; perplexité 14,9 → 16,6 ; exactitude 0,99 → 0,96"
@@ -486,6 +545,7 @@ exemples:
       extras_selon: {methode=gptq: [llmcompressor], methode=awq: [llmcompressor]}
   - chemin: 15-quantification/variantes/gguf-llamacpp
     statut: demontre
+    fait: "Exporte le modèle en GGUF pour llama.cpp, du 16 bits au 3 bits, et compare taille et perplexité."
     duree_test: "15 s"
     duree_complet: "21 min"
     resultat: "Q4_K_M : 940 Mo ; perplexité 13,9 → 14,5"
@@ -493,6 +553,8 @@ exemples:
 
   - chemin: 16-elagage
     statut: non-prouve
+    fait: "Met à zéro 50 % des poids de Qwen2.5-0.5B (Wanda), puis récupère la qualité par distillation."
+    piste: "Plus de pas de distillation, ou un élagage 2:4 moins agressif, pour récupérer la tâche."
     duree_test: "21 s"
     duree_complet: "6 min"
     resultat: "perplexité 22,3 → 37,9 → 25,4 ; tâche 0,88 → 0,31 → 0,42"
@@ -501,6 +563,8 @@ exemples:
 
   - chemin: 17-optimisation-prompt
     statut: non-prouve
+    fait: "Compare des stratégies de prompt (consigne, raisonnement pas à pas, exemples, optimisation automatique) sur GSM8K."
+    piste: "Tester sur les 1 319 questions de test pour resserrer l'intervalle, ou une tâche où la consigne compte davantage."
     duree_test: "18 s"
     duree_complet: "20 min"
     resultat: "GSM8K : zéro-shot 0,60 ; instruction 0,67 ; CoT 0,67 ; few-shot 0,535 ; OPRO 0,575"
@@ -509,6 +573,7 @@ exemples:
 
   - chemin: 18-rag
     statut: demontre
+    fait: "Répond à des questions sur 50 personnages inventés en cherchant les bons passages parmi 2 200."
     duree_test: "14 s"
     duree_complet: "54 s"
     resultat: "exactitude 0 → 1,0 ; rappel@3 = 1,0"
@@ -516,6 +581,7 @@ exemples:
 
   - chemin: 19-outils-agents
     statut: demontre
+    fait: "Donne au modèle une calculatrice et une base de fiches qu'il appelle pour répondre."
     duree_test: "10 s"
     duree_complet: "2 min"
     resultat: "0,35 → 0,95"
@@ -523,6 +589,7 @@ exemples:
 
   - chemin: 20-calcul-inference
     statut: demontre
+    fait: "Génère 16 réponses par question GSM8K et garde la plus fréquente ou la mieux notée."
     duree_test: "9 s"
     duree_complet: "10 min"
     resultat: "glouton 0,65 ; vote sur 16 réponses 0,77 ; oracle 0,93"

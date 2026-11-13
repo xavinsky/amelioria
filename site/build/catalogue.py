@@ -184,6 +184,36 @@ class Catalogue:
                 + f"\n\nCalcul et temps : {self.couts['hypothese']}. Statuts des exemples : "
                 "[Statut des exemples](#statut-des-exemples).\n")
 
+    def travaux(self):
+        """Page « Travail en cours » : exemples locaux démontrés, exemples locaux à démontrer (avec la piste),
+        versions grosse infra mises de côté (matériel et durée estimée)."""
+        demontres, a_faire = [], []
+        for num, m in self.methodes.items():
+            for e in self.exemples_de(num):
+                var = self.variante(e)
+                nom = self.lien(num) + (f" · `{var}`" if var else "")
+                ligne = f"| {nom} | {cellule(e.get('fait', ''))} | {cellule(e['resultat'])} |"
+                if e["statut"] == "demontre":
+                    demontres.append(ligne)
+                else:
+                    a_faire.append(ligne + f" {cellule(e.get('piste', ''))} |")
+        cloud = [f"| {self.lien(num)} | {cellule(m['infra']['fait'])} | {m['infra']['materiel']} "
+                 f"| {m['infra']['duree_estimee']} |"
+                 for num, m in self.methodes.items() if m.get("infra")]
+        return (f"## En local : démontrés ({len(demontres)})\n\n"
+                "Le gain de la méthode est mesuré et net, sur le GPU local de 12 Go.\n\n"
+                "| Exemple | Ce qu'il fait | Résultat mesuré |\n|---|---|---|\n" + "\n".join(demontres)
+                + f"\n\n## En local : à démontrer ({len(a_faire)})\n\n"
+                "Ces exemples s'exécutent sur le GPU local, mais leur résultat ne prouve pas encore le gain de la "
+                "méthode. La dernière colonne dit ce qui doit changer.\n\n"
+                "| Exemple | Ce qu'il fait | Résultat mesuré | Piste d'amélioration |\n|---|---|---|---|\n"
+                + "\n".join(a_faire)
+                + f"\n\n## Sur cloud : mis de côté ({len(cloud)})\n\n"
+                "Les versions grosse infra (dossier `infra/` de chaque méthode) demandent des GPU de centre de calcul. "
+                "Leur code est fourni, mais aucune n'a été exécutée ; les durées sont des estimations.\n\n"
+                "| Méthode | Ce que fait la version infra | Matériel visé | Durée estimée |\n|---|---|---|---|\n"
+                + "\n".join(cloud) + "\n")
+
     def compteurs(self):
         """Chiffres du dépôt pour les pages qui les citent (`{{cle}}` dans le texte, front matter `compteurs: true`)."""
         n = {k: sum(e["statut"] == k for e in self.exemples) for k in MARQUEURS}
