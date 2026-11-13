@@ -8,6 +8,18 @@ title: AmeliorIA
 # Dépôt public du code : onglet « GitHub » du menu, liens des exemples vers leur dossier (branche main).
 github: https://github.com/xavinsky/amelioria
 
+# Autres projets IA de tekio.org, listés dans le menu latéral de l'Accueil.
+projets:
+  - nom: MemorIA
+    url: https://tekio.org/memoria/
+    desc: Aide-mémoire data science et IA — modélisation, maths, syntaxes, lexique et références.
+  - nom: ExemplIA
+    url: https://tekio.org/exemplia/
+    desc: Usage des LLM en entreprise, sur modèles locaux, avec garde, évaluation et observabilité.
+  - nom: MemorIA GCP
+    url: https://tekio.org/memoria-gcp/
+    desc: Aide-mémoire data, IA et DevOps sur Google Cloud.
+
 pages:
   - key: accueil
     label: Accueil

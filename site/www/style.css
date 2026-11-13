@@ -369,6 +369,9 @@ mark.search-mark.current{background:var(--sec4); box-shadow:0 0 0 2px color-mix(
   cursor:pointer;
   transition:background 0.12s ease, color 0.12s ease;
 }
+.nav-projet{display:flex; flex-direction:column; gap:2px; padding-top:8px; padding-bottom:8px; text-decoration:none;}
+.nav-projet-nom{font-weight:600;}
+.nav-projet-desc{font-size:12px; line-height:1.4; opacity:0.85;}
 .nav-item.with-icon{display:flex; align-items:center; gap:8px;}
 .nav-icon{width:18px; height:18px; flex:none;}
 .nav-item:hover{background:var(--sidebar-hover); color:var(--sidebar-text-active);}

@@ -631,6 +631,7 @@ def main():
     data = {
         "title": site["title"],
         "github": site.get("github"),
+        "projets": site.get("projets", []),
         "updated": last_updated(),
         "pages": site["pages"],
         "sections": sections,

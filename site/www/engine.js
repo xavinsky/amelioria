@@ -158,6 +158,22 @@ PAGES.forEach(page => {
   else if (page.type === "generateurs") buildGeneratorsPage(page, nav, main);
   else buildSectionsPage(page, nav, main);
 });
+/* Menu latéral de l'Accueil : autres projets IA de tekio.org (site.yml, clé projets), ouverts dans un nouvel onglet */
+if (SITE.projets && SITE.projets.length){
+  const navAccueil = document.getElementById("navbody-accueil");
+  if (navAccueil){
+    const {box, items} = makeNavBox(navAccueil, "group", "Autres projets IA");
+    box.classList.remove("collapsed");
+    SITE.projets.forEach(p => {
+      const a = el("a", "nav-item nav-projet");
+      a.href = p.url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.append(el("span", "nav-projet-nom", p.nom + " ↗"), el("span", "nav-projet-desc", p.desc));
+      items.appendChild(a);
+    });
+  }
+}
 /* Dernier onglet : le dépôt GitHub du projet (site.yml, clé github), ouvert dans un nouvel onglet */
 if (SITE.github){
   const lien = el("a", "top-tab top-tab-github");
