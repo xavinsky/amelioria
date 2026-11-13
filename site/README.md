@@ -16,7 +16,7 @@ make site                 # depuis la racine du dépôt : build, puis ouvrir sit
 | `build/catalogue.py` | Données du dépôt : repères et exemples de chaque méthode, statuts, arbre de décision |
 | `www/` | `index.html`, `engine.js`, `style.css` |
 | `build/icones/` | Pictogrammes des données à fournir, de [Lucide](https://lucide.dev/), licence ISC (`LICENSE`), insérés en SVG inline par le build |
-| `www/icons/` | Icônes d'accès au modèle `poids.png` et `modele-ferme.png` (Flaticon), et icônes de coût `calcul.png` (processeur, recoloré en vert `#23A055`) et `duree.png` (horloge, recolorée en bleu `#2F6FDB`), de [Flaticon](https://www.flaticon.com/) : licence gratuite avec attribution, créditée dans la page Refs (`content/refs/ressources/`) |
+| `www/icons/` | Icônes d'accès au modèle `poids.png` et `modele-ferme.png` (Flaticon), et icônes de coût `calcul.png` (processeur, recoloré en vert `#23A055`) et `duree.png` (horloge, recolorée en bleu `#2F6FDB`), de [Flaticon](https://www.flaticon.com/) : licence gratuite avec attribution : titre, auteur et lien de chaque icône dans la page Refs (`content/refs/ressources/`) |
 
 ## Pages de méthode
 
