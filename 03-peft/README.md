@@ -58,17 +58,17 @@ flowchart TD
   classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
   classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
 
-  Hub["Hugging Face Hub<br/>Qwen2.5-1.5B-Instruct"]
+  Hub["Hugging Face Hub<br/>Qwen2.5-0.5B-Instruct"]
   Cache[("cache disque<br/>~/.cache/huggingface")]
   subgraph Py["Processus Python"]
-    Run["run.py<br/>génère les données<br/>charge le modèle"]
+    Run["run.py<br/>charge les données<br/>et le modèle"]
     Ev["evaluation.py<br/>génération"]
     TRL["TRL SFTTrainer<br/>LoRA r = 16"]
   end
   GPU["GPU CUDA, 12 Go"]
   Out[("sorties/03-peft/")]
 
-  Hub -- "① HTTPS GET, 1re fois<br/>poids (3 Go)" --> Cache
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (1 Go), banking77, Alpaca" --> Cache
   Cache -- "② lecture des poids" --> Run
   Run -- "③ copie des poids<br/>en mémoire GPU" --> GPU
   Run -- "④ ⑨ appel Python<br/>mesure avant, après" --> Ev
@@ -84,31 +84,31 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=DATA03` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode PEFT, données, réglages) et génère en mémoire, sans téléchargement, 3 000 problèmes d'arithmétique pour l'entraînement et 200 pour le test, de la forme `(a op b) op c` avec leur solution pas à pas.
+`make run EX=DATA03` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode PEFT, données, réglages). Données, remélange et évaluation sont exactement ceux du fine-tuning complet ([DATA02](../02-fine-tuning-supervise)) : router les messages de clients d'une banque vers l'une de 77 intentions (banking77), avec la liste des intentions en message système.
 
-- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-1.5B-Instruct (environ 3 Go, fichiers safetensors) depuis le Hugging Face Hub, par HTTPS.
-- **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-0.5B-Instruct (environ 1 Go), le jeu banking77 et les demandes générales d'Alpaca sont téléchargés depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en bf16 dans la mémoire du GPU, où ils restent jusqu'à la fin. En QLoRA (`SET="peft.methode=qlora"`), ils y sont stockés en 4 bits par bitsandbytes.
-- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui fait répondre le modèle aux 200 problèmes de test, par lots de 16.
-- **⑤ Génération sur le GPU.** Pour chaque lot, le modèle produit la réponse token par token, jusqu'à 256 tokens. L'évaluation extrait ensuite le nombre final de chaque réponse et le compare au résultat attendu : c'est l'exactitude de départ.
-- **⑥ Entraînement.** `run.py` confie le modèle et la configuration LoRA au SFTTrainer de TRL. PEFT ajoute deux petites matrices de rang 16 à chaque couche linéaire et gèle tout le reste : 18,5 millions de paramètres entraînés sur 1,56 milliard (1,2 %).
-- **⑦ Forward et backward sur le GPU.** Chaque pas d'entraînement traite un lot de 16 exemples : passe avant, calcul de la perte sur la réponse seulement (pas sur l'énoncé), passe arrière, mise à jour des seules matrices LoRA. L'entraînement dure 2 époques, avec un taux d'apprentissage de 2e-4.
+- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui pose au modèle les 3 080 messages de test, par lots de 32, puis les 200 problèmes d'arithmétique de non-régression.
+- **⑤ Génération sur le GPU.** Au plus 16 tokens par message, dont la première ligne doit être l'intention attendue ; jusqu'à 256 tokens de raisonnement par problème d'arithmétique.
+- **⑥ Entraînement.** Le modèle répond d'abord aux demandes générales du remélange (ou les relit dans `sorties/cache-remelange/`), puis `run.py` confie modèle, exemples et configuration LoRA au SFTTrainer de TRL. PEFT ajoute deux petites matrices de rang 16 à chaque couche linéaire et gèle tout le reste : 8,8 millions de paramètres entraînés sur 503 millions (1,7 %).
+- **⑦ Forward et backward sur le GPU.** Chaque pas traite 16 exemples (lots de 8, accumulés 2 fois) : passe avant, perte sur la réponse seulement, passe arrière, mise à jour des seules matrices LoRA. 2 époques, taux d'apprentissage 2e-4.
 - **⑧ Écriture de l'adaptateur** dans `sorties/03-peft/adaptateur-lora/`.
-- **⑨ Mesure après.** Les mêmes 200 problèmes sont posés au modèle muni de son adaptateur.
+- **⑨ Mesure après**, sur les mêmes messages et problèmes, adaptateur actif, puis la non-régression une seconde fois, adaptateur désactivé.
 - **⑩ Génération sur le GPU**, avec le même décodage qu'en ⑤.
 - **⑪ Écriture du rapport** dans `sorties/03-peft/resultats.json`, avec le même tableau affiché dans le terminal.
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑩), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. En entraînement (⑦), chaque pas fait une passe avant, une passe arrière qui calcule les gradients, puis la mise à jour des paramètres LoRA par l'optimiseur AdamW, dont l'état n'existe que pour ces paramètres. Le pic mesuré est d'environ 8 Go de mémoire GPU.
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑩), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. En entraînement (⑦), chaque pas fait une passe avant, une passe arrière qui calcule les gradients, puis la mise à jour des paramètres LoRA par l'optimiseur AdamW, dont l'état n'existe que pour ces paramètres. Le pic mesuré est de 8,7 Gio de mémoire GPU, presque autant qu'en fine-tuning complet (9,2 Gio) sur un modèle aussi petit : les activations et les logits d'un vocabulaire de 152 000 tokens dominent. L'écart se creuse avec la taille du modèle, car poids fp32, gradients et état d'AdamW n'existent plus que pour l'adaptateur.
 
 **Ce qui est écrit.**
 
 | Fichier | Contenu |
 |---|---|
-| `adaptateur-lora/adapter_model.safetensors` | Les matrices LoRA entraînées (74 Mo, en fp32), seules à être sauvegardées : le modèle de base reste celui du Hub |
+| `adaptateur-lora/adapter_model.safetensors` | Les matrices LoRA entraînées (35 Mo, en fp32), seules à être sauvegardées : le modèle de base reste celui du Hub |
 | `adaptateur-lora/adapter_config.json` | Rang, alpha, couches ciblées (`q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`) et nom du modèle de base, pour recharger l'adaptateur avec `PeftModel.from_pretrained` |
 | `adaptateur-lora/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
 | `adaptateur-lora/training_args.bin` | Les réglages d'entraînement utilisés |
-| `resultats.json` | Exactitude avant et après, nombre de réponses, durée de chaque évaluation, trois réponses d'exemple de chaque côté ; nombre de paramètres entraînés et taille de l'adaptateur |
+| `resultats.json` | Exactitude avant, après et adaptateur désactivé, avec intervalle à 95 % et réponse de chaque question ; comparaisons appariées (différence, intervalle, p de McNemar) ; paramètres entraînés, taille de l'adaptateur, durée d'entraînement et pic de mémoire GPU |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
 Avec `SET="peft.fusionner=true"`, le dossier `modele-fusionne/` contient en plus le modèle complet avec l'adaptateur intégré, prêt à servir sans PEFT.
@@ -117,7 +117,8 @@ Avec `SET="peft.fusionner=true"`, le dossier `modele-fusionne/` contient en plus
 
 ```bash
 python run.py --quick                                        # LoRA sur SmolLM2-135M
-python run.py                                                # LoRA r=16 sur Qwen2.5-1.5B-Instruct
+python run.py                                                # LoRA r=16 sur Qwen2.5-0.5B-Instruct, banking77, ~30 min
+python run.py --set donnees.remelange.part=0                 # sans remélange
 python run.py --set peft.methode=qlora --set modele.nom=Qwen/Qwen2.5-7B-Instruct --set entrainement.gradient_checkpointing=true
 python run.py --set peft.methode=dora
 python run.py --set peft.methode=prompt_tuning
@@ -129,7 +130,26 @@ python variantes/diffusion-lora/run.py                       # SD 1.5, 5 photos 
 
 ## Ce que fait l'exemple
 
-Même tâche et même évaluation que [DATA02](../02-fine-tuning-supervise), pour comparer directement les deux. Le rapport ajoute le nombre et le pourcentage de paramètres entraînés, ainsi que la taille de l'adaptateur sauvegardé.
+Même besoin, mêmes données et même évaluation que le fine-tuning complet ([DATA02](../02-fine-tuning-supervise)) : router les messages de clients d'une banque vers l'une de 77 intentions. Seule change la part des poids entraînée.
+
+**Résultats** (RTX 5070 Ti Laptop, 12 Go ; 3 080 messages de test, 200 problèmes de non-régression) :
+
+| | Intentions | Non-régression (arithmétique) | Entraîné | Entraînement |
+|---|---|---|---|---|
+| Qwen2.5-0.5B-Instruct, avant | 0,229 [0,214 ; 0,244] | 0,955 [0,917 ; 0,976] | | |
+| **LoRA, avec remélange** (`config.yaml`) | **0,891** [0,879 ; 0,901] | **0,95** [0,910 ; 0,973] | 1,7 %, adaptateur de 35 Mo | 18 min, 8,7 Gio |
+| même modèle, adaptateur désactivé | — | 0,955 | | |
+| LoRA, sans remélange | 0,925 [0,915 ; 0,934] | 0,33 [0,269 ; 0,398] | | 14 min, 8,7 Gio |
+| SFT complet, avec remélange ([DATA02](../02-fine-tuning-supervise)) | 0,904 [0,893 ; 0,914] | 0,765 [0,702 ; 0,818] | 100 %, modèle de 2 Go | 23 min, 9,2 Gio |
+
+Gain sur les intentions, apparié sur les mêmes messages : +0,662 [+0,645 ; +0,679], p de McNemar < 10⁻³⁰⁰. Non-régression : −0,005 [−0,035 ; +0,025], p = 1,0, aucun écart mesurable.
+
+**Ce qu'on en retient.**
+
+- **LoRA apprend presque autant que le fine-tuning complet** : 0,891 contre 0,904, en n'entraînant que 1,7 % des paramètres.
+- **Et oublie beaucoup moins** : avec le même remélange, l'arithmétique reste à 0,95, contre 0,765 en fine-tuning complet. C'est le résultat de Biderman et al. (2024), *LoRA Learns Less and Forgets Less*.
+- **L'adaptateur se désactive** : sans lui, le modèle est exactement celui d'origine (0,955). Un seul modèle de base peut servir plusieurs tâches, chacune avec son adaptateur de quelques dizaines de Mo.
+- **Le remélange reste nécessaire** : sans lui, même LoRA perd le raisonnement pas à pas (0,33), car il apprend à répondre par un mot.
 
 ## Paramètres principaux (`config.yaml`)
 
@@ -162,4 +182,5 @@ Même tâche et même évaluation que [DATA02](../02-fine-tuning-supervise), pou
 - Hu et al., *LoRA* (2021) · Dettmers et al., *QLoRA* (2023) · Liu et al., *DoRA* (2024) · Kalajdzievski, *rsLoRA* (2023) · Meng et al., *PiSSA* (2024)
 - Liu et al., *IA³ / T-Few* (2022) · Lester et al., *Prompt Tuning* (2021) · Li & Liang, *Prefix-Tuning* (2021)
 - Biderman et al., *LoRA Learns Less and Forgets Less* (2024) · Ruiz et al., *DreamBooth* (2022)
+- Casanueva et al., *Efficient Intent Detection with Dual Sentence Encoders* (2020) : le jeu banking77 ([2003.04807](https://arxiv.org/abs/2003.04807))
 - https://huggingface.co/docs/peft

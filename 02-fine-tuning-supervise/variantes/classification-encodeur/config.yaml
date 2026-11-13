@@ -1,21 +1,21 @@
-# Classification de texte avec un encodeur — poste local
+# Classification d'intentions avec un encodeur — poste local
 modele:
   nom: answerdotai/ModernBERT-base    # FacebookAI/roberta-base, microsoft/deberta-v3-base, almanach/camembertv2-base (fr)...
 
 donnees:
-  nom: stanfordnlp/sst2               # tout dataset HF texte + label
+  nom: PolyAI/banking77               # messages de clients d'une banque -> 77 intentions (même jeu que l'exemple principal)
   split_train: train
-  split_test: validation
-  colonne_texte: sentence
+  split_test: test
+  colonne_texte: text
   colonne_label: label
-  n_train: 20000
-  n_test: 872
+  n_train: 10003
+  n_test: 3080
 
 entrainement:
   max_length: 128
-  epochs: 2
+  epochs: 5                           # 77 classes, ~130 exemples chacune : plus d'époques que pour 2 classes
   batch: 32
-  lr: 3.0e-5
+  lr: 5.0e-5
   warmup: 0.06
   weight_decay: 0.01
   logging_steps: 50

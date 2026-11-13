@@ -1,6 +1,7 @@
 # PEFT — poste local (GPU 12 Go)
 modele:
-  nom: Qwen/Qwen2.5-1.5B-Instruct   # en LoRA, 3B tient en bf16 ; en QLoRA, 7-8B tient sur 12 Go
+  nom: Qwen/Qwen2.5-0.5B-Instruct   # même modèle que le SFT complet (02), pour comparer à données égales ;
+                                    # en LoRA, 3B tient en bf16 sur 12 Go ; en QLoRA, 7-8B
 
 peft:
   methode: lora                     # lora | qlora | dora | rslora | pissa | loha | lokr | ia3 | prompt_tuning | prefix_tuning
@@ -9,18 +10,22 @@ peft:
   dropout: 0.05
   modules: all-linear               # ou [q_proj, k_proj, v_proj, o_proj] pour une LoRA « attention seule »
   tokens_virtuels: 20               # prompt_tuning / prefix_tuning
-  texte_init: "Solve the arithmetic problem step by step and finish with 'Answer: <number>'."
+  texte_init: "Reply with the intent label of the bank customer's message."
   fusionner: false                  # true : écrit aussi le modèle avec l'adaptateur intégré
 
 donnees:
-  source: arith
-  niveau: 2
-  n_train: 3000
+  source: banking77                 # mêmes données que le SFT complet (02)
+  n_train: 10003
+  graine: 0
+  remelange:                      # contre l'oubli : demandes générales + réponses du modèle d'origine
+    part: 0.15                    # part des exemples d'entraînement ; 0 : sans remélange
+    max_new_tokens: 512             # réponses plus longues écartées (coupées)
 
 entrainement:
-  max_length: 512
+  max_length: 640
   epochs: 2
-  batch: 16
+  batch: 8
+  accumulation: 2
   lr: 2.0e-4                        # LoRA : ~10x le lr d'un fine-tuning complet
   lr_par_methode:                   # certaines méthodes veulent un lr différent
     ia3: 3.0e-3
@@ -30,12 +35,22 @@ entrainement:
     lokr: 5.0e-4
   warmup: 0.03
   scheduler: cosine
-  logging_steps: 20
+  logging_steps: 50
 
 evaluation:
-  mode: nombre
-  n: 200
-  max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
+  mode: etiquette                   # réponse juste = l'intention attendue, en première ligne
+  n: 3080                           # tout le jeu de test de banking77
+  max_new_tokens: 16
+  batch: 32
+  systeme: |-
+    You route the messages of a bank's customers. Reply with exactly one intent label from this list, and nothing else.
+    Intents: {intentions}
+  non_regression:                   # tâche hors sujet que le modèle de départ réussit : elle ne doit pas se dégrader
+    source: arith
+    niveau: 2
+    n: 200
+    mode: nombre
+    max_new_tokens: 256
 
 sauvegarder: true
 
@@ -44,10 +59,15 @@ quick:
     nom: HuggingFaceTB/SmolLM2-135M-Instruct
   donnees:
     n_train: 64
+    remelange:
+      max_new_tokens: 64
   entrainement:
     epochs: 1
     batch: 8
+    accumulation: 1
   evaluation:
-    n: 16
-    max_new_tokens: 48
+    n: 32
+    non_regression:
+      n: 8
+      max_new_tokens: 48
   sauvegarder: false

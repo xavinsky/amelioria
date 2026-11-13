@@ -53,6 +53,9 @@ def main():
 
     train = donnees.charger_qa(cfg.donnees, "train")
     test = donnees.charger_qa(cfg.donnees, "test", cfg.evaluation.n)
+    if cfg.donnees.get("remelange", {}).get("part"):
+        train = train + entrainement.remelange(model, tok, cfg.donnees.remelange, len(train),
+                                               pathlib.Path(cfg.sortie).parent / "cache-remelange")
     avant = evaluation.evaluer(model, tok, cfg, test)
 
     lr = cfg.entrainement.lr_par_methode.get(p.methode, cfg.entrainement.lr)
@@ -60,14 +63,18 @@ def main():
     if p.methode == "prefix_tuning":
         # Le gradient checkpointing retire le cache dans lequel le prefix tuning injecte ses clés/valeurs.
         cfg.entrainement.gradient_checkpointing = False
-    trainer = entrainement.sft(model, tok, entrainement.exemples_sft(tok, train), cfg.entrainement, cfg.sortie,
+    trainer = entrainement.sft(model, tok, entrainement.exemples_sft(tok, train, evaluation.systeme(cfg)),
+                               cfg.entrainement, cfg.sortie,
                                peft_config=config_peft(p, cfg.modele.nom), max_length=cfg.entrainement.max_length)
     modele_peft = trainer.model
     parametres = modeles.compter_parametres(modele_peft)
     print(f"[peft] {p.methode} : {parametres['entrainables']:,} paramètres entraînés ({parametres['pourcentage_entrainable']} %)")
     apres = evaluation.evaluer(modele_peft, tok, cfg, test)
+    with modele_peft.disable_adapter():
+        # Adaptateur désactivé : le modèle de base, intact, pour tout ce qui n'est pas la tâche.
+        sans_adaptateur = evaluation.evaluer(modele_peft, tok, cfg)
 
-    infos = {"parametres": parametres, "lr": lr}
+    infos = {"parametres": parametres, "lr": lr, **trainer.mesures}
     if cfg.get("sauvegarder", True):
         dossier = f"{cfg.sortie}/adaptateur-{p.methode}"
         trainer.save_model(dossier)
@@ -76,7 +83,7 @@ def main():
             # Intègre l'adaptateur dans les poids : plus de surcoût à l'inférence, modèle autonome.
             fusion = modele_peft.merge_and_unload()
             modeles.sauvegarder(fusion, tok, f"{cfg.sortie}/modele-fusionne")
-    rapport.enregistrer(cfg, avant=avant, apres=apres, infos=infos)
+    rapport.enregistrer(cfg, avant=avant, apres=apres, adaptateur_desactive=sans_adaptateur, infos=infos)
 
 
 if __name__ == "__main__":

@@ -32,9 +32,9 @@ Choix d'une variante d'algorithme : toujours par la config (`--set methode=...`,
 | Section | Contenu |
 |---|---|
 | `modele` | `nom` (id Hugging Face ou dossier local), `dtype`, `api_base` pour les méthodes EXEC17 à EXEC20 |
-| `donnees` | `source` (`arith`, `faits`, `gsm8k`, `hf`...), tailles, `graine` |
+| `donnees` | `source` (`banking77`, `arith`, `faits`, `gsm8k`, `hf`...), tailles, `graine`, `remelange` (part de demandes générales mêlées à l'entraînement contre l'oubli) |
 | `entrainement` | Clés courtes traduites en `TrainingArguments` : `lr`, `epochs`, `max_steps`, `batch`, `accumulation`, `warmup`, `scheduler`, `gradient_checkpointing` (désactivé si absent, alors que les configs TRL l'activent par défaut), `optim` (ex. `adamw_bnb_8bit`), `logging_steps`, `autres: {...}` pour tout le reste |
-| `evaluation` | `mode` (`nombre` ou `contient`), `n`, `max_new_tokens`, `perplexite_generale`, `activer` |
+| `evaluation` | `mode` (`etiquette`, `nombre` ou `contient`), `n`, `max_new_tokens`, `systeme` (`{intentions}` y est remplacé par la liste des réponses possibles), `non_regression` (tâche hors sujet mesurée avant et après), `perplexite_generale`, `activer` |
 | `sauvegarder` | Écrire ou non le modèle produit |
 | `quick` | Surcharges du test rapide |
 
@@ -72,10 +72,10 @@ Les jeux réels (GSM8K, UltraFeedback, TOFU, SST-2, CIFAR-10, MLS...) se branche
 |---|---|
 | `config.py` | Ligne de commande, fusion `quick`, `--set`, dossier de sortie, graine (reprise par les arguments des Trainer) |
 | `modeles.py` | Chargement de LLM (bf16/fp32, bitsandbytes, multi-GPU), prompts, génération, log-probs, couches. `sans_autocast` retire l'autocast qu'accelerate laisse sur le modèle après un entraînement : les mesures avant/après se font dans la même précision |
-| `donnees.py` | Jeux fil rouge et chargeurs Hugging Face |
+| `donnees.py` | Jeux fil rouge, banking77, demandes générales du remélange, chargeurs Hugging Face |
 | `evaluation.py` | Exactitude (avec intervalle à 95 % et détail par question), perplexité, évaluation pilotée par la config |
 | `preuve.py` | Intervalle de Wilson, comparaison appariée (bootstrap, McNemar), agrégation de plusieurs graines |
-| `entrainement.py` | Arguments communs, SFT (TRL), LM causal, tokenisation pour boucles manuelles, LoRA. `liberer` rend la mémoire de l'optimiseur après l'entraînement |
+| `entrainement.py` | Arguments communs, SFT (TRL) avec durée et pic de mémoire GPU, remélange, LM causal, tokenisation pour boucles manuelles, LoRA. `liberer` rend la mémoire de l'optimiseur après l'entraînement |
 | `generateur.py` | Chat unifié modèle local / API compatible OpenAI |
 | `rapport.py` | `resultats.json` + tableau, intervalles et comparaisons appariées |
 | `infra/` | accelerate FSDP2 et DeepSpeed ZeRO-3, Slurm multi-nœuds, évaluation lm-eval + vLLM |

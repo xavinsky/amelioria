@@ -50,6 +50,7 @@ Papiers de recherche des techniques du dépôt, rangés par dossier. Les identif
 | **Instruction tuning (FLAN)** | Wei et al., *Finetuned Language Models Are Zero-Shot Learners* (2021) | [2109.01652](https://arxiv.org/abs/2109.01652) | Fine-tuning multi-tâches formulé en instructions |
 | **InstructGPT** | Ouyang et al., *Training language models to follow instructions with human feedback* (2022) | [2203.02155](https://arxiv.org/abs/2203.02155) | SFT puis RLHF : la recette des assistants |
 | **LIMA** | Zhou et al., *LIMA: Less Is More for Alignment* (2023) | [2305.11206](https://arxiv.org/abs/2305.11206) | Peu d'exemples de grande qualité suffisent à l'alignement du format |
+| **banking77** | Casanueva et al., *Efficient Intent Detection with Dual Sentence Encoders* (2020) | [2003.04807](https://arxiv.org/abs/2003.04807) | Jeu de 77 intentions de clients bancaires, référence de la détection d'intentions |
 
 ## 03 — PEFT
 

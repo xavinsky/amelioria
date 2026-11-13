@@ -16,7 +16,7 @@ Un panorama exécutable des méthodes pour améliorer un modèle d'IA : 20 dossi
 
 ## Conditions de travail
 
-- **GPU (RTX 5070 Ti Laptop, 11,5 Gio utilisables) : réservé à une autre tâche de Xavier. Ne lancer aucun calcul GPU (ni test, ni exemple) avant sa confirmation qu'il est de nouveau disponible.** La lecture, la conception et l'écriture de code restent possibles.
+- **GPU (RTX 5070 Ti Laptop, 11,5 Gio utilisables)** : partagé entre les projets de Xavier, tout calcul passe par le skill `gpu-local`.
 - Calculs longs : lancer détachés (`setsid nohup bash -c '...' > journal 2>&1 &`) puis sonder le journal. Les tâches d'arrière-plan de Claude Code sont arrêtées par le garde-fou mémoire à cause du swap des autres applications, alors que la RAM reste disponible.
 - Décharger les modèles Ollama avant un entraînement.
 - Installation d'un poste : `TORCH_INDEX_URL=https://download.pytorch.org/whl/cu130 bash scripts/installer.sh --extras`, puis `bash scripts/installer.sh --llmcompressor` (déjà fait sur ce poste).
@@ -24,14 +24,14 @@ Un panorama exécutable des méthodes pour améliorer un modèle d'IA : 20 dossi
 - Tout changement de statut ou de résultat se fait dans `exemples.yaml`, puis `make readme`.
 - Donner à Xavier un point d'avancement après chaque exemple validé ou en échec.
 - **Tracer l'avancement dans [session-status.md](session-status.md)**, section « Avancement » : une ligne datée par étape terminée, exemple validé ou en échec (résultat chiffré, journal associé). Tenir aussi à jour la grille de `backlog.md` et les cases de ce fichier.
-- Rien n'est commité : ne commiter qu'à la demande de Xavier (messages courts, sans ligne de co-auteur Claude).
+- Ne commiter et ne pousser qu'à la demande de Xavier (messages courts, sans ligne de co-auteur Claude). Le dépôt public est github.com/xavinsky/amelioria ; un push sur `main` republie le site sur tekio.org/amelioria/.
 
 ## État
 
 - **Exécution** : les 30 exemples tournent en `--quick` et en complet ; toutes les valeurs des sélecteurs passent en `--quick` ; les configs complètes tiennent en mémoire.
-- **Documentation transverse** : `docs/transformers.md`, `docs/schemas-methodes.md` (36 schémas Mermaid validés), `docs/bibliotheques.md`, `docs/references.md` (181 papiers vérifiés sur arXiv), `docs/cahier-des-charges.md`.
+- **Documentation transverse** : `docs/transformers.md`, `docs/schemas-methodes.md` (36 schémas Mermaid validés), `docs/bibliotheques.md`, `docs/references.md` (182 papiers vérifiés sur arXiv), `docs/cahier-des-charges.md`.
 - **Passe complète finale** (code et configs actuels, `logs/complet_final.txt`, un journal par exemple dans `logs/complet/`) : 01 à 15 terminés sans erreur ; arrêtée pour libérer le GPU avant 15 variante GGUF, 16, 17, 18, 19 et 20.
-- **Catalogue** (`exemples.yaml`, `make liste`) : 5 catégories (données, signal, chirurgie, remodeler, sans toucher aux poids) ; 15 exemples démontrés, 15 non prouvés, versions `infra/` non testées.
+- **Catalogue** (`exemples.yaml`, `make liste`) : 5 catégories (données, signal, chirurgie, remodeler, sans toucher aux poids) ; 17 exemples démontrés, 13 non prouvés, versions `infra/` non testées.
 - **Commandes** : `Makefile` racine et un par dossier ; chaque `make test/run` vérifie d'abord les prérequis. Non encore exécuté de bout en bout sur un venv neuf.
 - **Cause principale des refontes** : la tâche fil rouge arithmétique est déjà résolue par Qwen2.5-0.5B-Instruct (0,955) et 1,5B-Instruct (0,995). Les exemples qui l'utilisent pour enseigner une compétence ne démontrent rien. Pour 13 et 14, l'effet n'est pas isolé faute de témoin.
 
@@ -44,11 +44,8 @@ Un panorama exécutable des méthodes pour améliorer un modèle d'IA : 20 dossi
 
 ### 2. Site AmeliorIA et installation de bout en bout
 
-- [x] Site AmeliorIA (`site/`, moteur de memoria-gcp, `make site`) : arbre de décision, fiches 03 PEFT, 15 quantification, 18 RAG, installation, statut des exemples, lexique. Conventions : `site/README.md`.
+- [x] Site AmeliorIA (`site/`, `make site`), publié sur tekio.org/amelioria/ par GitHub Pages : arbre de décision, une page Concept et une page Exemple de code par méthode, catégories, statut et travail en cours, lexique, liens vers le code. Conventions : `site/README.md`.
 - [ ] Relire avec Xavier le contenu des six graphes de décision (`site/content/choisir/choisir/0[2-7]-cas-*.md`) et le classement `acces` / `donnees` / `calcul` / `duree` de `exemples.yaml`.
-- [ ] Noms des auteurs des icônes Flaticon (attribution exigée par la licence gratuite) dans `site/content/refs/ressources/`.
-- [ ] Fiches des 17 autres méthodes (schéma d'intégration, principe, quand l'utiliser, pièges, références), puis liens de l'arbre et des tableaux de « Quelle méthode pour quel besoin » vers ces fiches.
-- [ ] Publication : emplacement (tekio.org/amelioria/ prévu dans `build.py`) et dépôt (dans ce dépôt ou en sous-module, comme memoria-gcp) à décider avec Xavier.
 - [ ] Vérifier `make install EXTRAS=1` sur un venv neuf, puis `make smoke` (GPU).
 
 ### 3. Outils de preuve dans le socle
@@ -61,7 +58,7 @@ Un panorama exécutable des méthodes pour améliorer un modèle d'IA : 20 dossi
 
 Pour chacun : relire les papiers, vérifier que le modèle de départ échoue sur le besoin, implémenter, mesurer avec les outils de preuve, valider avec la grille, mettre à jour README et schéma.
 
-1. [ ] **02 SFT puis 03 LoRA — routage de demandes clients** (banking77 : 77 intentions, 3 080 exemples de test). SFT complet de Qwen2.5-0.5B-Instruct ; variante encodeur sur le même jeu ; LoRA comparée au SFT complet à données égales, avec non-régression.
+1. [x] **02 SFT puis 03 LoRA — routage de demandes clients** (banking77) : démontrés, avec non-régression et remélange (résultats dans `exemples.yaml` et les README).
 2. [ ] **05 RL — raisonnement vérifiable** : GRPO/DAPO sur GSM8K avec récompense vérifiable, test complet (1 319 questions).
 3. [ ] **07 données synthétiques** : rejection sampling fine-tuning sur GSM8K (RFT, STaR).
 4. [ ] **06 distillation LLM** : GSM8K avec un enseignant nettement meilleur que l'élève ; comprendre la régression observée sur l'arithmétique (décalage entraînement / génération, GKD).

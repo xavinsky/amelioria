@@ -6,7 +6,7 @@ Référence des critères : [docs/cahier-des-charges.md](docs/cahier-des-charges
 
 - Les 30 exemples (20 méthodes + variantes) s'exécutent en `--quick` et en configuration complète sur le poste local (RTX 5070 Ti Laptop, 11,5 Gio utilisables). Toutes les valeurs des sélecteurs passent en `--quick` (`scripts/selecteurs.sh`).
 - Les configs complètes tiennent en mémoire (gradient checkpointing, micro-lots, AdamW 8 bits où nécessaire).
-- Documentation transverse en place : `docs/transformers.md`, `docs/schemas-methodes.md` (36 schémas Mermaid validés), `docs/bibliotheques.md`, `docs/references.md` (181 papiers vérifiés), `docs/cahier-des-charges.md`.
+- Documentation transverse en place : `docs/transformers.md`, `docs/schemas-methodes.md` (36 schémas Mermaid validés), `docs/bibliotheques.md`, `docs/references.md` (182 papiers vérifiés), `docs/cahier-des-charges.md`.
 - Rien n'est commité.
 
 GPU réservé à une autre tâche de Xavier : aucun calcul GPU avant sa confirmation.
@@ -19,7 +19,7 @@ GPU réservé à une autre tâche de Xavier : aucun calcul GPU avant sa confirma
 
 ## Grille des exemples
 
-Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et réserve de chaque exemple : [exemples.yaml](exemples.yaml), source unique affichée par `make liste` et reprise dans le README (`make readme`). Bilan : 15 démontrés, 15 non prouvés ; versions `infra/` non testées. La tâche fil rouge arithmétique est **saturée** pour Qwen2.5-0.5B-Instruct (0,955 d'exactitude avec 256 tokens de génération) : les exemples qui l'utilisent pour enseigner une compétence ne peuvent rien démontrer.
+Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et réserve de chaque exemple : [exemples.yaml](exemples.yaml), source unique affichée par `make liste` et reprise dans le README (`make readme`). Bilan : 17 démontrés, 13 non prouvés ; versions `infra/` non testées. La tâche fil rouge arithmétique est **saturée** pour Qwen2.5-0.5B-Instruct (0,955 d'exactitude avec 256 tokens de génération) : les exemples qui l'utilisent pour enseigner une compétence ne peuvent rien démontrer.
 
 ## 1. Terminer la passe finale en cours
 
@@ -36,9 +36,9 @@ Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et
 
 Relire les papiers de chaque méthode (`docs/references.md`) avant d'implémenter, vérifier que le modèle de départ échoue, puis appliquer la grille.
 
-- [ ] **Tâche commune « routage de demandes clients »** : banking77 (77 intentions, 10 003 exemples d'entraînement, 3 080 de test), sortie = intention. Un LLM instruct en zéro-shot se trompe souvent ; c'est un besoin courant.
-  - 02 SFT : SFT complet de Qwen2.5-0.5B-Instruct ; même jeu pour la variante encodeur (comparaison LLM / encodeur).
-  - 03 PEFT : LoRA sur le même jeu, comparée au SFT complet à données égales (Biderman et al. : LoRA apprend moins mais oublie moins ; mesurer aussi la non-régression).
+- [x] **Tâche commune « routage de demandes clients »** : banking77 (77 intentions, 10 003 exemples d'entraînement, 3 080 de test), liste des intentions en message système, non-régression sur l'arithmétique, remélange de 15 % de demandes générales (réponses du modèle d'origine).
+  - 02 SFT complet : 0,231 → 0,904 ; non-régression 0,955 → 0,765 (0,025 sans remélange). Variante encodeur ModernBERT : 0,937 en 85 s.
+  - 03 LoRA : 0,229 → 0,891 ; non-régression 0,955 → 0,95 ; adaptateur désactivé 0,955.
 - [ ] **Raisonnement vérifiable** : GSM8K (7 473 / 1 319), tâche des papiers de référence.
   - 05 RL : GRPO/DAPO sur GSM8K avec récompense vérifiable (DeepSeekMath, DAPO) ; test complet 1 319.
   - 07 données synthétiques : rejection sampling fine-tuning sur GSM8K (RFT, STaR).

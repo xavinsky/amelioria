@@ -20,8 +20,8 @@ Ce que le SFT apprend bien : le format, le style, la langue de réponse, une tâ
 
 | Type de modèle | Exemples de modèles | Applicable | Exemple dans ce dossier |
 |---|---|---|---|
-| LLM décodeur | LLaMA, Qwen, Mistral, Gemma, Phi, SmolLM, GPT-2 | ✅ | [`run.py`](run.py) : SFT sur problèmes à réponse vérifiable |
-| Encodeur | BERT, RoBERTa, ModernBERT, DeBERTa, CamemBERT | ✅ | [`variantes/classification-encodeur`](variantes/classification-encodeur) : sentiment SST-2 |
+| LLM décodeur | LLaMA, Qwen, Mistral, Gemma, Phi, SmolLM, GPT-2 | ✅ | [`run.py`](run.py) : routage de messages clients vers 77 intentions (banking77) |
+| Encodeur | BERT, RoBERTa, ModernBERT, DeBERTa, CamemBERT | ✅ | [`variantes/classification-encodeur`](variantes/classification-encodeur) : mêmes 77 intentions (banking77) |
 | Encodeur-décodeur | T5, FLAN-T5, BART, mT5, NLLB | ✅ | [`variantes/seq2seq`](variantes/seq2seq) |
 | Vision | ViT, DeiT, DINOv2, ConvNeXt, Swin | ✅ | [`variantes/vision`](variantes/vision) : CIFAR-10 |
 | Audio / speech | Whisper, wav2vec2 | ✅ | [`variantes/audio-whisper`](variantes/audio-whisper) : français, mesure du WER |
@@ -50,20 +50,20 @@ flowchart TD
   Hub["Hugging Face Hub<br/>Qwen2.5-0.5B-Instruct"]
   Cache[("cache disque<br/>~/.cache/huggingface")]
   subgraph Py["Processus Python"]
-    Run["run.py<br/>génère les données<br/>charge le modèle"]
+    Run["run.py<br/>charge les données<br/>et le modèle"]
     Ev["evaluation.py<br/>génération"]
     TRL["TRL SFTTrainer<br/>tous les poids"]
   end
   GPU["GPU CUDA, 12 Go"]
   Out[("sorties/02-fine-<br/>tuning-supervise/")]
 
-  Hub -- "① HTTPS GET, 1re fois<br/>poids (1 Go)" --> Cache
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (1 Go), banking77, Alpaca" --> Cache
   Cache -- "② lecture des poids" --> Run
   Run -- "③ copie des poids<br/>en mémoire GPU" --> GPU
-  Run -- "④ ⑧ appel Python<br/>mesure avant, après" --> Ev
-  Ev -- "⑤ ⑨ noyaux CUDA<br/>génération" --> GPU
-  Run -- "⑥ appel Python<br/>trainer.train()" --> TRL
-  TRL -- "⑦ noyaux CUDA<br/>forward, backward" --> GPU
+  Run -- "④ ⑥ ⑨ appel Python<br/>mesure avant, remélange, après" --> Ev
+  Ev -- "⑤ noyaux CUDA<br/>génération" --> GPU
+  Run -- "⑦ appel Python<br/>trainer.train()" --> TRL
+  TRL -- "⑧ noyaux CUDA<br/>forward, backward" --> GPU
   TRL -- "⑩ écriture<br/>modèle" --> Out
   Run -- "⑪ écriture<br/>resultats.json" --> Out
 
@@ -74,21 +74,21 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=DATA02` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, données, réglages) et génère en mémoire, sans téléchargement, 3 000 problèmes d'arithmétique pour l'entraînement et 200 pour le test, de la forme `(a op b) op c` avec leur solution pas à pas terminée par `Answer: N`.
+`make run EX=DATA02` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, données, réglages). Les données sont celles de banking77 : des messages réels de clients d'une banque (« I still haven't received my new card »), chacun annoté avec l'une de 77 intentions (`card_arrival`, `card_delivery_estimate`, `lost_or_stolen_card`...). Le modèle reçoit en message système la liste des 77 intentions et doit répondre par une seule d'entre elles.
 
-- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-0.5B-Instruct (environ 1 Go, safetensors) depuis le Hugging Face Hub, par HTTPS.
-- **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-0.5B-Instruct (environ 1 Go), le jeu banking77 et les demandes générales d'Alpaca sont téléchargés depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en fp32 dans la mémoire du GPU (`dtype: float32`), où ils restent jusqu'à la fin : ce sont les poids maîtres de l'entraînement, le calcul se fait en bf16.
-- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui fait répondre le modèle aux 200 problèmes de test, par lots de 16.
-- **⑤ Génération sur le GPU.** Pour chaque lot, le modèle produit la réponse token par token, jusqu'à 256 tokens. L'évaluation extrait ensuite le nombre final de chaque réponse et le compare au résultat attendu : c'est l'exactitude de départ.
-- **⑥ Entraînement.** `run.py` met les 3 000 problèmes au format prompt/réponse du chat template et les confie au SFTTrainer de TRL. Rien n'est gelé : les 494 millions de paramètres du modèle sont entraînés.
-- **⑦ Forward et backward sur le GPU.** Chaque pas traite un lot de 16 exemples : passe avant, calcul de la perte sur la réponse seulement (pas sur l'énoncé), passe arrière, mise à jour de tous les poids. L'entraînement dure 2 époques, avec un taux d'apprentissage de 1e-5.
-- **⑧ Mesure après.** Les mêmes 200 problèmes sont posés au modèle entraîné.
-- **⑨ Génération sur le GPU**, avec le même décodage qu'en ⑤.
+- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui pose au modèle les 3 080 messages de test, par lots de 32, puis 200 problèmes d'arithmétique, la tâche de non-régression.
+- **⑤ Génération sur le GPU.** Pour un message, le modèle produit au plus 16 tokens ; la première ligne, normalisée, doit être l'intention attendue. Pour l'arithmétique, il raisonne jusqu'à 256 tokens et l'on compare le nombre final.
+- **⑥ Remélange.** Avant l'entraînement, le modèle répond à environ 3 500 demandes générales d'Alpaca ; on garde les 1 765 premières réponses complètes (15 % des exemples d'entraînement). Elles sont gardées en cache dans `sorties/cache-remelange/` pour les lancements suivants.
+- **⑦ Entraînement.** `run.py` met les 10 003 messages et les 1 765 réponses générales au format du chat template et les confie au SFTTrainer de TRL. Rien n'est gelé : les 494 millions de paramètres du modèle sont entraînés.
+- **⑧ Forward et backward sur le GPU.** Chaque pas traite 16 exemples (lots de 4, accumulés 4 fois) : passe avant, perte sur la réponse seulement, passe arrière avec recalcul des activations (gradient checkpointing), mise à jour de tous les poids. 2 époques, taux d'apprentissage 1e-5.
+- **⑨ Mesure après.** Les mêmes 3 080 messages et les mêmes 200 problèmes, avec le même décodage.
 - **⑩ Écriture du modèle** complet dans `sorties/02-fine-tuning-supervise/modele/`.
 - **⑪ Écriture du rapport** dans `sorties/02-fine-tuning-supervise/resultats.json`, avec le même tableau affiché dans le terminal.
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑨), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. En entraînement (⑦), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis leur mise à jour par l'optimiseur AdamW. Comme tout le modèle est entraîné, la mémoire GPU contient à la fois les poids fp32, leurs gradients et l'état d'AdamW pour chacun d'eux.
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑥, ⑨), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. En entraînement (⑧), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis leur mise à jour par l'optimiseur AdamW. Comme tout le modèle est entraîné, la mémoire GPU contient à la fois les poids fp32, leurs gradients et l'état d'AdamW pour chacun d'eux.
 
 **Ce qui est écrit.**
 
@@ -98,7 +98,7 @@ flowchart TD
 | `modele/config.json`, `generation_config.json` | Architecture et réglages de génération, pour recharger le modèle avec `AutoModelForCausalLM.from_pretrained` |
 | `modele/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
 | `modele/training_args.bin` | Les réglages d'entraînement utilisés |
-| `resultats.json` | Exactitude avant et après, nombre de réponses, durée de chaque évaluation, trois réponses d'exemple de chaque côté ; nombre de paramètres total et entraînés (494 032 768, soit 100 %) |
+| `resultats.json` | Exactitude avant et après sur les intentions et sur la non-régression, avec intervalle à 95 % et réponse de chaque question ; part de réponses qui sont une intention valide ; comparaisons appariées (différence, intervalle, p de McNemar) ; paramètres entraînés (494 032 768, soit 100 %), durée d'entraînement et pic de mémoire GPU |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
 Avec `SET="sauvegarder=false"`, seul le rapport est écrit, sans le dossier `modele/`.
@@ -107,8 +107,9 @@ Avec `SET="sauvegarder=false"`, seul le rapport est écrit, sans le dossier `mod
 
 ```bash
 python run.py --quick                                        # SmolLM2-135M-Instruct, 64 exemples
-python run.py                                                # Qwen2.5-0.5B-Instruct, 3000 exemples, ~10 min
-python run.py --set donnees.source=gsm8k --set donnees.n_train=7473
+python run.py                                                # Qwen2.5-0.5B-Instruct, banking77, ~30 min
+python run.py --set donnees.remelange.part=0                 # sans remélange : mesurer l'oubli
+python run.py --set donnees.source=gsm8k --set donnees.n_train=7473 --set evaluation.mode=nombre
 python run.py --set modele.nom=meta-llama/Llama-3.2-1B-Instruct --set entrainement.gradient_checkpointing=true
 python variantes/classification-encodeur/run.py --quick
 python variantes/vision/run.py --quick
@@ -118,20 +119,37 @@ python variantes/audio-whisper/run.py --quick
 
 ## Ce que fait l'exemple
 
-1. Génère des problèmes `(a op b) op c` avec leur raisonnement pas à pas et leur réponse finale (`Answer: N`).
-2. Mesure l'exactitude du modèle (réponse finale extraite) sur 200 problèmes jamais vus.
-3. SFT complet sur 3000 problèmes, perte uniquement sur la réponse.
-4. Remesure. Attendu avec Qwen2.5-0.5B-Instruct : un gain net d'exactitude et un format de réponse devenu constant.
+**Le besoin** : router automatiquement les messages des clients d'une banque vers le bon traitement, parmi 77 intentions souvent voisines. Un modèle généraliste ne connaît pas cette taxonomie : Qwen2.5-0.5B-Instruct, à qui l'on donne la liste des intentions, ne trouve la bonne que dans 23 % des cas, et Qwen2.5-1.5B-Instruct dans 47 % (mesuré sur 500 messages). Leurs réponses sont pourtant le plus souvent des intentions de la liste (69 % pour le 0.5B, 95 % pour le 1.5B) : l'essentiel de l'erreur vient de la confusion entre intentions proches (`card_arrival` au lieu de `card_delivery_estimate`), pas du format.
+
+**Résultats** (RTX 5070 Ti Laptop, 12 Go ; 3 080 messages de test, 200 problèmes de non-régression) :
+
+| | Intentions | Non-régression (arithmétique) | Entraînement |
+|---|---|---|---|
+| Qwen2.5-0.5B-Instruct, avant | 0,231 [0,217 ; 0,246] | 0,955 [0,917 ; 0,976] | |
+| SFT complet, avec remélange (`config.yaml`) | **0,904** [0,893 ; 0,914] | **0,765** [0,702 ; 0,818] | 23 min, 9,2 Gio |
+| SFT complet, sans remélange | 0,932 [0,922 ; 0,940] | 0,025 [0,011 ; 0,057] | 19 min, 9,0 Gio |
+| ModernBERT-base, [variante encodeur](variantes/classification-encodeur) | 0,937 [0,928 ; 0,945] | (pas un modèle génératif) | 85 s |
+
+Gain sur les intentions, apparié sur les mêmes messages : +0,673 [+0,655 ; +0,690], p de McNemar < 10⁻³⁰⁰.
+
+**Ce qu'on en retient.**
+
+- Le SFT apprend la taxonomie de l'entreprise : +67 points, sur un jeu de test jamais vu.
+- **L'oubli est réel et se mesure.** Entraîné seulement à répondre par un mot, le modèle répond par un mot partout : il ne raisonne plus pas à pas et rate l'arithmétique (0,955 → 0,025). Mêler 15 % de demandes générales, avec les réponses du modèle d'origine, limite fortement cet oubli (0,765) au prix de 3 points sur les intentions. Il en reste une part : LoRA fait mieux sur ce point ([DATA03](../03-peft)).
+- **Pour une classification pure, un encodeur suffit** : ModernBERT-base, 3 fois plus petit, fait aussi bien en 85 s d'entraînement. Le LLM fine-tuné se justifie quand il doit aussi répondre, extraire ou rédiger.
 
 ## Paramètres principaux (`config.yaml`)
 
 | Clé | Rôle |
 |---|---|
 | `modele.nom`, `modele.dtype` | Modèle, et `float32` pour des poids maîtres en fp32 (calcul bf16) |
-| `donnees.source` | `arith`, `gsm8k` ou `hf` (+ `nom`, `champs`) |
+| `donnees.source` | `banking77`, `arith`, `gsm8k` ou `hf` (+ `nom`, `champs` : vos propres demandes annotées) |
+| `donnees.remelange.part` | Part de demandes générales (réponses du modèle d'origine) mêlées à l'entraînement ; `0` pour s'en passer |
 | `entrainement.lr` | 5e-6 à 2e-5 en SFT complet (10 fois plus en LoRA) |
 | `entrainement.max_length` | Longueur max prompt + réponse |
-| `evaluation.mode` | `nombre` (réponse numérique) ou `contient` |
+| `evaluation.mode` | `etiquette` (une réponse parmi une liste fermée), `nombre` (réponse numérique) ou `contient` |
+| `evaluation.systeme` | Message système ; `{intentions}` y est remplacé par la liste des 77 intentions |
+| `evaluation.non_regression` | Tâche hors sujet, mesurée avant et après, que l'entraînement ne doit pas dégrader |
 
 **Conversations multi-tours** (ex. `HuggingFaceTB/smoltalk`) : `SFTTrainer` accepte directement une colonne `messages` (liste `{role, content}`). Il suffit de remplacer `entrainement.exemples_sft(...)` par `[{"messages": m} for m in ds["messages"]]` et de passer `assistant_only_loss=True`.
 
@@ -146,7 +164,8 @@ python variantes/audio-whisper/run.py --quick
 
 - **Chat template** : entraîner et servir avec le même template (le `SFTTrainer` utilise celui du tokenizer).
 - **Surapprentissage** : sur de petits jeux, 1 à 3 epochs suffisent. Surveiller une métrique de généralisation.
-- **Oubli** : le SFT étroit dégrade les capacités générales. Mélanger des données générales ou passer par LoRA ([docs/oubli-catastrophique.md](../docs/oubli-catastrophique.md)).
+- **Oubli** : le SFT étroit dégrade les capacités générales, ici jusqu'à perdre le raisonnement pas à pas. Le mesurer sur une tâche hors sujet, mêler des données générales, ou passer par LoRA ([docs/oubli-catastrophique.md](../docs/oubli-catastrophique.md)).
+- **Comparer au bon point de départ** : donner au modèle de départ la liste des réponses possibles, sinon le gain mesuré n'est qu'un gain de format.
 - **Qualité plutôt que quantité** : 1 000 exemples excellents valent mieux que 100 000 médiocres (LIMA).
 - **T5 en fp16/bf16** : instable, rester en fp32 (voir la config seq2seq).
 
@@ -154,4 +173,6 @@ python variantes/audio-whisper/run.py --quick
 
 - Ouyang et al., *InstructGPT* (2022) : étape SFT.
 - Zhou et al., *LIMA: Less Is More for Alignment* (2023).
+- Casanueva et al., *Efficient Intent Detection with Dual Sentence Encoders* (2020) : le jeu banking77 ([2003.04807](https://arxiv.org/abs/2003.04807)).
+- Biderman et al., *LoRA Learns Less and Forgets Less* (2024) : oubli du fine-tuning complet comparé à LoRA ([2405.09673](https://arxiv.org/abs/2405.09673)).
 - Documentation TRL `SFTTrainer` : https://huggingface.co/docs/trl/sft_trainer

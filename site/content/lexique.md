@@ -54,6 +54,10 @@ Activation-aware Weight Quantization : quantification calibrée qui protège les
 
 Encodeur-décodeur de Meta pré-entraîné à reconstruire un texte abîmé ; bon en résumé et en traduction. mBART est multilingue. Voir [Pré-entraînement continu](#pre-entrainement-continu).
 
+## banking77
+
+Jeu de 13 083 messages réels de clients d'une banque, chacun annoté avec l'une de 77 intentions (carte non reçue, paiement débité deux fois...) ; référence de la détection d'intentions. Voir [Fine-tuning supervisé](#fine-tuning-supervise).
+
 ## Batch
 
 Lot d'exemples traités ensemble à chaque pas d'entraînement ou de génération. L'accumulation de gradients simule un lot plus grand que la mémoire ne le permet. Voir [Fine-tuning supervisé](#fine-tuning-supervise).

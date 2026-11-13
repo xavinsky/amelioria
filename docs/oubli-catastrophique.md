@@ -6,15 +6,29 @@ Quand on entraîne un modèle sur un domaine ou une tâche étroits, il **perd d
 
 Toujours suivre, avant et après, au moins une métrique **hors de la tâche visée** :
 
+- exactitude sur une tâche hors sujet que le modèle de départ réussit : `evaluation.non_regression` (arithmétique en [DATA02](../02-fine-tuning-supervise) et [DATA03](../03-peft)) ;
 - perplexité sur du texte général : `evaluation.perplexite_generale: true` dans les configs, sur wikitext ;
 - quelques benchmarks généraux : `commun/infra/evaluer_lm_eval.sh` (MMLU, HellaSwag, IFEval) ;
 - exactitude sur les connaissances voisines à préserver (`retenu` en [EDIT10](../10-desapprentissage), `specificite` en [EDIT09](../09-edition-connaissances)).
+
+## Ce qu'on mesure dans le dépôt
+
+Routage de messages bancaires vers 77 intentions (banking77), Qwen2.5-0.5B-Instruct ; non-régression : 200 problèmes d'arithmétique que le modèle réussit à 0,955 en raisonnant pas à pas.
+
+| Entraînement | Intentions | Non-régression |
+|---|---|---|
+| Fine-tuning complet, sans remélange | 0,932 | 0,025 |
+| Fine-tuning complet, 15 % de remélange | 0,904 | 0,765 |
+| LoRA, sans remélange | 0,925 | 0,33 |
+| LoRA, 15 % de remélange | 0,891 | 0,95 |
+
+Entraîné à répondre par un mot, le modèle répond par un mot partout et cesse de raisonner. Le remélange limite cet oubli, LoRA davantage encore, et les deux ensemble le rendent non mesurable.
 
 ## Le limiter
 
 | Technique | Principe | Où dans le dépôt |
 |---|---|---|
-| **Replay** | Mélanger 5 à 30 % de données générales aux données du domaine | `donnees.replay_ratio` en [DATA01](../01-pre-entrainement-continu) |
+| **Replay** | Mélanger 5 à 30 % de données générales aux données du domaine | `donnees.replay_ratio` en [DATA01](../01-pre-entrainement-continu) ; `donnees.remelange` en [DATA02](../02-fine-tuning-supervise) et [DATA03](../03-peft), avec les réponses du modèle d'origine |
 | **LR faible et entraînement court** | Moins de pas, moins de dérive | Toutes les configs `entrainement.lr` |
 | **PEFT (LoRA)** | Les poids d'origine ne bougent pas ; « LoRA learns less and forgets less » | [DATA03](../03-peft) |
 | **Régularisation vers le modèle d'origine** | Pénalité KL (RL, DPO) ou distance aux poids (EWC, L2-SP) | `beta` en [SIGN04](../04-optimisation-preferences) et [SIGN05](../05-rl-en-ligne) |

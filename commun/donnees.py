@@ -6,6 +6,8 @@ Trois familles « fil rouge », utilisées d'un exemple à l'autre pour pouvoir 
              Générés localement, aucun téléchargement, taille illimitée.
 * `faits`  : base de connaissances fictive (personnages inventés) que le modèle ne peut pas connaître
              (pré-entraînement continu, RAG, désapprentissage, extension de vocabulaire...).
+* `banking77` : messages réels de clients d'une banque, à router vers l'une de 77 intentions (PolyAI/banking77,
+             10 003 exemples d'entraînement, 3 080 de test) : classification d'intentions, tâche réelle d'entreprise.
 * `hf`     : n'importe quel dataset Hugging Face, via un mapping de colonnes (cas réel).
 
 Les textes sont en anglais : les petits modèles utilisables en local sont nettement meilleurs en anglais,
@@ -188,6 +190,46 @@ def hf_qa(nom: str, split: str, n: int, champs: dict, config: str | None = None,
     } for ex in ds]
 
 
+# --------------------------------------------------------------------------- intentions de clients bancaires
+
+
+def _banking77(split: str):
+    from datasets import load_dataset
+
+    return load_dataset("PolyAI/banking77", split=split)
+
+
+def intention(texte: str) -> str:
+    """Forme normalisée d'une intention : minuscules, mots séparés par « _ » (« Card arrival » -> card_arrival)."""
+    return re.sub(r"[^a-z0-9]+", "_", texte.lower()).strip("_")
+
+
+def intentions_banking77() -> list[str]:
+    return [intention(nom) for nom in _banking77("test").features["label"].names]
+
+
+def banking77(split: str, n: int, graine: int = 0) -> list[dict]:
+    """Message client -> intention (format commun, la réponse attendue est le nom de l'intention)."""
+    ds = _banking77(split)
+    noms = [intention(nom) for nom in ds.features["label"].names]
+    ds = ds.shuffle(seed=graine).select(range(min(n, len(ds))))
+    return [{"question": ex["text"], "reponse": noms[ex["label"]], "cible": noms[ex["label"]]} for ex in ds]
+
+
+def etiquettes(d) -> list[str] | None:
+    """Liste fermée des réponses possibles d'une source de classification, sinon None."""
+    return intentions_banking77() if d.get("source") == "banking77" else None
+
+
+def consignes_generales(n: int, graine: int = 0, longueur_max: int = 300) -> list[str]:
+    """Demandes générales variées (Alpaca, sans champ d'entrée) : prompts du remélange contre l'oubli."""
+    from datasets import load_dataset
+
+    ds = load_dataset("tatsu-lab/alpaca", split="train")
+    ds = ds.filter(lambda e: not e["input"] and len(e["instruction"]) < longueur_max).shuffle(seed=graine)
+    return ds.select(range(min(n, len(ds))))["instruction"]
+
+
 def charger_qa(d, split: str = "train", n: int | None = None) -> list[dict]:
     """Point d'entrée unique : `d` est la section `donnees` de la config."""
     graine = d.get("graine", 0) + (0 if split == "train" else 10_000)
@@ -197,6 +239,8 @@ def charger_qa(d, split: str = "train", n: int | None = None) -> list[dict]:
         return arith(n, graine, d.get("niveau", 2))
     if source == "gsm8k":
         return gsm8k(n, "train" if split == "train" else "test", graine)
+    if source == "banking77":
+        return banking77("train" if split == "train" else "test", n, graine)
     if source == "faits":
         return faits_fictifs(d.get("n_entites", 20), d.get("graine", 0))["qa"][:n]
     if source == "hf":

@@ -346,20 +346,19 @@ exemples:
     prerequis: {gpu: conseille}
 
   - chemin: 02-fine-tuning-supervise
-    statut: non-prouve
-    fait: "Fine-tuning complet de Qwen2.5-0.5B-Instruct sur des problèmes d'arithmétique avec raisonnement pas à pas."
-    piste: "Changer de tâche : routage de demandes clients (banking77, 77 intentions), où le modèle de départ se trompe souvent."
-    duree_test: "10 s"
-    duree_complet: "2 min"
-    resultat: "exactitude 0,955 → 0,885"
-    reserve: tâche arithmétique déjà résolue par le modèle de départ
+    statut: demontre
+    fait: "Fine-tuning complet de Qwen2.5-0.5B-Instruct pour router des messages de clients bancaires vers 77 intentions (banking77), avec remélange contre l'oubli."
+    duree_test: "21 s"
+    duree_complet: "29 min"
+    resultat: "intentions 0,231 → 0,904 (n = 3 080) ; non-régression 0,955 → 0,765 (0,025 sans remélange)"
+    reserve: oubli partiel malgré le remélange
     prerequis: {gpu: requis}
   - chemin: 02-fine-tuning-supervise/variantes/classification-encodeur
     statut: demontre
-    fait: "Entraîne ModernBERT à classer le sentiment de critiques de films (SST-2)."
+    fait: "Entraîne ModernBERT-base à classer les mêmes messages bancaires en 77 intentions (banking77)."
     duree_test: "10 s"
-    duree_complet: "76 s"
-    resultat: "SST-2 0,54 → 0,95"
+    duree_complet: "2 min"
+    resultat: "intentions 0,012 → 0,937 (n = 3 080), 85 s d'entraînement"
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/vision
     statut: demontre
@@ -388,13 +387,11 @@ exemples:
     prerequis: {gpu: conseille, extras: [torchcodec]}
 
   - chemin: 03-peft
-    statut: non-prouve
-    fait: "Entraîne un adaptateur LoRA sur Qwen2.5-1.5B-Instruct, même tâche que le fine-tuning complet, pour comparer."
-    piste: "Même refonte que DATA02 (banking77), LoRA comparée au fine-tuning complet : gain et oubli."
-    duree_test: "12 s"
-    duree_complet: "3 min"
-    resultat: "Qwen2.5-1.5B 0,995 → 1,0"
-    reserve: tâche arithmétique déjà résolue par le modèle de départ
+    statut: demontre
+    fait: "Entraîne un adaptateur LoRA sur Qwen2.5-0.5B-Instruct, mêmes données que le fine-tuning complet (banking77, remélange compris), pour comparer gain et oubli."
+    duree_test: "23 s"
+    duree_complet: "32 min"
+    resultat: "intentions 0,229 → 0,891 (n = 3 080) ; non-régression 0,955 → 0,95 ; adaptateur désactivé 0,955"
     prerequis: {gpu: requis, extras_selon: {peft.methode=qlora: [bitsandbytes]}}
   - chemin: 03-peft/variantes/diffusion-lora
     statut: non-prouve

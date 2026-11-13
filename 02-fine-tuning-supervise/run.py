@@ -14,10 +14,13 @@ from commun import config, donnees, entrainement, evaluation, modeles, rapport
 def main():
     cfg = config.charger(__file__)
     model, tok = modeles.charger_llm(cfg.modele.nom, cfg.modele.get("dtype", "auto"))
-    systeme = cfg.evaluation.get("systeme")
+    systeme = evaluation.systeme(cfg)
 
     train = donnees.charger_qa(cfg.donnees, "train")
     test = donnees.charger_qa(cfg.donnees, "test", cfg.evaluation.n)
+    if cfg.donnees.get("remelange", {}).get("part"):
+        train = train + entrainement.remelange(model, tok, cfg.donnees.remelange, len(train),
+                                               pathlib.Path(cfg.sortie).parent / "cache-remelange")
 
     avant = evaluation.evaluer(model, tok, cfg, test)
 
@@ -28,7 +31,8 @@ def main():
     if cfg.get("sauvegarder", True):
         trainer.save_model(f"{cfg.sortie}/modele")
         tok.save_pretrained(f"{cfg.sortie}/modele")
-    rapport.enregistrer(cfg, avant=avant, apres=apres, parametres=modeles.compter_parametres(trainer.model))
+    rapport.enregistrer(cfg, avant=avant, apres=apres,
+                        infos={"parametres": modeles.compter_parametres(trainer.model), **trainer.mesures})
 
 
 if __name__ == "__main__":
