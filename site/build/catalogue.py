@@ -186,7 +186,7 @@ class Catalogue:
 
     def travaux(self):
         """Page « Travail en cours » : exemples locaux démontrés, exemples locaux à démontrer (avec la piste),
-        versions grosse infra mises de côté (matériel et durée estimée)."""
+        versions grosse infra en attente d'une infra cloud (matériel et durée estimée)."""
         demontres, a_faire = [], []
         for num, m in self.methodes.items():
             for e in self.exemples_de(num):
@@ -208,7 +208,7 @@ class Catalogue:
                 "méthode. La dernière colonne dit ce qui doit changer.\n\n"
                 "| Exemple | Ce qu'il fait | Résultat mesuré | Piste d'amélioration |\n|---|---|---|---|\n"
                 + "\n".join(a_faire)
-                + f"\n\n## Sur cloud : mis de côté ({len(cloud)})\n\n"
+                + f"\n\n## Sur cloud : en attente d'une infra cloud ({len(cloud)})\n\n"
                 "Les versions grosse infra (dossier `infra/` de chaque méthode) demandent des GPU de centre de calcul. "
                 "Leur code est fourni, mais aucune n'a été exécutée ; les durées sont des estimations.\n\n"
                 "| Méthode | Ce que fait la version infra | Matériel visé | Durée estimée |\n|---|---|---|---|\n"

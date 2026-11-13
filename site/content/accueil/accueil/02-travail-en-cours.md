@@ -1,7 +1,7 @@
 ---
 title: Travail en cours
 id: travail-en-cours
-description: "État d'avancement d'AmeliorIA : exemples démontrés en local, exemples à démontrer avec leur piste d'amélioration, versions grosse infra mises de côté."
+description: "État d'avancement d'AmeliorIA : exemples démontrés en local, exemples à démontrer avec leur piste d'amélioration, versions grosse infra en attente d'une infra cloud."
 compteurs: true
 travaux: true
 ---

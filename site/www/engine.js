@@ -72,9 +72,19 @@ function applySidebarPref(cachee){
   document.documentElement.classList.toggle("sidebar-cachee", cachee);
   sidebarToggleBtn.setAttribute("aria-pressed", String(cachee));
   sidebarToggleBtn.setAttribute("aria-label", cachee ? "Afficher le menu latéral" : "Masquer le menu latéral");
+  sidebarToggleBtn.querySelector(".sidebar-toggle-libelle").textContent = cachee ? "Afficher le menu" : "Masquer le menu";
   store.set(SIDEBAR_KEY, cachee ? "1" : "0");
 }
-sidebarToggleBtn.addEventListener("click", () => applySidebarPref(!document.documentElement.classList.contains("sidebar-cachee")));
+const basculerSidebar = () => applySidebarPref(!document.documentElement.classList.contains("sidebar-cachee"));
+sidebarToggleBtn.addEventListener("click", basculerSidebar);
+/* Touche M : bascule le menu, sauf pendant une saisie (recherche) */
+document.addEventListener("keydown", e => {
+  const cible = e.target;
+  if (e.key.toLowerCase() !== "m" || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (cible.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName)) return;
+  e.preventDefault();
+  basculerSidebar();
+});
 applySidebarPref(store.get(SIDEBAR_KEY) === "1");
 
 document.getElementById("last-updated").textContent = "Dernière mise à jour : " + SITE.updated;

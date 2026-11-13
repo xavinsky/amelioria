@@ -833,8 +833,13 @@ td.col-resultat{background:var(--result-tint); color:var(--sec4-dark); width:30%
 :root[data-theme="dark"] .picto-img{filter:invert(1);}
 .decision-figure svg.decision{width:auto; max-width:100%; min-width:0; height:auto;}
 /* ---------- Menu latéral masquable (bouton #sidebar-toggle) ---------- */
-#sidebar-toggle{display:flex; align-items:center; justify-content:center; width:28px; height:28px; padding:0;
-  border:none; border-radius:4px; background:transparent; color:rgba(255,255,255,0.8); cursor:pointer; flex:none;}
+#sidebar-toggle{display:flex; align-items:center; justify-content:center; gap:6px; height:28px; padding:0 9px 0 7px;
+  border:1px solid rgba(255,255,255,0.35); border-radius:4px; background:transparent; color:rgba(255,255,255,0.9);
+  cursor:pointer; flex:none; font-family:var(--font-mono); font-size:11px; white-space:nowrap;}
+@media (max-width:700px){
+  .sidebar-toggle-libelle{display:none;}
+  #sidebar-toggle{padding:0 5px;}
+}
 #sidebar-toggle:hover{background:var(--sidebar-hover); color:#fff;}
 #sidebar-toggle[aria-pressed="true"]{background:var(--sidebar-hover); color:#fff;}
 html.sidebar-cachee #sidebar{display:none;}
