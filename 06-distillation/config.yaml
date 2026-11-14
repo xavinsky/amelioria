@@ -1,12 +1,13 @@
 # Distillation — poste local (GPU 12 Go)
 # Enseignant et élève de la même famille : même tokenizer, requis pour les modes logits et on_policy.
 enseignant:
-  nom: Qwen/Qwen2.5-1.5B-Instruct  # 3B/7B si la mémoire le permet (ou mode sequence : l'enseignant est libéré avant l'entraînement)
+  nom: Qwen/Qwen2.5-3B-Instruct    # nettement meilleur que l'élève sur GSM8K ; en mode sequence, il est libéré avant l'entraînement
 eleve:
   nom: Qwen/Qwen2.5-0.5B-Instruct
   dtype: float32
 
-mode: logits                        # sequence | logits | on_policy
+mode: sequence                      # sequence | logits | on_policy
+temoin: true                        # sequence : même élève entraîné sur les solutions humaines du jeu, mêmes questions
 
 kd:
   temperature: 2.0                  # adoucit les distributions : transmet les « presque bonnes » réponses
@@ -18,17 +19,16 @@ generation:
   filtrer: true                     # sequence : ne garder que les réponses justes de l'enseignant
 
 donnees:
-  source: arith
-  niveau: 2
-  n_train: 2000
+  source: gsm8k                     # problèmes de mathématiques rédigés (7 473 d'entraînement, 1 319 de test)
+  n_train: 3000                     # questions que l'enseignant résout ; seules ses réponses justes sont gardées
 
 entrainement:
-  max_length: 256
-  epochs: 1
-  batch: 2                          # les logits (vocabulaire 152k) de deux modèles pèsent lourd en mémoire
-  accumulation: 8
+  max_length: 768
+  epochs: 2
+  batch: 4                          # mode logits : batch 2 (les logits de deux modèles, vocabulaire de 152 000)
+  accumulation: 4
   gradient_checkpointing: true
-  optim: adamw_bnb_8bit             # AdamW 8 bits : l'enseignant tient à côté de l'élève
+  optim: adamw_bnb_8bit             # AdamW 8 bits : en mode logits, l'enseignant tient à côté de l'élève
   lr: 1.0e-5
   warmup: 0.03
   scheduler: cosine
@@ -36,17 +36,27 @@ entrainement:
 
 evaluation:
   mode: nombre
-  n: 200
-  max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
+  n: 1319                           # tout le jeu de test de GSM8K
+  max_new_tokens: 512               # raisonnements de l'enseignant et de l'élève : assez long pour ne pas couper la réponse
+  batch: 32
+  non_regression:                   # tâche hors sujet que l'élève réussit : elle ne doit pas se dégrader
+    source: arith
+    niveau: 2
+    n: 200
+    mode: nombre
+    max_new_tokens: 256
 
 sauvegarder: true
 
 quick:
+  generation:
+    filtrer: false                  # le petit enseignant du test rapide répond rarement juste : tout garder
   enseignant:
     nom: HuggingFaceTB/SmolLM2-360M-Instruct
   eleve:
     nom: HuggingFaceTB/SmolLM2-135M-Instruct
   donnees:
+    source: arith
     n_train: 32
   entrainement:
     batch: 4
@@ -55,4 +65,7 @@ quick:
   evaluation:
     n: 8
     max_new_tokens: 48
+    non_regression:
+      n: 4
+      max_new_tokens: 48
   sauvegarder: false

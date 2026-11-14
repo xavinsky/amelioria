@@ -22,16 +22,16 @@ donnees:
 
 phase1:                             # embeddings seuls
   epochs: 1
-  batch: 4
-  accumulation: 4
+  batch: 2                          # logits d'un vocabulaire agrandi (152 600 tokens) : lots de 2 x 8
+  accumulation: 8
   lr: 1.0e-3
   warmup: 0.05
   logging_steps: 20
 
 phase2:                             # modèle complet
   epochs: 1
-  batch: 4
-  accumulation: 4
+  batch: 1                          # poids fp32, AdamW et logits d'un vocabulaire agrandi : lots de 1 x 16
+  accumulation: 16
   gradient_checkpointing: true
   lr: 2.0e-5
   warmup: 0.05

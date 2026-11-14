@@ -3,6 +3,7 @@
 Stratégies (`--set strategie=...`) : rejet (RFT / STaR), self_instruct, critique_revision (Constitutional AI, phase SL).
 """
 
+import gc
 import json
 import pathlib
 import random
@@ -11,7 +12,9 @@ import sys
 
 sys.path.insert(0, str(next(p for p in pathlib.Path(__file__).resolve().parents if (p / "commun").is_dir())))
 
-from commun import config, donnees, entrainement, evaluation, modeles, rapport
+import torch
+
+from commun import config, donnees, entrainement, evaluation, modeles, preuve, rapport
 
 EXPRESSION = re.compile(r"What is ([\d\s\+\-\*\(\)]+)\?")
 
@@ -88,7 +91,9 @@ def main():
     gen, tok_gen = (modeles.charger_llm(cfg.generateur.nom) if cfg.generateur.get("nom") else (model, tok))
 
     test = donnees.charger_qa(cfg.donnees, "test", cfg.evaluation.n)
-    etapes = {"tour_0": evaluation.evaluer(model, tok, cfg, test) | {"taux_format": taux_format(model, tok, test, cfg)}}
+    format_ = (lambda m: {"taux_format": taux_format(m, tok, test, cfg)}) if cfg.evaluation.get("taux_format") else (lambda m: {})
+    etapes = {"tour_0": evaluation.evaluer(model, tok, cfg, test) | format_(model)}
+    premier_corpus = []
 
     for tour in range(1, cfg.tours + 1):
         d_tour = config.Cfg(dict(cfg.donnees, graine=cfg.donnees.get("graine", 0) + 100 * tour))   # nouvelles questions à chaque tour
@@ -100,15 +105,33 @@ def main():
                 f.write(json.dumps(ex, ensure_ascii=False) + "\n")
         if not corpus:
             break
+        premier_corpus = premier_corpus or corpus
         trainer = entrainement.sft(model, tok, entrainement.exemples_sft(tok, corpus), cfg.entrainement,
                                    f"{cfg.sortie}/tour-{tour}", max_length=cfg.entrainement.max_length)
         model = trainer.model
         if not cfg.generateur.get("nom"):
             gen = model   # auto-amélioration : le tour suivant génère avec le modèle amélioré
-        etapes[f"tour_{tour}"] = evaluation.evaluer(model, tok, cfg, test) | {"taux_format": taux_format(model, tok, test, cfg), **stats}
+        etapes[f"tour_{tour}"] = evaluation.evaluer(model, tok, cfg, test) | format_(model) | stats
 
     if cfg.get("sauvegarder", True):
         modeles.sauvegarder(model, tok, f"{cfg.sortie}/modele")
+    if cfg.get("temoin") and premier_corpus and cfg.strategie == "rejet":
+        # Témoin : le modèle de départ entraîné pareil sur les mêmes questions, avec les solutions humaines du jeu au
+        # lieu de ses propres solutions vérifiées. L'écart mesure ce qu'apportent les données synthétiques.
+        entrainement.liberer(trainer)
+        del trainer, model, gen
+        gc.collect()
+        torch.cuda.empty_cache()
+        model, tok = modeles.charger_llm(cfg.modele.nom, cfg.modele.get("dtype", "auto"))
+        retenues = {c["question"] for c in premier_corpus}
+        d1 = config.Cfg(dict(cfg.donnees, graine=cfg.donnees.get("graine", 0) + 100))
+        humaines = [q for q in donnees.charger_qa(d1, "train", cfg.donnees.n_questions) if q["question"] in retenues]
+        trainer = entrainement.sft(model, tok, entrainement.exemples_sft(tok, humaines), cfg.entrainement,
+                                   f"{cfg.sortie}/temoin", max_length=cfg.entrainement.max_length)
+        etapes["temoin"] = evaluation.evaluer(trainer.model, tok, cfg, test)
+        dernier = etapes[f"tour_{max(int(k.split('_')[1]) for k in etapes if k.startswith('tour_'))}"]
+        etapes["synthetique_contre_temoin"] = preuve.difference_appariee(etapes["temoin"]["tache"]["succes"],
+                                                                          dernier["tache"]["succes"])
     rapport.enregistrer(cfg, **etapes)
 
 

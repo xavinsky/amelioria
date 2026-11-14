@@ -169,7 +169,8 @@ def gsm8k(n: int, split: str = "test", graine: int = 0) -> list[dict]:
     for ex in ds:
         solution, _, cible = ex["answer"].rpartition("####")
         cible = cible.strip().replace(",", "")
-        res.append({"question": ex["question"], "reponse": f"{solution.strip()} Answer: {cible}", "cible": cible})
+        solution = re.sub(r"<<[^>]*>>", "", solution).strip()   # annotations de calculatrice des auteurs du jeu
+        res.append({"question": ex["question"], "reponse": f"{solution} Answer: {cible}", "cible": cible})
     return res
 
 

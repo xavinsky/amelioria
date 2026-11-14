@@ -7,6 +7,7 @@ Trois modes (`--set mode=...`), du plus simple au plus fidèle :
 Étapes : évaluer enseignant et élève -> distiller -> réévaluer l'élève -> sauvegarder.
 """
 
+import gc
 import pathlib
 import sys
 
@@ -17,7 +18,7 @@ import torch.nn.functional as F
 from datasets import Dataset
 from transformers import Trainer, TrainingArguments
 
-from commun import config, donnees, entrainement, evaluation, modeles, rapport
+from commun import config, donnees, entrainement, evaluation, modeles, preuve, rapport
 
 
 class TrainerKD(Trainer):
@@ -90,7 +91,24 @@ def main():
     if cfg.get("sauvegarder", True):
         trainer.save_model(f"{cfg.sortie}/eleve-{cfg.mode}")
         tok.save_pretrained(f"{cfg.sortie}/eleve-{cfg.mode}")
-    rapport.enregistrer(cfg, enseignant=ref_enseignant, avant=avant, apres=apres, mode=cfg.mode)
+    temoin = {}
+    if cfg.mode == "sequence" and cfg.get("temoin"):
+        # Témoin : le même élève, entraîné de la même façon sur les mêmes questions, mais avec les solutions écrites
+        # par les auteurs du jeu au lieu de celles de l'enseignant. L'écart mesure ce qu'apporte l'enseignant.
+        entrainement.liberer(trainer)
+        del trainer, eleve
+        gc.collect()
+        torch.cuda.empty_cache()
+        eleve, tok = modeles.charger_llm(cfg.eleve.nom, cfg.eleve.get("dtype", "auto"))
+        retenues = {c["question"] for c in corpus}
+        humaines = [q for q in questions if q["question"] in retenues]
+        trainer = entrainement.sft(eleve, tok, entrainement.exemples_sft(tok, humaines), e, f"{cfg.sortie}/temoin",
+                                   max_length=e.max_length)
+        res_temoin = evaluation.evaluer(trainer.model, tok, cfg, test)
+        temoin = {"temoin": res_temoin, "distille_contre_temoin": preuve.difference_appariee(
+            res_temoin["tache"]["succes"], apres["tache"]["succes"])}
+    rapport.enregistrer(cfg, avant=avant, apres=apres, **temoin, enseignant=ref_enseignant, mode=cfg.mode,
+                        **({"reponses_conservees": len(corpus)} if cfg.mode == "sequence" else {}))
 
 
 if __name__ == "__main__":

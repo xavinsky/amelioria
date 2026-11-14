@@ -7,7 +7,8 @@ generateur:
   nom: null                         # null = le modèle s'entraîne sur ses propres sorties filtrées ; sinon un modèle plus fort
 
 strategie: rejet                    # rejet | self_instruct | critique_revision
-tours: 2
+tours: 1                            # STaR : plusieurs tours, chacun génère avec le modèle du tour précédent
+temoin: true                        # rejet : même SFT sur les solutions humaines des mêmes questions
 
 principes:
   - "The answer must show each calculation step and end with 'Answer: <number>'."
@@ -15,21 +16,21 @@ principes:
   - "Every intermediate result must be arithmetically correct."
 
 generation:
-  k: 4
+  k: 4                              # solutions échantillonnées par question
   temperature: 0.8
   batch: 32
   n_lots: 50                        # self_instruct : nombre de demandes de 10 nouvelles questions
   filtrer: true
 
 donnees:
-  source: arith
-  niveau: 2
-  n_questions: 1000
+  source: gsm8k                     # problèmes rédigés, réponse finale vérifiable (7 473 d'entraînement, 1 319 de test)
+  n_questions: 3000                 # par tour ; seule la réponse finale sert, pour vérifier
   graine: 0
+  # source: arith                   # arithmétique générée localement (self_instruct, critique_revision)
 
 entrainement:
-  max_length: 384
-  epochs: 1
+  max_length: 768
+  epochs: 2
   batch: 4
   accumulation: 4
   gradient_checkpointing: true
@@ -40,8 +41,16 @@ entrainement:
 
 evaluation:
   mode: nombre
-  n: 200
-  max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
+  n: 1319                           # tout le jeu de test de GSM8K
+  max_new_tokens: 512
+  batch: 32
+  taux_format: false                # part des réponses finissant par « Answer: N » (format de l'arithmétique)
+  non_regression:                   # tâche hors sujet que le modèle réussit : elle ne doit pas se dégrader
+    source: arith
+    niveau: 2
+    n: 200
+    mode: nombre
+    max_new_tokens: 256
 
 sauvegarder: true
 
@@ -50,15 +59,20 @@ quick:
     nom: HuggingFaceTB/SmolLM2-135M-Instruct
   tours: 1
   generation:
-    k: 2
+    k: 4
     n_lots: 2
     batch: 8
   donnees:
-    n_questions: 16
+    source: arith
+    niveau: 1                       # opérations simples : le petit modèle du test rapide en résout quelques-unes
+    n_questions: 32
   entrainement:
     batch: 4
     max_steps: 2
   evaluation:
     n: 8
     max_new_tokens: 48
+    non_regression:
+      n: 4
+      max_new_tokens: 48
   sauvegarder: false

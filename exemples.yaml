@@ -511,13 +511,12 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 13-extension-vocabulaire
-    statut: non-prouve
-    fait: "Ajoute 200 tokens pour des noms mal découpés, les initialise et les entraîne ; compare à un témoin sans nouveaux tokens."
-    piste: "Un corpus réel mal découpé (langue peu couverte), en mesurant aussi le débit de génération ; le témoin à budget égal existe déjà."
-    duree_test: "16 s"
-    duree_complet: "41 s"
-    resultat: "tokens du corpus −22 % ; bits par caractère 1,92 → 0,42 ; témoin sans nouveaux tokens 0,41"
-    reserve: l'entraînement explique la baisse des bits par caractère ; le gain propre est la compression, à qualité presque égale, sur une seule graine
+    statut: demontre
+    fait: "Ajoute 1 000 mots bretons au tokenizer de Qwen2.5-0.5B, les initialise et les entraîne sur la Wikipédia en breton ; compare à un témoin sans nouveaux tokens, sur 3 graines."
+    duree_test: "23 s"
+    duree_complet: "13 min"
+    resultat: "tokens du texte breton −15,8 % (2,48 → 2,94 caractères par token, 3 graines) ; bits par caractère 1,602 contre 1,572 pour le témoin"
+    reserve: "à entraînement égal, qualité 2 % sous le témoin"
     prerequis: {gpu: requis}
 
   - chemin: 14-croissance-architecture

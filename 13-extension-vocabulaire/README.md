@@ -63,17 +63,17 @@ flowchart TD
   classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
   classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
 
-  Hub["Hugging Face Hub<br/>Qwen2.5-0.5B"]
+  Hub["Hugging Face Hub<br/>Qwen2.5-0.5B<br/>Wikipédia en breton"]
   Cache[("cache disque<br/>~/.cache/huggingface")]
   subgraph Py["Processus Python"]
-    Run["run.py<br/>génère les textes<br/>bits par caractère"]
+    Run["run.py<br/>charge les articles<br/>bits par caractère"]
     Tok["tokenizer<br/>add_tokens"]
     Tr["Trainer transformers<br/>phase 1, phase 2"]
   end
   GPU["GPU CUDA, 12 Go"]
   Out[("sorties/<br/>13-extension-vocabulaire/")]
 
-  Hub -- "① HTTPS GET, 1re fois<br/>poids (1 Go)" --> Cache
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (1 Go), articles" --> Cache
   Cache -- "② lecture des poids" --> Run
   Run -- "③ ⑦ copie des poids<br/>en mémoire GPU" --> GPU
   Run -- "④ ⑥ appel Python<br/>découpage, ajout" --> Tok
@@ -90,26 +90,26 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=FORM13` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, nombre de tokens à ajouter, initialisation, réglages des deux phases) et génère en mémoire, sans téléchargement, 80 personnages fictifs aux noms inventés, décrits chacun par 4 courtes notices : 320 textes. Un texte sur cinq est mis de côté pour la mesure (64 textes), les 256 autres servent à l'entraînement.
+`make run EX=FORM13` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, nombre de tokens à ajouter, initialisation, réglages des deux phases) et charge 3 000 articles de la Wikipédia en breton, une langue que le tokenizer de Qwen découpe mal (2,5 caractères par token, contre environ 4 en anglais). Un article sur cinq est mis de côté pour les mesures (600 articles, jamais vus à l'entraînement), les 2 400 autres servent à l'entraînement.
 
-- **① Téléchargement.** Au premier lancement, transformers télécharge le tokenizer et les poids de Qwen2.5-0.5B, modèle de base (environ 1 Go, safetensors), depuis le Hugging Face Hub, par HTTPS.
-- **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **① Téléchargement.** Au premier lancement, le tokenizer et les poids de Qwen2.5-0.5B, modèle de base (environ 1 Go), et la Wikipédia en breton (`wikimedia/wikipedia`, `20231101.br`) sont téléchargés depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en fp32 dans la mémoire du GPU.
-- **④ Choix des tokens.** `run.py` compte les mots des textes d'entraînement présents au moins 3 fois, demande au tokenizer d'origine en combien de morceaux il découpe chacun, et garde les 200 mots qui font gagner le plus de tokens : noms inventés (« Golsol », « Quibru ») et mots rares (« orrery », « glassblower »).
-- **⑤ Mesure avant.** Deux mesures sur les 64 textes de test, comparables entre tokenizers : le nombre total de tokens, et les bits par caractère (la perte du modèle rapportée au nombre de caractères, pas de tokens). Chaque texte demande une passe avant.
-- **⑥ Ajout au tokenizer.** Les 200 mots sont ajoutés avec `add_tokens`, chacun précédé de son espace, comme les mots du vocabulaire BPE d'origine.
-- **⑦ Agrandissement des embeddings.** La matrice d'embeddings de Qwen2.5-0.5B, partagée entre l'entrée et la sortie, compte déjà 151 936 lignes pour 151 665 tokens : les nouveaux identifiants (151 665 à 151 864) tombent dans ses lignes de réserve, et `resize_token_embeddings` ne sert que si le nouveau vocabulaire les dépasse. Chaque nouveau token reçoit la moyenne des embeddings des sous-tokens qui le découpaient avec le tokenizer d'origine.
+- **④ Choix des tokens.** `run.py` compte les mots des articles d'entraînement présents au moins 5 fois, demande au tokenizer d'origine en combien de morceaux il découpe chacun, et garde les 1 000 mots qui font gagner le plus de tokens : mots courants (« gant », « eus », « hag », « evit ») et mots plus longs (« Ganedigezhioù », « Stadoù-Unanet »).
+- **⑤ Mesure avant.** Deux mesures sur les 600 articles de test, comparables entre tokenizers : le nombre total de tokens, et les bits par caractère (la perte du modèle rapportée au nombre de caractères, pas de tokens). Chaque texte demande une passe avant.
+- **⑥ Ajout au tokenizer.** Les 1 000 mots sont ajoutés avec `add_tokens`, chacun précédé de son espace, comme les mots du vocabulaire BPE d'origine.
+- **⑦ Agrandissement des embeddings.** La matrice d'embeddings de Qwen2.5-0.5B, partagée entre l'entrée et la sortie, compte 151 936 lignes pour 151 665 tokens : 1 000 nouveaux tokens dépassent ses lignes de réserve, et `resize_token_embeddings` la porte à 152 665 lignes. Chaque nouveau token reçoit la moyenne des embeddings des sous-tokens qui le découpaient avec le tokenizer d'origine.
 - **⑧ Mesure après ajout**, avant tout entraînement.
-- **⑨ Phase 1, embeddings seuls.** Le reste du modèle est gelé. Les textes d'entraînement sont concaténés et découpés en blocs de 256 tokens (28 blocs), confiés au Trainer de transformers : 3 époques, lots de 2, accumulation 4, taux d'apprentissage 1e-3.
+- **⑨ Phase 1, embeddings seuls.** Le reste du modèle est gelé. Les articles d'entraînement sont concaténés et découpés en blocs de 512 tokens (1 442 blocs), confiés au Trainer de transformers : 1 époque, lots de 2, accumulation 8, taux d'apprentissage 1e-3.
 - **⑩ Forward et backward sur le GPU**, avec mise à jour de la seule matrice d'embeddings.
 - **⑪ Mesure après phase 1.**
-- **⑫ Phase 2, modèle complet.** Tous les poids sont dégelés : 2 époques, mêmes lots, taux 2e-5, gradient checkpointing.
+- **⑫ Phase 2, modèle complet.** Tous les poids sont dégelés : 1 époque, lots de 1, accumulation 16, taux 2e-5, gradient checkpointing.
 - **⑬ Forward et backward sur le GPU**, avec mise à jour de tous les poids.
 - **⑭ Mesure après phase 2.**
 - **⑮ Écriture du modèle** et du tokenizer agrandi dans `sorties/13-extension-vocabulaire/modele/`.
 - **⑯ Écriture du rapport** dans `sorties/13-extension-vocabulaire/resultats.json`, avec le même tableau affiché dans le terminal.
 
-**Témoin.** Avant ⑯, le modèle étendu quitte le GPU et Qwen2.5-0.5B d'origine y est rechargé, avec son tokenizer inchangé. Il suit les deux mêmes phases (⑨ à ⑬), sur les mêmes textes et le même nombre d'époques, puis il est mesuré comme en ⑭. L'écart avec `apres_phase2` isole ce qu'apportent les nouveaux tokens, l'entraînement étant le même. `temoin: false` le désactive.
+**Témoin.** Avant ⑯, le modèle étendu quitte le GPU et Qwen2.5-0.5B d'origine y est rechargé, avec son tokenizer inchangé. Il suit les deux mêmes phases (⑨ à ⑬), sur les mêmes articles et le même nombre d'époques (le même texte fait 1 724 blocs avec l'ancien tokenizer), puis il est mesuré comme en ⑭. L'écart avec `apres_phase2` isole ce qu'apportent les nouveaux tokens, l'entraînement étant le même. `temoin: false` le désactive.
 
 **Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Les mesures (⑤, ⑧, ⑪, ⑭) ne font qu'une passe avant par texte, sans génération. L'agrandissement (⑦) alloue une nouvelle matrice d'embeddings sur le GPU et y recopie les anciennes lignes. En entraînement (⑩, ⑬), chaque pas fait une passe avant, une passe arrière qui calcule les gradients, puis la mise à jour par AdamW : en phase 1, gradients et état de l'optimiseur n'existent que pour la matrice d'embeddings ; en phase 2, pour tout le modèle. Les poids restent en fp32, les calculs d'entraînement se font en bf16.
 
@@ -117,32 +117,47 @@ flowchart TD
 
 | Fichier | Contenu |
 |---|---|
-| `modele/model.safetensors` | Le modèle complet après les deux phases, avec sa matrice d'embeddings de 151 936 lignes (en fp32) |
-| `modele/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer agrandi des 200 nouveaux tokens : il doit accompagner le modèle, l'ancien tokenizer ne correspond plus à ses embeddings |
-| `modele/config.json`, `generation_config.json` | L'architecture, avec `vocab_size: 151936`, et les réglages de génération |
+| `modele/model.safetensors` | Le modèle complet après les deux phases, avec sa matrice d'embeddings de 152 665 lignes (2,0 Go, en fp32) |
+| `modele/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer agrandi des 1 000 nouveaux tokens : il doit accompagner le modèle, l'ancien tokenizer ne correspond plus à ses embeddings |
+| `modele/config.json`, `generation_config.json` | L'architecture, avec `vocab_size: 152665`, et les réglages de génération |
 | `modele/training_args.bin` | Les réglages d'entraînement de la phase 2 |
 | `phase1/`, `phase2/`, `temoin-phase1/`, `temoin-phase2/` | Dossiers de travail du Trainer, vides : aucun point de contrôle n'est sauvegardé |
-| `resultats.json` | Pour `avant`, `apres_init`, `apres_phase1`, `apres_phase2` et `temoin` : `tokens_corpus_test` et `bits_par_caractere` ; la liste `nouveaux_tokens` des 200 mots ajoutés |
+| `resultats.json` | Pour `avant`, `apres_init`, `apres_phase1`, `apres_phase2` et `temoin` : `tokens_corpus_test`, `caracteres_par_token` et `bits_par_caractere` ; la liste `nouveaux_tokens` des 1 000 mots ajoutés |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
 ## Utilisation
 
 ```bash
 python run.py --quick
-python run.py                                                  # Qwen2.5-0.5B + 200 noms fictifs du domaine
+python run.py                                                  # Qwen2.5-0.5B + 1 000 mots bretons, ~13 min
 python run.py --set vocabulaire.init=aleatoire                 # comparer apres_init : bits par caractère bien plus hauts
 python run.py --set "vocabulaire.liste=[Kavelmor, Zanlisia]"
-python run.py --set donnees.source=hf --set donnees.nom=wikimedia/wikipedia --set donnees.config=20231101.br --set donnees.colonne=text --set donnees.n_textes=5000
+python run.py --set donnees.config=20231101.oc                 # une autre langue : occitan
+python run.py --set donnees.source=faits --set donnees.n_entites=80 --set vocabulaire.n_nouveaux=200 --set vocabulaire.min_freq=3   # noms inventés, sans téléchargement
+make graines EX=FORM13 N=3                                     # trois graines : moyenne et écart type
 ```
 
 ## Ce que fait l'exemple
 
-Sur une base de 80 personnages fictifs aux noms inventés, très mal découpés :
+**Le besoin** : servir un modèle dans une langue ou un domaine que son tokenizer découpe mal. Chaque mot coûte alors plusieurs tokens : la génération est plus lente, le contexte se remplit plus vite et chaque appel coûte plus cher. Ici, le breton : 2,5 caractères par token avec le tokenizer de Qwen.
 
-- `avant` : tokens et bits par caractère avec le tokenizer d'origine ;
-- `apres_init` : ~200 tokens ajoutés, initialisés par moyenne. Le corpus est nettement plus court, et les bits par caractère sont déjà plus bas que `avant` (1,92 → 1,63 dans l'exemple complet) : la moyenne donne d'emblée un sens approché aux nouveaux tokens ;
-- `apres_phase1` puis `apres_phase2` : les bits par caractère descendent sous la valeur d'origine ;
-- `temoin` : le modèle d'origine entraîné pareil, sans nouveaux tokens. Dans l'exemple complet, il atteint 0,41 bit par caractère contre 0,42 pour le modèle étendu : l'entraînement explique la baisse des bits par caractère, et le gain propre aux nouveaux tokens est la compression du texte (22 % de tokens en moins, donc une génération et un contexte plus économes), à qualité presque égale.
+**Résultats** (Qwen2.5-0.5B, RTX 5070 Ti Laptop ; 600 articles jamais vus ; 3 graines, `make graines EX=FORM13 N=3`) :
+
+| | Tokens des articles de test | Caractères par token | Bits par caractère |
+|---|---|---|---|
+| Avant | 196 039 | 2,48 | 2,82 |
+| 1 000 tokens ajoutés, initialisés par moyenne | 165 133 (**−15,8 %**, ± 0,3) | **2,94** | 2,59 |
+| après les deux phases d'entraînement | 165 133 | 2,94 | 1,602 |
+| Témoin : même entraînement, tokenizer d'origine | 196 039 | 2,48 | 1,572 |
+
+Par graine, écart de bits par caractère entre le modèle étendu et le témoin : +0,025, +0,033, +0,031.
+
+**Ce qu'on en retient.**
+
+- **Le gain de la méthode est la compression** : le même texte breton tient en 16 % de tokens en moins, sur les trois graines. La génération demande autant de passes en moins, et le contexte contient 19 % de texte en plus.
+- **Il se paie d'une petite perte de qualité à entraînement égal** : 0,03 bit par caractère de plus que le témoin (2 %), sur chaque graine. Les nouveaux embeddings partent d'une moyenne et n'ont qu'une époque pour se placer ; c'est le budget d'entraînement qui ferait disparaître cet écart.
+- **L'entraînement explique la baisse de la perte, pas les nouveaux tokens** : le témoin descend autant. Sans témoin, on attribuerait à tort à l'extension du vocabulaire le passage de 2,82 à 1,60 bit par caractère.
+- **L'initialisation par moyenne fonctionne** : juste après l'ajout, avant tout entraînement, la perte est déjà plus basse qu'avec l'ancien tokenizer (2,82 → 2,59).
 
 ## Paramètres principaux (`config.yaml`)
 
