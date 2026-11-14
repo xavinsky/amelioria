@@ -32,8 +32,9 @@ def format_reponse(prompts, completions, **_):
     return [0.2 if re.search(r"Answer:\s*-?\d+\s*$", _texte(c).strip()) else 0.0 for c in completions]
 
 
-def fonctions_regles():
-    return [exactitude, format_reponse]
+def fonctions_regles(r):
+    """Exactitude, plus le bonus de format quand la tâche impose « Answer: <nombre> » (`bonus_format: true`)."""
+    return [exactitude, format_reponse] if r.get("bonus_format", True) else [exactitude]
 
 
 CONSIGNE_JUGE = (
@@ -77,7 +78,7 @@ def fonction_juge(r):
 def construire(r):
     """Section `recompense` de la config -> liste passée à GRPOTrainer(reward_funcs=...)."""
     if r.source == "regles":
-        return fonctions_regles()
+        return fonctions_regles(r)
     if r.source == "modele":
         return [r.modele]   # TRL charge un AutoModelForSequenceClassification et son tokenizer
     if r.source == "juge":

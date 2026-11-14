@@ -56,68 +56,69 @@ flowchart TD
   classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
   classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
 
-  Hub["Hugging Face Hub<br/>Qwen2.5-1.5B-Instruct<br/>Qwen2.5-0.5B-Instruct"]
+  Hub["Hugging Face Hub<br/>Qwen2.5-3B-Instruct<br/>Qwen2.5-0.5B-Instruct, GSM8K"]
   Cache[("cache disque<br/>~/.cache/huggingface")]
   subgraph Py["Processus Python"]
-    Run["run.py<br/>génère les données<br/>charge les 2 modèles"]
+    Run["run.py<br/>charge les données<br/>et les 2 modèles"]
     Ev["evaluation.py<br/>génération"]
-    KD["TrainerKD<br/>KL + entropie croisée"]
+    TRL["TRL SFTTrainer<br/>élève, tous les poids"]
   end
   GPU["GPU CUDA, 12 Go"]
   Out[("sorties/06-distillation/")]
 
-  Hub -- "① HTTPS GET, 1re fois<br/>poids (3 Go + 1 Go)" --> Cache
-  Cache -- "② lecture des poids" --> Run
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (6 Go + 1 Go), GSM8K" --> Cache
+  Cache -- "② lecture des poids<br/>et des données" --> Run
   Run -- "③ copie des poids<br/>en mémoire GPU" --> GPU
-  Run -- "④ ⑧ appel Python<br/>mesure avant, après" --> Ev
-  Ev -- "⑤ ⑨ noyaux CUDA<br/>génération" --> GPU
-  Run -- "⑥ appel Python<br/>trainer.train()" --> KD
-  KD -- "⑦ noyaux CUDA<br/>forward, backward" --> GPU
-  KD -- "⑩ écriture<br/>élève distillé" --> Out
-  Run -- "⑪ écriture<br/>resultats.json" --> Out
+  Run -- "④ ⑥ ⑨ appel Python<br/>mesures, réponses de l'enseignant" --> Ev
+  Ev -- "⑤ noyaux CUDA<br/>génération" --> GPU
+  Run -- "⑦ ⑪ appel Python<br/>trainer.train()" --> TRL
+  TRL -- "⑧ noyaux CUDA<br/>forward, backward" --> GPU
+  TRL -- "⑩ écriture<br/>élève distillé" --> Out
+  Run -- "⑫ écriture<br/>resultats.json" --> Out
 
   GPU ~~~ Out
   class Hub externe
-  class Run,Ev,KD code
+  class Run,Ev,TRL code
   class GPU gpu
   class Cache,Out disque
 ```
 
-`make run EX=SIGN06` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (enseignant, élève, mode `logits`, réglages de la distillation) et génère en mémoire, sans téléchargement, 2 000 problèmes d'arithmétique pour l'entraînement et 200 pour le test, de la forme `(a op b) op c` avec leur solution pas à pas. L'enseignant et l'élève sont de la même famille : même tokenizer, donc mêmes tokens à comparer un par un.
+`make run EX=SIGN06` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (enseignant, élève, mode `sequence`, réglages) et charge GSM8K : des problèmes de mathématiques rédigés, avec la solution écrite par les auteurs du jeu. 3 000 problèmes d'entraînement servent de questions à l'enseignant ; les 1 319 problèmes de test servent à mesurer. L'enseignant, Qwen2.5-3B-Instruct, est nettement meilleur que l'élève, Qwen2.5-0.5B-Instruct, sur ces problèmes.
 
-- **① Téléchargement.** Au premier lancement, transformers télécharge depuis le Hugging Face Hub, par HTTPS, les poids de l'enseignant Qwen2.5-1.5B-Instruct (environ 3 Go) et de l'élève Qwen2.5-0.5B-Instruct (environ 1 Go).
-- **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
-- **③ Copie sur le GPU.** Les deux modèles sont copiés dans la mémoire du GPU et y restent jusqu'à la fin : l'élève en float32, parce que c'est lui qu'on entraîne, l'enseignant en bf16, figé (aucun gradient).
-- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui fait répondre l'enseignant, puis l'élève, aux 200 problèmes de test, par lots de 16.
-- **⑤ Génération sur le GPU.** Pour chaque lot, le modèle produit la réponse token par token, jusqu'à 256 tokens. L'évaluation extrait le nombre final de chaque réponse et le compare au résultat attendu : c'est l'exactitude de l'enseignant (le plafond visé) et celle de l'élève au départ.
-- **⑥ Distillation.** `run.py` confie l'élève, l'enseignant et les 2 000 problèmes au `TrainerKD`, un `Trainer` de transformers dont la perte est réécrite : 0,7 × divergence KL entre les distributions de l'enseignant et de l'élève, adoucies à la température 2, plus 0,3 × entropie croisée sur la solution de référence. Les deux termes ne portent que sur les tokens de la réponse.
-- **⑦ Forward et backward sur le GPU.** Chaque pas traite un lot de 2 exemples, avec 8 lots accumulés avant chaque mise à jour (16 exemples), pendant 1 époque, au taux d'apprentissage de 1e-5.
-- **⑧ Mesure après.** Les mêmes 200 problèmes sont posés à l'élève distillé.
-- **⑨ Génération sur le GPU**, avec le même décodage qu'en ⑤.
-- **⑩ Écriture de l'élève** complet dans `sorties/06-distillation/eleve-logits/`.
-- **⑪ Écriture du rapport** dans `sorties/06-distillation/resultats.json`, avec le même tableau affiché dans le terminal.
+- **① Téléchargement.** Au premier lancement, les poids de l'enseignant (environ 6 Go) et de l'élève (environ 1 Go), et le jeu `openai/gsm8k`, sont téléchargés depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
+- **③ Copie sur le GPU.** L'élève est copié en float32, parce que c'est lui qu'on entraîne ; l'enseignant en bf16, figé.
+- **④ Mesures avant.** `run.py` appelle `commun/evaluation.py`, qui pose les 1 319 problèmes de test à l'enseignant puis à l'élève, ainsi que 200 problèmes d'arithmétique de non-régression.
+- **⑤ Génération sur le GPU.** Par lots de 32, chaque modèle raisonne jusqu'à 512 tokens ; le nombre final de chaque réponse est comparé au résultat attendu.
+- **⑥ L'enseignant rédige.** Il résout les 3 000 problèmes d'entraînement ; seules ses réponses justes sont gardées (2 488, soit 83 %). Il quitte ensuite le GPU.
+- **⑦ Entraînement de l'élève.** Les 2 488 couples problème → solution de l'enseignant sont confiés au SFTTrainer de TRL, qui entraîne tous les poids de l'élève, la perte portant sur la réponse seulement.
+- **⑧ Forward et backward sur le GPU.** Lots de 4, accumulés 4 fois (16 exemples par pas), 2 époques, taux d'apprentissage 1e-5, gradient checkpointing, AdamW 8 bits.
+- **⑨ Mesure après**, sur les mêmes problèmes, avec le même décodage.
+- **⑩ Écriture de l'élève** complet dans `sorties/06-distillation/eleve-sequence/`.
+- **⑪ Témoin.** L'élève d'origine est rechargé et entraîné exactement de la même façon, sur les mêmes 2 488 problèmes, mais avec les solutions écrites par les auteurs de GSM8K ; il est mesuré comme en ⑨. L'écart avec l'élève distillé isole ce qu'apporte l'enseignant.
+- **⑫ Écriture du rapport** dans `sorties/06-distillation/resultats.json`, avec le même tableau affiché dans le terminal.
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑨), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. En distillation (⑦), chaque pas fait deux passes avant sur le même lot : celle de l'enseignant, sans gradient, qui fournit ses logits sur tout le vocabulaire, puis celle de l'élève ; la perte compare les deux, la passe arrière calcule les gradients de l'élève seul, puis l'optimiseur AdamW 8 bits de bitsandbytes met à jour tous ses poids. Les logits des deux modèles, sur un vocabulaire d'environ 152 000 tokens, sont ce qui pèse le plus : d'où le lot de 2, le gradient checkpointing (activations recalculées pendant la passe arrière au lieu d'être gardées) et l'optimiseur 8 bits. Un lancement de calibrage de cette configuration, réduit à 4 pas, a culminé à environ 9,3 Go de mémoire GPU.
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑥, ⑨), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées : c'est l'essentiel de la durée (environ 1 h sur 1 h 30), l'enseignant générant 4 300 raisonnements. En entraînement (⑧), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de l'élève, puis la mise à jour de tous ses poids. En modes `logits` et `on_policy`, l'enseignant reste sur le GPU pendant l'entraînement et fait une passe avant sur chaque lot : ses logits, sur un vocabulaire de 152 000 tokens, pèsent lourd, d'où les lots de 2 et l'optimiseur 8 bits.
 
 **Ce qui est écrit.**
 
 | Fichier | Contenu |
 |---|---|
-| `eleve-logits/model.safetensors` | Tous les poids de l'élève distillé (1,98 Go, en float32) |
-| `eleve-logits/config.json`, `generation_config.json` | Architecture Qwen2 et réglages de génération, pour recharger l'élève avec `AutoModelForCausalLM.from_pretrained` |
-| `eleve-logits/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
-| `eleve-logits/training_args.bin` | Les réglages d'entraînement utilisés |
-| `resultats.json` | Exactitude de l'enseignant, de l'élève avant et après, nombre de réponses, durée de chaque évaluation, trois réponses d'exemple pour chacun ; mode de distillation |
+| `eleve-sequence/model.safetensors` | Tous les poids de l'élève distillé (1,98 Go, en float32) |
+| `eleve-sequence/config.json`, `generation_config.json` | Architecture Qwen2 et réglages de génération, pour recharger l'élève avec `AutoModelForCausalLM.from_pretrained` |
+| `eleve-sequence/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
+| `eleve-sequence/training_args.bin` | Les réglages d'entraînement utilisés |
+| `resultats.json` | Exactitude de l'élève avant, distillé et témoin, et de l'enseignant, sur GSM8K et sur la non-régression, avec intervalle à 95 % et réponse de chaque question ; comparaisons appariées, dont `distille_contre_temoin` ; nombre de réponses de l'enseignant conservées |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
-Avec `SET="mode=sequence"` ou `SET="mode=on_policy"`, l'élève est écrit dans `eleve-sequence/` ou `eleve-on_policy/`.
+Avec `SET="mode=logits"` ou `SET="mode=on_policy"`, l'élève est écrit dans `eleve-logits/` ou `eleve-on_policy/` (sans témoin).
 
 ## Utilisation
 
 ```bash
 python run.py --quick                                           # SmolLM2-360M -> 135M
-python run.py                                                   # logits, Qwen2.5-1.5B-Instruct -> 0.5B-Instruct
-python run.py --set mode=sequence                               # l'enseignant rédige, l'élève fait un SFT
+python run.py                                                   # sequence, Qwen2.5-3B-Instruct -> 0.5B-Instruct, GSM8K, ~1 h 30
+python run.py --set mode=logits --set entrainement.batch=2 --set entrainement.accumulation=8 --set enseignant.nom=Qwen/Qwen2.5-1.5B-Instruct
 python run.py --set mode=on_policy                              # GKD : l'élève génère, l'enseignant corrige
 python run.py --set kd.temperature=1.0 --set kd.alpha=0.5
 python variantes/encodeur-classification/run.py --quick         # DistilBERT SST-2 -> BERT-tiny
@@ -126,9 +127,24 @@ python variantes/encodeur-classification/run.py                 # RoBERTa-base S
 
 ## Ce que fait l'exemple
 
-1. Mesure l'exactitude de l'enseignant et de l'élève sur 200 problèmes arithmétiques jamais vus.
-2. Distille sur 2 000 problèmes selon le mode choisi.
-3. Remesure l'élève. Attendu : l'élève se rapproche de l'enseignant.
+**Le besoin** : un petit modèle, rapide et peu coûteux à servir, qui raisonne mieux sur des problèmes rédigés. On dispose d'un modèle plus gros et meilleur, et de questions, mais pas forcément de bonnes solutions rédigées.
+
+**Résultats** (RTX 5070 Ti Laptop ; 1 319 problèmes de test de GSM8K, 200 problèmes de non-régression) :
+
+| | GSM8K | Non-régression (arithmétique) |
+|---|---|---|
+| Enseignant Qwen2.5-3B-Instruct | 0,760 [0,736 ; 0,782] | 0,985 |
+| Élève Qwen2.5-0.5B-Instruct, avant | 0,411 [0,385 ; 0,438] | 0,955 |
+| **Élève distillé** (2 488 solutions justes de l'enseignant) | **0,451** [0,424 ; 0,478] | 0,915 |
+| Témoin : même entraînement, solutions écrites par les auteurs du jeu | 0,302 [0,278 ; 0,327] | 0,855 |
+
+Écarts appariés sur les mêmes problèmes : distillé − avant +0,040 [+0,014 ; +0,067], p = 0,004 ; distillé − témoin +0,149 [+0,119 ; +0,180] ; non-régression du distillé −0,04, non significatif (p = 0,08).
+
+**Ce qu'on en retient.**
+
+- **La distillation fait progresser l'élève** de 4 points, un écart net mais modeste : l'élève reste loin de l'enseignant (0,76). Un modèle 6 fois plus petit n'absorbe pas tout le raisonnement d'un plus gros en 2 488 exemples.
+- **Qui rédige les solutions compte plus que leur justesse** : les solutions humaines de GSM8K sont justes mais très courtes (« Ben's iPhone is 2 * 1 year = 2 years old… »). L'élève qui les imite cesse de raisonner pas à pas et chute à 0,30. Les solutions de l'enseignant, détaillées dans le style des modèles Qwen, le font progresser : +15 points par rapport au témoin.
+- C'est la recette des petits modèles de raisonnement (DeepSeek-R1-Distill, Qwen2.5-Math) : faire rédiger un modèle fort, garder ce qui est vérifié juste, entraîner le petit dessus.
 
 La variante encodeur entraîne le même élève deux fois, sans enseignant (`alpha=0`) puis avec : l'écart entre les deux isole l'apport de la distillation.
 
@@ -141,6 +157,8 @@ La variante encodeur entraîne le même élève deux fois, sans enseignant (`alp
 | `kd.temperature`, `kd.alpha` | Adoucissement des distributions, poids de la KL face à l'entropie croisée |
 | `kd.beta_jsd` | `on_policy` : 0 = KL directe, 1 = KL inverse, entre les deux = JSD généralisée |
 | `generation.filtrer` | `sequence` : ne garder que les réponses justes de l'enseignant |
+| `temoin` | `sequence` : entraîner aussi l'élève sur les solutions humaines des mêmes questions, pour isoler l'apport de l'enseignant |
+| `evaluation.non_regression` | Tâche hors sujet mesurée avant et après |
 | `entrainement.batch` | Petit en mode `logits` : les logits de deux modèles sur un vocabulaire de 152k pèsent lourd |
 
 ## Grosse infra
@@ -157,6 +175,7 @@ La variante encodeur entraîne le même élève deux fois, sans enseignant (`alp
 - **Tokenizers différents** : les modes `logits` et `on_policy` n'ont de sens qu'avec le même vocabulaire. Deux modèles d'une même famille peuvent avoir des tailles de matrice arrondies différemment : seules les entrées communes sont comparées.
 - **Mémoire** : en mode `logits`, les logits `batch × longueur × vocabulaire` des deux modèles dominent. Réduire le batch, pas la longueur.
 - **Filtrer les séquences** : un enseignant qui se trompe transmet ses erreurs. Vérifier quand c'est possible.
+- **Style des réponses** : entraîner un petit modèle sur des solutions justes mais laconiques lui fait perdre son raisonnement pas à pas (témoin à 0,30 contre 0,41 au départ). Des solutions rédigées par un modèle de la même famille gardent son style.
 - **Écart de capacité** : un élève trop petit n'absorbe pas la distribution de l'enseignant ; un enseignant intermédiaire aide.
 - **Conditions d'utilisation** : certains fournisseurs interdisent d'entraîner un modèle concurrent sur leurs sorties.
 

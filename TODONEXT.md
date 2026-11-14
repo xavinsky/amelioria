@@ -31,7 +31,7 @@ Un panorama exécutable des méthodes pour améliorer un modèle d'IA : 20 dossi
 - **Exécution** : les 30 exemples tournent en `--quick` et en complet ; toutes les valeurs des sélecteurs passent en `--quick` ; les configs complètes tiennent en mémoire.
 - **Documentation transverse** : `docs/transformers.md`, `docs/schemas-methodes.md` (36 schémas Mermaid validés), `docs/bibliotheques.md`, `docs/references.md` (182 papiers vérifiés sur arXiv), `docs/cahier-des-charges.md`.
 - **Passe complète finale** (code et configs actuels, `logs/complet_final.txt`, un journal par exemple dans `logs/complet/`) : 01 à 15 terminés sans erreur ; arrêtée pour libérer le GPU avant 15 variante GGUF, 16, 17, 18, 19 et 20.
-- **Catalogue** (`exemples.yaml`, `make liste`) : 5 catégories (données, signal, chirurgie, remodeler, sans toucher aux poids) ; 19 exemples démontrés, 11 non prouvés, versions `infra/` non testées.
+- **Catalogue** (`exemples.yaml`, `make liste`) : 5 catégories (données, signal, chirurgie, remodeler, sans toucher aux poids) ; 20 exemples démontrés, 10 non prouvés, versions `infra/` non testées.
 - **Commandes** : `Makefile` racine et un par dossier ; chaque `make test/run` vérifie d'abord les prérequis. Non encore exécuté de bout en bout sur un venv neuf.
 - **Cause principale des refontes** : la tâche fil rouge arithmétique est déjà résolue par Qwen2.5-0.5B-Instruct (0,955) et 1,5B-Instruct (0,995). Les exemples qui l'utilisent pour enseigner une compétence ne démontrent rien. Pour 13 et 14, l'effet n'est pas isolé faute de témoin.
 
@@ -61,7 +61,8 @@ Pour chacun : relire les papiers, vérifier que le modèle de départ échoue su
 1. [x] **02 SFT puis 03 LoRA — routage de demandes clients** (banking77) : démontrés, avec non-régression et remélange (résultats dans `exemples.yaml` et les README).
 1. [x] **17 prompt — même routage** : few-shot par similarité 0,229 → 0,816, avec témoin sans LLM (0,920).
 1. [x] **13 vocabulaire** : Wikipédia en breton, 3 graines : −15,8 % de tokens, qualité 2 % sous le témoin.
-1. [ ] **06 distillation** puis **07 données synthétiques** sur GSM8K, chacun avec un témoin entraîné sur les solutions humaines.
+1. [x] **06 distillation** sur GSM8K : 0,411 → 0,451 (+0,040, p = 0,004), témoin sur solutions humaines 0,302.
+1. [ ] **07 données synthétiques** sur GSM8K, témoin sur solutions humaines ; puis **05 RL** GRPO sur GSM8K.
 2. [ ] **05 RL — raisonnement vérifiable** : GRPO/DAPO sur GSM8K avec récompense vérifiable, test complet (1 319 questions).
 3. [ ] **07 données synthétiques** : rejection sampling fine-tuning sur GSM8K (RFT, STaR).
 4. [ ] **06 distillation LLM** : GSM8K avec un enseignant nettement meilleur que l'élève ; comprendre la régression observée sur l'arithmétique (décalage entraînement / génération, GKD).

@@ -440,13 +440,12 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 06-distillation
-    statut: non-prouve
-    fait: "Distille Qwen2.5-1.5B (enseignant) vers Qwen2.5-0.5B (élève) en imitant ses probabilités."
-    piste: "GSM8K avec un enseignant nettement meilleur que l'élève, mode séquence puis logits ; comprendre la régression mesurée."
+    statut: demontre
+    fait: "Qwen2.5-3B-Instruct résout des problèmes de GSM8K ; Qwen2.5-0.5B-Instruct est entraîné sur ses solutions justes. Témoin : même entraînement sur les solutions humaines du jeu."
     duree_test: "16 s"
-    duree_complet: "3 min"
-    resultat: "élève 0,955 → 0,71 ; enseignant 0,995"
-    reserve: tâche déjà résolue par l'élève ; régression à comprendre
+    duree_complet: "1 h 30"
+    resultat: "GSM8K (n = 1 319) : élève 0,411 → 0,451 ; témoin solutions humaines 0,302 ; enseignant 0,760"
+    reserve: gain modeste, l'élève reste loin de l'enseignant
     prerequis: {gpu: requis}
   - chemin: 06-distillation/variantes/encodeur-classification
     statut: demontre

@@ -8,6 +8,7 @@ beta: null                          # null = valeur de l'algo ; > 0 ajoute une p
 
 recompense:
   source: regles                    # regles (RLVR) | modele (RLHF) | juge (RLAIF)
+  bonus_format: false               # regles : +0,2 si la réponse finit par « Answer: <nombre> » (tâche arith)
   modele: Skywork/Skywork-Reward-V2-Qwen3-0.6B   # source=modele : nom HF ou sorties/05-rl-en-ligne--variantes--modele-recompense/modele
   juge: Qwen/Qwen2.5-1.5B-Instruct  # source=juge : modèle local, ou nom du modèle servi si api_base est renseigné
   api_base: null                    # ex. http://localhost:8000/v1 (vLLM) ou http://localhost:11434/v1 (Ollama)
@@ -20,13 +21,12 @@ peft:
 
 generation:
   num_generations: 8                # taille du groupe : les avantages sont relatifs au groupe
-  max_completion_length: 128
+  max_completion_length: 512        # raisonnements GSM8K du modèle : ~200 à 300 tokens
   temperature: 1.0
   vllm: false                       # true : génération par vLLM (indispensable à grande échelle)
 
 donnees:
-  source: arith                     # arith | gsm8k | hf_prompts (prompts sans réponse, pour modele/juge)
-  niveau: 2
+  source: gsm8k                     # problèmes rédigés à réponse vérifiable | arith | hf_prompts (prompts sans réponse)
   n_train: 800
   graine: 0
   # source: hf_prompts
@@ -35,8 +35,8 @@ donnees:
 
 entrainement:
   epochs: 1
-  batch: 8                          # doit être un multiple de num_generations ; 8 x 2 = 16 réponses par pas
-  accumulation: 2
+  batch: 8                          # multiple de num_generations : un groupe de 8 réponses par lot
+  accumulation: 8                   # 8 questions (64 réponses) par pas
   gradient_checkpointing: true
   lr: 1.0e-6
   warmup: 0.0
@@ -45,8 +45,15 @@ entrainement:
 
 evaluation:
   mode: nombre
-  n: 200
-  max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
+  n: 1319                           # tout le jeu de test de GSM8K
+  max_new_tokens: 512
+  batch: 32
+  non_regression:                   # tâche hors sujet que le modèle réussit : elle ne doit pas se dégrader
+    source: arith
+    niveau: 2
+    n: 200
+    mode: nombre
+    max_new_tokens: 256
 
 sauvegarder: true
 
@@ -57,12 +64,17 @@ quick:
     num_generations: 4
     max_completion_length: 48
   donnees:
+    source: arith
     n_train: 16
   entrainement:
     batch: 8
+    accumulation: 1
     lr: 5.0e-6
     max_steps: 2
   evaluation:
     n: 8
     max_new_tokens: 48
+    non_regression:
+      n: 4
+      max_new_tokens: 48
   sauvegarder: false

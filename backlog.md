@@ -19,7 +19,7 @@ GPU réservé à une autre tâche de Xavier : aucun calcul GPU avant sa confirma
 
 ## Grille des exemples
 
-Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et réserve de chaque exemple : [exemples.yaml](exemples.yaml), source unique affichée par `make liste` et reprise dans le README (`make readme`). Bilan : 19 démontrés, 11 non prouvés ; versions `infra/` non testées. La tâche fil rouge arithmétique est **saturée** pour Qwen2.5-0.5B-Instruct (0,955 d'exactitude avec 256 tokens de génération) : les exemples qui l'utilisent pour enseigner une compétence ne peuvent rien démontrer.
+Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et réserve de chaque exemple : [exemples.yaml](exemples.yaml), source unique affichée par `make liste` et reprise dans le README (`make readme`). Bilan : 20 démontrés, 10 non prouvés ; versions `infra/` non testées. La tâche fil rouge arithmétique est **saturée** pour Qwen2.5-0.5B-Instruct (0,955 d'exactitude avec 256 tokens de génération) : les exemples qui l'utilisent pour enseigner une compétence ne peuvent rien démontrer.
 
 ## 1. Terminer la passe finale en cours
 
@@ -43,7 +43,7 @@ Relire les papiers de chaque méthode (`docs/references.md`) avant d'implémente
 - [ ] **Raisonnement vérifiable** : GSM8K (7 473 / 1 319), tâche des papiers de référence.
   - 05 RL : GRPO/DAPO sur GSM8K avec récompense vérifiable (DeepSeekMath, DAPO) ; test complet 1 319.
   - 07 données synthétiques : rejection sampling fine-tuning sur GSM8K (RFT, STaR).
-  - 06 distillation : enseignant nettement meilleur que l'élève sur GSM8K (mode `sequence` façon R1-Distill, puis `logits`) ; comprendre la régression mesurée sur l'arithmétique (décalage entraînement / génération, GKD).
+  - [x] 06 distillation : Qwen2.5-3B → 0.5B en mode `sequence` sur GSM8K : 0,411 → 0,451 ; témoin sur solutions humaines 0,302 ; enseignant 0,760.
 - [ ] **04 préférences** : jeu de préférences réel (UltraFeedback binarisé ou HelpSteer), évaluation par un modèle de récompense externe (taux de victoire contre le modèle de départ) et non-régression (GSM8K ou IFEval).
 - [ ] **01 connaissance interne** : suivre *Physics of Language Models 3.1* : entraînement mixte (documents de tous les personnages + questions-réponses d'une moitié), mesure de l'extraction sur l'autre moitié, avec plusieurs formulations par fait.
 - [x] **13 vocabulaire** : Wikipédia en breton, 1 000 tokens, 3 graines : −15,8 % de tokens ; 1,602 bit par caractère contre 1,572 pour le témoin (qualité 2 % en dessous à entraînement égal).

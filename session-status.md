@@ -32,6 +32,7 @@ Une ligne par étape terminée, exemple validé ou en échec, la plus récente e
 | 2026-11-14 | Refonte DATA02 et DATA03 sur banking77 (77 intentions, 3 080 messages de test), non-régression arithmétique, remélange de demandes générales | SFT complet 0,231 → 0,904 (non-régression 0,955 → 0,765 ; 0,025 sans remélange) ; LoRA 0,229 → 0,891 (non-régression 0,95 ; adaptateur désactivé 0,955) ; encodeur ModernBERT 0,937. Trois démontrés | `logs/banking77/` |
 | 2026-11-14 | Refonte EXEC17 sur banking77 : stratégies de prompt avec Qwen2.5-0.5B-Instruct, témoin sans LLM (vote des 8 voisins) | Zéro-shot 0,229 ; consigne OPRO 0,263 ; 8 exemples au hasard 0,312 ; 8 exemples les plus proches 0,816 ; témoin 0,920. Démontré | `logs/banking77/run_17.txt` |
 | 2026-11-14 | Refonte FORM13 sur la Wikipédia en breton (1 000 tokens ajoutés, mesures sur 600 articles jamais vus), 3 graines, phases en lots réduits pour tenir en mémoire sur toutes les graines | Tokens −15,8 % ± 0,3 ; bits par caractère 1,602 contre 1,572 pour le témoin (+0,025 à +0,033 selon la graine). Démontré, avec réserve | `logs/banking77/graines_13.txt`, `sorties/13-extension-vocabulaire--graines/` |
+| 2026-11-14 | Refonte SIGN06 sur GSM8K : Qwen2.5-3B-Instruct → 0.5B-Instruct en mode séquence (2 488 solutions justes), témoin entraîné sur les solutions humaines | Élève 0,411 → 0,451 (+0,040, p = 0,004) ; témoin 0,302 ; enseignant 0,760 ; non-régression 0,955 → 0,915 (n.s.). Démontré, gain modeste | `logs/banking77/run_06.txt` |
 
 ## Environnement
 
