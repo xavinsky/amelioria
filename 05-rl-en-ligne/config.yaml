@@ -35,8 +35,9 @@ donnees:
 
 entrainement:
   epochs: 1
-  batch: 8                          # multiple de num_generations : un groupe de 8 réponses par lot
-  accumulation: 8                   # 8 questions (64 réponses) par pas
+  batch: 2                          # réponses par lot : leurs log-probabilités (vocabulaire de 152 000) pèsent lourd
+  accumulation: 32                  # 64 réponses par pas, soit 8 questions et leurs groupes de 8
+  optim: adamw_bnb_8bit             # état de l'optimiseur en 8 bits : ~3 Go de moins que AdamW en fp32
   gradient_checkpointing: true
   lr: 1.0e-6
   warmup: 0.0

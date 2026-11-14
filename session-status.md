@@ -34,6 +34,7 @@ Une ligne par étape terminée, exemple validé ou en échec, la plus récente e
 | 2026-11-14 | Refonte FORM13 sur la Wikipédia en breton (1 000 tokens ajoutés, mesures sur 600 articles jamais vus), 3 graines, phases en lots réduits pour tenir en mémoire sur toutes les graines | Tokens −15,8 % ± 0,3 ; bits par caractère 1,602 contre 1,572 pour le témoin (+0,025 à +0,033 selon la graine). Démontré, avec réserve | `logs/banking77/graines_13.txt`, `sorties/13-extension-vocabulaire--graines/` |
 | 2026-11-14 | Refonte SIGN06 sur GSM8K : Qwen2.5-3B-Instruct → 0.5B-Instruct en mode séquence (2 488 solutions justes), témoin entraîné sur les solutions humaines | Élève 0,411 → 0,451 (+0,040, p = 0,004) ; témoin 0,302 ; enseignant 0,760 ; non-régression 0,955 → 0,915 (n.s.). Démontré, gain modeste | `logs/banking77/run_06.txt` |
 | 2026-11-14 | SIGN07 sur GSM8K : rejection sampling (3 000 questions × 4 solutions, 2 061 gardées), témoin sur solutions humaines | 0,411 → 0,387 (n.s.) ; témoin 0,301. Reste non prouvé | `logs/banking77/run_07.txt` |
+| 2026-11-14 | Refonte SIGN05 sur GSM8K : DAPO, 800 problèmes, 100 pas, récompense = exactitude seule, AdamW 8 bits et lots de 2 réponses pour tenir en mémoire | 0,411 → 0,465 (+0,054, p = 0,0002) ; non-régression 0,955 inchangée ; récompense 0,37 → 0,54. Démontré | `logs/banking77/run_05.txt` |
 
 ## Environnement
 

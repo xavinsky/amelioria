@@ -19,7 +19,7 @@ GPU réservé à une autre tâche de Xavier : aucun calcul GPU avant sa confirma
 
 ## Grille des exemples
 
-Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et réserve de chaque exemple : [exemples.yaml](exemples.yaml), source unique affichée par `make liste` et reprise dans le README (`make readme`). Bilan : 20 démontrés, 10 non prouvés ; versions `infra/` non testées. La tâche fil rouge arithmétique est **saturée** pour Qwen2.5-0.5B-Instruct (0,955 d'exactitude avec 256 tokens de génération) : les exemples qui l'utilisent pour enseigner une compétence ne peuvent rien démontrer.
+Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et réserve de chaque exemple : [exemples.yaml](exemples.yaml), source unique affichée par `make liste` et reprise dans le README (`make readme`). Bilan : 21 démontrés, 9 non prouvés ; versions `infra/` non testées. La tâche fil rouge arithmétique est **saturée** pour Qwen2.5-0.5B-Instruct (0,955 d'exactitude avec 256 tokens de génération) : les exemples qui l'utilisent pour enseigner une compétence ne peuvent rien démontrer.
 
 ## 1. Terminer la passe finale en cours
 
@@ -41,7 +41,7 @@ Relire les papiers de chaque méthode (`docs/references.md`) avant d'implémente
   - 03 LoRA : 0,229 → 0,891 ; non-régression 0,955 → 0,95 ; adaptateur désactivé 0,955.
 - [x] **17 prompt sur banking77** : zéro-shot 0,229 ; consigne OPRO 0,263 ; 8 exemples les plus proches 0,816 ; témoin sans LLM (vote des voisins) 0,920.
 - [ ] **Raisonnement vérifiable** : GSM8K (7 473 / 1 319), tâche des papiers de référence.
-  - 05 RL : GRPO/DAPO sur GSM8K avec récompense vérifiable (DeepSeekMath, DAPO) ; test complet 1 319.
+  - [x] 05 RL : DAPO sur 800 problèmes, récompense vérifiable : 0,411 → 0,465 (p = 0,0002), non-régression inchangée.
   - [ ] 07 données synthétiques : rejection sampling sur GSM8K mesuré (0,411 → 0,387, n.s. ; témoin humain 0,301). À reprendre : toutes les solutions justes distinctes (RFT), rationalisation STaR, 1 époque.
   - [x] 06 distillation : Qwen2.5-3B → 0.5B en mode `sequence` sur GSM8K : 0,411 → 0,451 ; témoin sur solutions humaines 0,302 ; enseignant 0,760.
 - [ ] **04 préférences** : jeu de préférences réel (UltraFeedback binarisé ou HelpSteer), évaluation par un modèle de récompense externe (taux de victoire contre le modèle de départ) et non-régression (GSM8K ou IFEval).

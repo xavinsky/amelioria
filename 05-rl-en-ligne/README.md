@@ -68,10 +68,10 @@ flowchart TD
   classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
   classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
 
-  Hub["Hugging Face Hub<br/>Qwen2.5-0.5B-Instruct"]
+  Hub["Hugging Face Hub<br/>Qwen2.5-0.5B-Instruct, GSM8K"]
   Cache[("cache disque<br/>~/.cache/huggingface")]
   subgraph Py["Processus Python"]
-    Run["run.py<br/>génère les prompts<br/>charge le modèle"]
+    Run["run.py<br/>charge les questions<br/>et le modèle"]
     TRL["TRL GRPOTrainer<br/>algorithme DAPO"]
     Rec["recompenses.py<br/>exactitude, format"]
   end
@@ -79,7 +79,7 @@ flowchart TD
   GPU["GPU CUDA, 12 Go"]
   Out[("sorties/05-rl-en-ligne/")]
 
-  Hub -- "① HTTPS GET, 1re fois<br/>poids (1 Go)" --> Cache
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (1 Go), GSM8K" --> Cache
   Cache -- "② lecture des poids" --> Run
   Run -- "③ copie des poids<br/>④ ⑤ ⑩ ⑪ mesures" --> GPU
   Run -- "⑥ appel Python<br/>trainer.train()" --> TRL
@@ -94,23 +94,23 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=SIGN05` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, algorithme `dapo`, source de récompense `regles`, génération, données, réglages) et génère en mémoire, sans téléchargement, 800 prompts d'arithmétique pour l'entraînement et 200 problèmes pour le test, de la forme `(a op b) op c`. Seul le résultat attendu sert pendant le RL : le modèle n'est jamais entraîné sur une solution écrite.
+`make run EX=SIGN05` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, algorithme `dapo`, source de récompense `regles`, génération, données, réglages) et charge GSM8K : 800 problèmes de mathématiques rédigés pour l'entraînement, et les 1 319 problèmes de test. Seul le résultat attendu sert pendant le RL : le modèle n'est jamais entraîné sur une solution écrite.
 
-- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-0.5B-Instruct (environ 1 Go, safetensors) depuis le Hugging Face Hub, par HTTPS.
-- **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
+- **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-0.5B-Instruct (environ 1 Go) et le jeu `openai/gsm8k` sont téléchargés depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en fp32 dans la mémoire du GPU (`dtype: float32`), où ils restent jusqu'à la fin.
-- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui fait répondre le modèle aux 200 problèmes de test, par lots de 16.
-- **⑤ Génération sur le GPU.** Pour chaque lot, le modèle produit la réponse token par token, jusqu'à 256 tokens, en décodage glouton. L'évaluation extrait ensuite le nombre final de chaque réponse et le compare au résultat attendu : c'est l'exactitude de départ.
+- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui pose les 1 319 problèmes de test, puis 200 problèmes d'arithmétique de non-régression, par lots de 32.
+- **⑤ Génération sur le GPU.** Pour chaque lot, le modèle raisonne token par token, jusqu'à 512 tokens, en décodage glouton. L'évaluation extrait ensuite le nombre final de chaque réponse et le compare au résultat attendu : c'est l'exactitude de départ.
 - **⑥ Entraînement.** `run.py` confie le modèle, les prompts et les fonctions de récompense au GRPOTrainer de TRL, réglé pour DAPO (perte `dapo`, `epsilon_high` = 0,28, `beta` = 0, réponses tronquées ignorées). Rien n'est gelé : tous les poids du modèle sont entraînés.
-- **⑦ Génération sur le GPU.** À chaque pas, le modèle lui-même produit 8 réponses par prompt, par échantillonnage à température 1,0, jusqu'à 128 tokens chacune.
-- **⑧ Notation.** TRL passe les réponses à `recompenses.py` : 1 si le nombre final est juste, plus 0,2 si la réponse se termine par `Answer: N`. Ce calcul se fait en Python, sans GPU. Avec `SET="recompense.source=juge recompense.api_base=http://localhost:11434/v1"`, la note vient d'un LLM juge interrogé par HTTP sur une API compatible OpenAI (flèche pointillée).
-- **⑨ Forward et backward sur le GPU.** Chaque réponse reçoit un avantage : l'écart de sa récompense à la moyenne de son groupe de 8, divisé par l'écart type du groupe. Chaque pas traite 16 réponses (8 par lot, 2 accumulations) : passe avant pour les log-probabilités des tokens générés, perte DAPO, passe arrière, mise à jour de tous les poids. Taux d'apprentissage 1e-6, gradient checkpointing actif.
-- **⑩ Mesure après.** Les mêmes 200 problèmes sont posés au modèle entraîné.
+- **⑦ Génération sur le GPU.** À chaque pas, le modèle lui-même produit 8 réponses par problème, par échantillonnage à température 1,0, jusqu'à 512 tokens chacune (environ 300 en moyenne).
+- **⑧ Notation.** TRL passe les réponses à `recompenses.py` : 1 si le nombre final est juste, 0 sinon (`bonus_format: true` ajoute 0,2 quand la réponse se termine par `Answer: N`, utile sur l'arithmétique). Ce calcul se fait en Python, sans GPU. Avec `SET="recompense.source=juge recompense.api_base=http://localhost:11434/v1"`, la note vient d'un LLM juge interrogé par HTTP sur une API compatible OpenAI (flèche pointillée).
+- **⑨ Forward et backward sur le GPU.** Chaque réponse reçoit un avantage : l'écart de sa récompense à la moyenne de son groupe de 8, divisé par l'écart type du groupe. Chaque pas traite 64 réponses, soit 8 problèmes (lots de 2, 32 accumulations) : passe avant pour les log-probabilités des tokens générés, perte DAPO, passe arrière, mise à jour de tous les poids par AdamW 8 bits. 100 pas, taux d'apprentissage 1e-6, gradient checkpointing actif.
+- **⑩ Mesure après.** Les mêmes problèmes sont posés au modèle entraîné.
 - **⑪ Génération sur le GPU**, avec le même décodage qu'en ⑤.
 - **⑫ Écriture du modèle** complet dans `sorties/05-rl-en-ligne/modele-dapo/`.
 - **⑬ Écriture du rapport** dans `sorties/05-rl-en-ligne/resultats.json`, avec le même tableau affiché dans le terminal.
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑦, ⑪), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées ; pendant l'entraînement, cette génération occupe l'essentiel du temps. En entraînement (⑨), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis leur mise à jour par l'optimiseur AdamW. Avec `beta` = 0, aucun modèle de référence n'est chargé, et la récompense par règles ne demande aucun modèle : un seul modèle occupe la mémoire GPU. Le pic mesuré est d'environ 9,6 Go de mémoire GPU.
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑦, ⑪), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées ; pendant l'entraînement, cette génération occupe l'essentiel du temps. En entraînement (⑨), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis leur mise à jour par l'optimiseur AdamW 8 bits, dont l'état tient en 1 Go au lieu de 4. Avec `beta` = 0, aucun modèle de référence n'est chargé, et la récompense par règles ne demande aucun modèle : un seul modèle occupe la mémoire GPU. Les log-probabilités des réponses de 512 tokens sur un vocabulaire de 152 000 tokens imposent des lots de 2 réponses pour tenir en 12 Go.
 
 **Ce qui est écrit.**
 
@@ -120,7 +120,7 @@ flowchart TD
 | `modele-dapo/config.json`, `generation_config.json` | Architecture et réglages de génération, pour recharger le modèle avec `AutoModelForCausalLM.from_pretrained` |
 | `modele-dapo/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
 | `modele-dapo/training_args.bin` | Les réglages d'entraînement utilisés |
-| `resultats.json` | Exactitude avant et après, nombre de réponses, durée de chaque évaluation, trois réponses d'exemple de chaque côté ; récompense moyenne en début et en fin d'entraînement ; algorithme et source de récompense |
+| `resultats.json` | Exactitude avant et après sur GSM8K et sur la non-régression, avec intervalle à 95 % et réponse de chaque question ; comparaisons appariées ; récompense moyenne en début et en fin d'entraînement ; algorithme et source de récompense |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
 Le dossier de sortie prend le nom de l'algorithme : avec `SET="algo=grpo"`, il s'appelle `modele-grpo/`.
@@ -129,7 +129,7 @@ Le dossier de sortie prend le nom de l'algorithme : avec `SET="algo=grpo"`, il s
 
 ```bash
 python run.py --quick
-python run.py                                                           # DAPO + récompense vérifiable, Qwen2.5-0.5B
+python run.py                                                           # DAPO + récompense vérifiable, Qwen2.5-0.5B, GSM8K, ~1 h
 python run.py --set algo=gspo
 python run.py --set algo=rloo
 python variantes/modele-recompense/run.py                               # 1) entraîner un modèle de récompense
@@ -142,9 +142,22 @@ python run.py --set peft.activer=true --set entrainement.lr=1e-5 --set modele.no
 
 ## Ce que fait l'exemple
 
-1. Mesure l'exactitude du modèle sur 200 problèmes jamais vus.
-2. RL sur 800 prompts, 8 réponses par prompt. Récompense = 1 si la réponse est juste, plus 0,2 si le format `Answer: N` est respecté.
-3. Remesure. Le rapport ajoute la récompense moyenne en début et en fin d'entraînement.
+**Le besoin** : faire mieux raisonner un modèle sur des problèmes dont on sait vérifier la réponse (calcul, code testable, extraction contrôlable), sans solutions rédigées : seul le résultat attendu est connu.
+
+**Résultats** (Qwen2.5-0.5B-Instruct, RTX 5070 Ti Laptop ; 1 319 problèmes de test de GSM8K, 200 problèmes de non-régression ; 100 pas, 1 h d'entraînement) :
+
+| | GSM8K | Non-régression (arithmétique) |
+|---|---|---|
+| Avant | 0,411 [0,385 ; 0,438] | 0,955 [0,917 ; 0,976] |
+| **Après RL (DAPO)** | **0,465** [0,438 ; 0,492] | 0,955 [0,917 ; 0,976] |
+
+Écart apparié sur les mêmes problèmes : +0,054 [+0,026 ; +0,082], p de McNemar = 0,0002. Non-régression : 0,000 [−0,030 ; +0,030]. Récompense moyenne pendant l'entraînement : 0,37 au début, 0,54 à la fin.
+
+**Ce qu'on en retient.**
+
+- **Le RL avec une récompense vérifiable fait progresser le modèle** de 5 points, sans aucune solution rédigée et sans rien perdre ailleurs.
+- **Il fait mieux que les deux autres façons d'apprendre de la même tâche** mesurées dans ce dépôt, sur le même modèle et les mêmes problèmes de test : la distillation d'un modèle 6 fois plus gros ([SIGN06](../06-distillation) : 0,451) et l'entraînement sur ses propres solutions justes ([SIGN07](../07-donnees-synthetiques) : 0,387). Le RL apprend aussi de ses échecs, que le rejection sampling écarte.
+- **Il reste modeste à ce budget** : 800 problèmes vus une fois. Les papiers (DeepSeekMath, DAPO) entraînent des milliers de pas, avec vLLM pour la génération.
 
 ## Paramètres principaux (`config.yaml`)
 
@@ -155,7 +168,9 @@ python run.py --set peft.activer=true --set entrainement.lr=1e-5 --set modele.no
 | `generation.num_generations` | Taille du groupe (4 à 16 en local, 16 à 64 à grande échelle) |
 | `generation.max_completion_length` | Longueur de raisonnement autorisée |
 | `generation.vllm` | Génération rapide (indispensable au-delà de quelques centaines de pas) |
-| `entrainement.batch` | Multiple de `num_generations` |
+| `recompense.bonus_format` | Bonus de format `Answer: N` (tâche d'arithmétique) |
+| `entrainement.batch`, `accumulation` | Lot × accumulation multiple de `num_generations` |
+| `evaluation.non_regression` | Tâche hors sujet mesurée avant et après |
 
 ## Grosse infra
 

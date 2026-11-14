@@ -423,13 +423,11 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 05-rl-en-ligne
-    statut: non-prouve
-    fait: "RL (DAPO) avec récompense vérifiable : le modèle est récompensé quand son calcul est juste."
-    piste: "GSM8K, la tâche des papiers de référence, sur ses 1 319 questions de test, avec un modèle qui y échoue souvent."
+    statut: demontre
+    fait: "RL (DAPO) sur 800 problèmes de GSM8K : le modèle est récompensé quand sa réponse finale est juste, sans solution rédigée."
     duree_test: "21 s"
-    duree_complet: "13 min"
-    resultat: "exactitude 0,955 → 0,945 ; récompense 0,66 → 0,84"
-    reserve: tâche arithmétique déjà résolue par le modèle de départ
+    duree_complet: "1 h 05"
+    resultat: "GSM8K (n = 1 319) : 0,411 → 0,465 (p = 0,0002) ; non-régression 0,955 → 0,955"
     prerequis: {gpu: requis, api: true}
   - chemin: 05-rl-en-ligne/variantes/modele-recompense
     statut: demontre
