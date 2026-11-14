@@ -457,12 +457,12 @@ exemples:
 
   - chemin: 07-donnees-synthetiques
     statut: non-prouve
-    fait: "Le modèle génère plusieurs solutions, un vérificateur garde les justes, et il s'entraîne dessus (rejection sampling)."
-    piste: "GSM8K, sur lequel le modèle échoue souvent : rejection sampling fine-tuning (RFT, STaR)."
-    duree_test: "21 s"
-    duree_complet: "19 min"
-    resultat: "0,955 → 0,89 → 0,90"
-    reserve: tâche arithmétique déjà résolue par le modèle de départ
+    fait: "Le modèle résout 3 000 problèmes de GSM8K 4 fois chacun, garde une solution juste par question et s'entraîne dessus (rejection sampling) ; témoin sur les solutions humaines."
+    piste: "Toutes les solutions justes et distinctes de chaque question (RFT), rationalisation des questions ratées (STaR), une seule époque."
+    duree_test: "30 s"
+    duree_complet: "1 h 45"
+    resultat: "GSM8K (n = 1 319) : 0,411 → 0,387 ; témoin solutions humaines 0,301"
+    reserve: "pas de gain sur le modèle de départ, seulement sur le témoin"
     prerequis: {gpu: requis}
 
   - chemin: 08-fusion-modeles

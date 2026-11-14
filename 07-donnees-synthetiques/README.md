@@ -53,17 +53,17 @@ flowchart TD
   classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
   classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
 
-  Hub["Hugging Face Hub<br/>Qwen2.5-0.5B-Instruct"]
+  Hub["Hugging Face Hub<br/>Qwen2.5-0.5B-Instruct, GSM8K"]
   Cache[("cache disque<br/>~/.cache/huggingface")]
   subgraph Py["Processus Python"]
-    Run["run.py<br/>génère les questions<br/>filtre les solutions"]
+    Run["run.py<br/>charge les questions<br/>filtre les solutions"]
     Ev["evaluation.py<br/>modeles.py<br/>génération"]
     TRL["TRL SFTTrainer<br/>tous les poids"]
   end
   GPU["GPU CUDA, 12 Go"]
   Out[("sorties/<br/>07-donnees-synthetiques/")]
 
-  Hub -- "① HTTPS GET, 1re fois<br/>poids (1 Go)" --> Cache
+  Hub -- "① HTTPS GET, 1re fois<br/>poids (1 Go), GSM8K" --> Cache
   Cache -- "② lecture des poids" --> Run
   Run -- "③ copie des poids<br/>en mémoire GPU" --> GPU
   Run -- "④ ⑥ ⑪ appel Python<br/>mesure, échantillonnage" --> Ev
@@ -79,45 +79,45 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=SIGN07` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, stratégie `rejet`, 2 tours, réglages de génération et d'entraînement) et génère en mémoire, sans téléchargement, des problèmes d'arithmétique de la forme `(a op b) op c` : 200 pour le test, et 1 000 nouvelles questions à chaque tour. Les données d'entraînement ne sont pas fournies : c'est le modèle lui-même qui écrit les solutions, et seules les justes sont gardées.
+`make run EX=SIGN07` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, stratégie `rejet`, 1 tour, réglages de génération et d'entraînement) et charge GSM8K : 3 000 problèmes d'entraînement, dont seule la réponse finale sert (pour vérifier), et les 1 319 problèmes de test. Les solutions rédigées ne sont pas fournies : c'est le modèle lui-même qui les écrit, et seules les justes sont gardées.
 
-- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-0.5B-Instruct (environ 1 Go) depuis le Hugging Face Hub, par HTTPS.
-- **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
-- **③ Copie sur le GPU.** Les poids sont copiés en float32 dans la mémoire du GPU, où ils restent jusqu'à la fin. Le même modèle sert de générateur et d'élève (`generateur.nom: null`).
-- **④ Mesure de départ (tour 0).** `run.py` appelle `commun/evaluation.py`, qui fait répondre le modèle aux 200 problèmes de test, par lots de 16.
-- **⑤ Génération sur le GPU.** Le modèle produit chaque réponse token par token, jusqu'à 256 tokens, en décodage glouton. L'évaluation compare le nombre final au résultat attendu (exactitude) et vérifie si la réponse se termine par `Answer: <nombre>` (taux de format).
-- **⑥ Échantillonnage.** `run.py` demande 4 solutions par question pour les 1 000 questions du tour, par lots de 32 questions.
+- **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-0.5B-Instruct (environ 1 Go) et le jeu `openai/gsm8k` sont téléchargés depuis le Hugging Face Hub, par HTTPS.
+- **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
+- **③ Copie sur le GPU.** Les poids sont copiés en float32 dans la mémoire du GPU. Le même modèle sert de générateur et d'élève (`generateur.nom: null`).
+- **④ Mesure de départ (tour 0).** `run.py` appelle `commun/evaluation.py`, qui pose les 1 319 problèmes de test, puis 200 problèmes d'arithmétique de non-régression, par lots de 32.
+- **⑤ Génération sur le GPU.** Le modèle raisonne jusqu'à 512 tokens, en décodage glouton ; le nombre final est comparé au résultat attendu.
+- **⑥ Échantillonnage.** `run.py` demande 4 solutions par question pour les 3 000 questions, par lots de 32 questions.
 - **⑦ Génération sur le GPU**, cette fois par tirage aléatoire à la température 0,8 : les 4 solutions d'une même question diffèrent.
-- **⑧ Filtrage et écriture.** Pour chaque question, `run.py` garde au hasard une des solutions dont le nombre final est juste, et écarte la question si aucune ne l'est. Le corpus retenu est écrit dans `donnees-tour-N.jsonl`.
+- **⑧ Filtrage et écriture.** Pour chaque question, `run.py` garde au hasard une des solutions dont le nombre final est juste, et écarte la question si aucune ne l'est (2 061 questions gardées, 69 %). Le corpus est écrit dans `donnees-tour-1.jsonl`.
 - **⑨ Entraînement.** `run.py` confie le modèle et le corpus au SFTTrainer de TRL : fine-tuning complet, perte calculée sur la réponse seulement.
-- **⑩ Forward et backward sur le GPU.** Chaque pas traite un lot de 4 exemples, avec 4 lots accumulés avant chaque mise à jour (16 exemples), pendant 1 époque, au taux d'apprentissage de 1e-5.
-- **⑪ Remesure.** Les mêmes 200 problèmes de test sont posés au modèle entraîné.
-- **⑫ Génération sur le GPU**, avec le même décodage qu'en ⑤.
-- **⑬ Écriture du modèle et du rapport.** Après le dernier tour, le modèle complet est écrit dans `sorties/07-donnees-synthetiques/modele/`, puis `resultats.json`, avec le même tableau affiché dans le terminal.
+- **⑩ Forward et backward sur le GPU.** Lots de 4, accumulés 4 fois (16 exemples par pas), 2 époques, taux d'apprentissage 1e-5.
+- **⑪ Remesure**, sur les mêmes problèmes, avec le même décodage qu'en ⑤.
+- **⑫ Témoin.** Le modèle d'origine est rechargé et entraîné de la même façon sur les mêmes 2 061 questions, avec les solutions écrites par les auteurs de GSM8K, puis mesuré.
+- **⑬ Écriture du modèle et du rapport** : `sorties/07-donnees-synthetiques/modele/`, puis `resultats.json`, avec le même tableau affiché dans le terminal.
 
-Les étapes ⑥ à ⑫ forment un tour. Le tour 2 reprend avec 1 000 nouvelles questions et échantillonne avec le modèle déjà entraîné au tour 1 : c'est l'auto-amélioration itérée (STaR, ReST-EM).
+Avec `tours: 2` ou plus, les étapes ⑥ à ⑪ se répètent sur de nouvelles questions, en échantillonnant avec le modèle du tour précédent : c'est l'auto-amélioration itérée (STaR, ReST-EM).
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑦, ⑫), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées ; à l'échantillonnage (⑦), chaque lot de 32 questions donne 128 suites produites en parallèle. En entraînement (⑩), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis leur mise à jour par l'optimiseur AdamW, dont l'état couvre tous les poids ; le gradient checkpointing recalcule les activations pendant la passe arrière au lieu de les garder. Le filtrage (⑧) se fait sur CPU, en Python. Un lancement de calibrage de cette configuration, réduit à 1 tour de 64 questions, a culminé à environ 9,0 Go de mémoire GPU.
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑦, ⑫), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées ; à l'échantillonnage (⑦), chaque lot de 32 questions donne 128 suites produites en parallèle ; c'est l'essentiel de la durée (environ 1 h sur 1 h 45). En entraînement (⑩), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis leur mise à jour par l'optimiseur AdamW, dont l'état couvre tous les poids ; le gradient checkpointing recalcule les activations pendant la passe arrière au lieu de les garder. Le filtrage (⑧) se fait sur CPU, en Python. 
 
 **Ce qui est écrit.**
 
 | Fichier | Contenu |
 |---|---|
-| `donnees-tour-1.jsonl`, `donnees-tour-2.jsonl` | Le corpus synthétique de chaque tour, une ligne `{"question", "reponse", "cible"}` par question résolue : 993 lignes (410 Ko) au tour 1, 962 (404 Ko) au tour 2. Réutilisable par 02 ou 03 |
+| `donnees-tour-1.jsonl` | Le corpus synthétique, une ligne `{"question", "reponse", "cible"}` par question résolue (2 061 lignes). Réutilisable par 02 ou 03 |
 | `modele/model.safetensors` | Tous les poids du modèle après le dernier tour (1,98 Go, en float32) |
 | `modele/config.json`, `generation_config.json` | Architecture Qwen2 et réglages de génération, pour recharger le modèle avec `AutoModelForCausalLM.from_pretrained` |
 | `modele/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
-| `tour-1/`, `tour-2/` | Dossiers de travail du trainer, vides : aucun point de contrôle intermédiaire n'est sauvegardé |
-| `resultats.json` | Pour les tours 0, 1 et 2 : exactitude, nombre de réponses, durée de l'évaluation, trois réponses d'exemple, taux de format ; pour les tours 1 et 2, part des questions résolues à l'échantillonnage |
+| `tour-1/`, `temoin/` | Dossiers de travail du trainer, vides : aucun point de contrôle intermédiaire n'est sauvegardé |
+| `resultats.json` | Pour le tour 0, le tour 1 et le témoin : exactitude sur GSM8K et sur la non-régression, avec intervalle à 95 % et réponse de chaque question ; part des questions résolues à l'échantillonnage ; comparaison appariée `synthetique_contre_temoin` |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
 ## Utilisation
 
 ```bash
 python run.py --quick
-python run.py                                                  # rejection sampling, Qwen2.5-0.5B s'auto-entraîne
-python run.py --set strategie=self_instruct --set generateur.nom=Qwen/Qwen2.5-1.5B-Instruct
-python run.py --set strategie=critique_revision
+python run.py                                                  # rejection sampling sur GSM8K, Qwen2.5-0.5B s'auto-entraîne, ~1 h 45
+python run.py --set strategie=self_instruct --set donnees.source=arith --set generateur.nom=Qwen/Qwen2.5-1.5B-Instruct
+python run.py --set strategie=critique_revision --set donnees.source=arith
 python run.py --set tours=3                                    # itérer (STaR / ReST-EM)
 ```
 
@@ -125,13 +125,20 @@ Le jeu généré est sauvegardé dans `sorties/.../donnees-tour-N.jsonl`, réuti
 
 ## Ce que fait l'exemple
 
-- **`rejet`** (par défaut) :
-  1. Pour 1 000 questions, le modèle produit 4 solutions échantillonnées.
-  2. On garde une solution juste par question résolue.
-  3. SFT du modèle sur ces solutions.
-  4. Remesure.
+- **`rejet`** (par défaut) : le modèle produit 4 solutions par question, on garde une solution juste par question résolue, on l'entraîne dessus, on remesure ; un témoin est entraîné pareil sur les solutions humaines.
 
-  Le rapport donne le taux de questions résolues à chaque tour : il monte d'un tour à l'autre.
+**Résultats** (Qwen2.5-0.5B-Instruct, RTX 5070 Ti Laptop ; 1 319 problèmes de test de GSM8K) :
+
+| | GSM8K | Non-régression (arithmétique) |
+|---|---|---|
+| Avant | 0,411 [0,385 ; 0,438] | 0,955 |
+| Entraîné sur ses 2 061 solutions justes | 0,387 [0,361 ; 0,414] | 0,92 |
+| Témoin : solutions humaines des mêmes questions | 0,301 [0,277 ; 0,326] | 0,88 |
+
+Écarts appariés : après − avant −0,024 [−0,049 ; +0,002], p = 0,09, non significatif ; synthétique − témoin +0,086 [+0,058 ; +0,115].
+
+**Non démontré.** Ses propres solutions valent nettement mieux que les solutions humaines, trop laconiques, mais elles ne font pas progresser le modèle. Ce sont surtout des solutions aux problèmes qu'il sait déjà résoudre, une seule par question. Les pistes des papiers : garder toutes les solutions justes et distinctes d'une question (RFT : des dizaines par question), rationaliser les questions ratées en donnant la réponse au modèle (STaR), une seule époque pour ne pas surapprendre ses propres sorties.
+
 - **`self_instruct`** : le générateur écrit de nouveaux problèmes du même style. On ne garde que ceux dont l'expression se calcule, et la réponse vient du calcul lui-même, donc elle est garantie juste.
 - **`critique_revision`** : un principe (« être concis et donner le résultat final sous la forme Answer: N ») guide la critique puis la réécriture.
 
@@ -155,6 +162,7 @@ Le jeu généré est sauvegardé dans `sorties/.../donnees-tour-N.jsonl`, réuti
 
 - **Model collapse** : jamais sans filtre. Garder une part de données réelles.
 - **Faux positifs du vérificateur** : bonne réponse obtenue par un raisonnement faux. Préférer plusieurs solutions justes et diverses.
+- **Biais vers le facile** : on ne garde que les questions déjà résolues, souvent celles que le modèle réussissait sans aide. Il faut des solutions aux questions difficiles (plus d'échantillons, rationalisation STaR).
 - **Diversité** : Self-Instruct converge vite vers les mêmes questions. Dédupliquer (n-grammes, embeddings), varier les exemples d'amorce.
 - **Contamination** : vérifier que les données générées ne recopient pas le jeu de test.
 - **Licences** : les conditions de certains fournisseurs interdisent d'entraîner un modèle concurrent sur leurs sorties.

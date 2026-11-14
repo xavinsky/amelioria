@@ -62,7 +62,8 @@ Pour chacun : relire les papiers, vérifier que le modèle de départ échoue su
 1. [x] **17 prompt — même routage** : few-shot par similarité 0,229 → 0,816, avec témoin sans LLM (0,920).
 1. [x] **13 vocabulaire** : Wikipédia en breton, 3 graines : −15,8 % de tokens, qualité 2 % sous le témoin.
 1. [x] **06 distillation** sur GSM8K : 0,411 → 0,451 (+0,040, p = 0,004), témoin sur solutions humaines 0,302.
-1. [ ] **07 données synthétiques** sur GSM8K, témoin sur solutions humaines ; puis **05 RL** GRPO sur GSM8K.
+1. [ ] **07 données synthétiques** sur GSM8K : mesuré, pas de gain (0,411 → 0,387) ; à reprendre avec toutes les solutions justes distinctes (RFT) et la rationalisation STaR.
+1. [ ] **05 RL** GRPO sur GSM8K, 800 questions.
 2. [ ] **05 RL — raisonnement vérifiable** : GRPO/DAPO sur GSM8K avec récompense vérifiable, test complet (1 319 questions).
 3. [ ] **07 données synthétiques** : rejection sampling fine-tuning sur GSM8K (RFT, STaR).
 4. [ ] **06 distillation LLM** : GSM8K avec un enseignant nettement meilleur que l'élève ; comprendre la régression observée sur l'arithmétique (décalage entraînement / génération, GKD).
