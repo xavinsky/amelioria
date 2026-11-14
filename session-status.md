@@ -30,6 +30,7 @@ Une ligne par étape terminée, exemple validé ou en échec, la plus récente e
 | 2026-11-13 | Témoins à budget égal pour FORM13 et FORM14 | FORM13 : témoin 0,41 bit/car. contre 0,42 ; FORM14 : témoin 14,3 de perplexité contre 14,9. Tous deux restent non prouvés | `logs/temoins.txt`, `logs/complet/*_temoin_*` |
 | 2026-11-13 | Socle de preuve : intervalle de Wilson sur chaque exactitude, comparaisons appariées (bootstrap, McNemar), `make graines` | Tests rapides 30/30 ; `make graines EX=EDIT09 QUICK=1 N=2` OK | `logs/smoke_socle.txt`, `logs/graines_essai.txt` |
 | 2026-11-14 | Refonte DATA02 et DATA03 sur banking77 (77 intentions, 3 080 messages de test), non-régression arithmétique, remélange de demandes générales | SFT complet 0,231 → 0,904 (non-régression 0,955 → 0,765 ; 0,025 sans remélange) ; LoRA 0,229 → 0,891 (non-régression 0,95 ; adaptateur désactivé 0,955) ; encodeur ModernBERT 0,937. Trois démontrés | `logs/banking77/` |
+| 2026-11-14 | Refonte EXEC17 sur banking77 : stratégies de prompt avec Qwen2.5-0.5B-Instruct, témoin sans LLM (vote des 8 voisins) | Zéro-shot 0,229 ; consigne OPRO 0,263 ; 8 exemples au hasard 0,312 ; 8 exemples les plus proches 0,816 ; témoin 0,920. Démontré | `logs/banking77/run_17.txt` |
 
 ## Environnement
 

@@ -4,38 +4,38 @@ modele:
   dtype: float32
 
 vocabulaire:
-  n_nouveaux: 200                   # mots du domaine les plus « rentables » à ajouter
-  min_freq: 3
+  n_nouveaux: 1000                  # mots du corpus les plus « rentables » à ajouter
+  min_freq: 5
   init: moyenne                     # moyenne (des embeddings des sous-tokens) | aleatoire
   liste: null                       # ou une liste explicite de tokens à ajouter
 
 donnees:
-  source: faits                     # faits (noms inventés, très mal découpés) | hf
-  n_entites: 80
-  graine: 0
-  longueur_bloc: 256
-  # source: hf
-  # nom: wikimedia/wikipedia        # ex. une langue peu couverte par le tokenizer
-  # config: 20231101.br
-  # colonne: text
-  # n_textes: 20000
+  source: hf                        # langue peu couverte par le tokenizer de Qwen : ~2,6 caractères par token
+  nom: wikimedia/wikipedia
+  config: 20231101.br               # Wikipédia en breton
+  colonne: text
+  n_textes: 3000                    # 4/5 pour l'entraînement, 1/5 jamais vu pour les mesures
+  longueur_bloc: 512
+  # source: faits                   # noms inventés, très mal découpés (base fictive de commun/donnees.py)
+  # n_entites: 80
+  # graine: 0
 
 phase1:                             # embeddings seuls
-  epochs: 3
-  batch: 2
+  epochs: 1
+  batch: 4
   accumulation: 4
   lr: 1.0e-3
   warmup: 0.05
-  logging_steps: 10
+  logging_steps: 20
 
 phase2:                             # modèle complet
-  epochs: 2
-  batch: 2
+  epochs: 1
+  batch: 4
   accumulation: 4
   gradient_checkpointing: true
   lr: 2.0e-5
   warmup: 0.05
-  logging_steps: 10
+  logging_steps: 20
 
 temoin: true                        # même entraînement sans nouveaux tokens, pour isoler leur effet
 
@@ -47,12 +47,12 @@ quick:
   vocabulaire:
     n_nouveaux: 20
   donnees:
-    n_entites: 10
+    n_textes: 60
     longueur_bloc: 128
   phase1:
-    epochs: 1
     batch: 4
+    accumulation: 1
   phase2:
-    epochs: 1
     batch: 4
+    accumulation: 1
   sauvegarder: false

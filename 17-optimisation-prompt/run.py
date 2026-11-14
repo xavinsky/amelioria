@@ -15,17 +15,22 @@ sys.path.insert(0, str(next(p for p in pathlib.Path(__file__).resolve().parents 
 from commun import config, donnees, evaluation, preuve, rapport
 from commun.generateur import Generateur
 
-INSTRUCTION = "Solve the problem. Show the intermediate calculations, then finish with 'Answer: <number>'."
-COT = "Let's think step by step, then give the final result as 'Answer: <number>'."
+def systeme(strategie, instruction, cfg):
+    """Message système : la consigne de la stratégie, puis le cadre fixe de la tâche (liste des réponses possibles...)."""
+    cadre = evaluation.systeme(cfg)
+    parties = [instruction if strategie in ("instruction", "few_shot", "few_shot_similaires", "optimisation") else None, cadre]
+    texte = "\n\n".join(p for p in parties if p)
+    return texte or None
 
 
 def conversations(strategie, questions, instruction, exemples_train, cfg, index_similaires=None):
     rng = random.Random(cfg.graine)
     convs = []
+    sys_msg = systeme(strategie, instruction, cfg)
     for i, q in enumerate(questions):
         msgs = []
-        if strategie in ("instruction", "few_shot", "few_shot_similaires", "optimisation"):
-            msgs.append({"role": "system", "content": instruction})
+        if sys_msg:
+            msgs.append({"role": "system", "content": sys_msg})
         if strategie == "few_shot":
             demos = rng.sample(exemples_train, cfg.k_exemples)
         elif strategie == "few_shot_similaires":
@@ -34,14 +39,14 @@ def conversations(strategie, questions, instruction, exemples_train, cfg, index_
             demos = []
         for d in demos:
             msgs += [{"role": "user", "content": d["question"]}, {"role": "assistant", "content": d["reponse"]}]
-        contenu = q["question"] + (f"\n{COT}" if strategie == "cot" else "")
+        contenu = q["question"] + (f"\n{cfg.prompts.cot}" if strategie == "cot" else "")
         msgs.append({"role": "user", "content": contenu})
         convs.append(msgs)
     return convs
 
 
 def score(gen, convs, questions, cfg):
-    sorties = gen.chat(convs, max_new_tokens=cfg.evaluation.max_new_tokens)
+    sorties = gen.chat(convs, max_new_tokens=cfg.evaluation.max_new_tokens, batch=cfg.evaluation.get("batch", 16))
     ok = [evaluation.correct(s, q["cible"], cfg.evaluation.mode) for s, q in zip(sorties, questions)]
     return preuve.taux(ok), sorties
 
@@ -56,16 +61,23 @@ def voisins(train, questions, k, nom_modele):
     return (e_q @ e_train.T).topk(k, dim=1).indices.tolist()
 
 
+def vote(train, indices):
+    """Étiquette majoritaire parmi les voisins (à égalité, celle du voisin le plus proche)."""
+    etiquettes = [train[j]["cible"] for j in indices]
+    return max(etiquettes, key=lambda e: (etiquettes.count(e), -etiquettes.index(e)))
+
+
 def optimiser_instruction(gen, optimiseur, dev, train, cfg):
     """Boucle OPRO : l'optimiseur voit les instructions déjà essayées avec leur score et en propose de meilleures."""
-    historique = [(INSTRUCTION, score(gen, conversations("instruction", dev, INSTRUCTION, train, cfg), dev, cfg)[0]["exactitude"])]
-    exemples = "\n".join(f"- {d['question']}" for d in train[:2])
+    depart = cfg.prompts.instruction
+    historique = [(depart, score(gen, conversations("instruction", dev, depart, train, cfg), dev, cfg)[0]["exactitude"])]
+    exemples = "\n".join(f"- {d['question']}" for d in train[:3])
     for tour in range(cfg.optimisation.tours):
         essais = "\n".join(f"<instruction>{ins}</instruction> accuracy: {sc:.2f}" for ins, sc in sorted(historique, key=lambda x: x[1]))
         # Consigne d'abord, exemples présentés comme contexte : l'optimiseur doit écrire une consigne, pas un problème.
         meta = ("Your task is to write a better system instruction (a short prompt, one to three sentences) that tells an "
-                "assistant how to solve math word problems. Do NOT solve any problem and do NOT write new problems.\n\n"
-                f"Example problems the assistant will receive (for context only):\n{exemples}\n\n"
+                f"assistant how to {cfg.optimisation.tache}. Do NOT answer any input and do NOT write new inputs.\n\n"
+                f"Example inputs the assistant will receive (for context only):\n{exemples}\n\n"
                 f"Instructions already tried, from worst to best:\n{essais}\n\n"
                 "Write one new instruction, different from the ones above, likely to reach a higher accuracy. "
                 "Reply with exactly this format and nothing else:\n<instruction>your instruction</instruction>")
@@ -84,26 +96,44 @@ def optimiser_instruction(gen, optimiseur, dev, train, cfg):
 def main():
     cfg = config.charger(__file__)
     gen = Generateur.depuis_config(cfg.modele)
-    train = donnees.charger_qa(cfg.donnees, "train", cfg.donnees.n_train)
-    tout_test = donnees.charger_qa(cfg.donnees, "test", cfg.evaluation.n_dev + cfg.evaluation.n_test)
-    dev, test = tout_test[: cfg.evaluation.n_dev], tout_test[cfg.evaluation.n_dev :]
+    n_dev, n_test = cfg.evaluation.n_dev, cfg.evaluation.n_test
+    if cfg.evaluation.get("dev_depuis_train"):
+        # Validation prise dans l'entraînement, hors des exemples montrés : le test entier reste intact.
+        tout_train = donnees.charger_qa(cfg.donnees, "train", cfg.donnees.n_train + n_dev)
+        train, dev = tout_train[:-n_dev], tout_train[-n_dev:]
+        test = donnees.charger_qa(cfg.donnees, "test", n_test)
+    else:
+        train = donnees.charger_qa(cfg.donnees, "train", cfg.donnees.n_train)
+        tout_test = donnees.charger_qa(cfg.donnees, "test", n_dev + n_test)
+        dev, test = tout_test[:n_dev], tout_test[n_dev:]
 
-    resultats, instruction_optimisee = {}, INSTRUCTION
+    resultats, instruction_optimisee = {}, cfg.prompts.instruction
     for strategie in cfg.strategies:
         if strategie == "optimisation":
             optimiseur = Generateur.depuis_config(cfg.optimiseur) if cfg.optimiseur.get("nom") else gen
             (instruction_optimisee, _), historique = optimiser_instruction(gen, optimiseur, dev, train, cfg)
             resultats["historique_optimisation"] = [{"instruction": i, "score_dev": s} for i, s in historique]
-        ins = instruction_optimisee if strategie == "optimisation" else INSTRUCTION
+        ins = instruction_optimisee if strategie == "optimisation" else cfg.prompts.instruction
         sim_dev = voisins(train, dev, cfg.k_exemples, cfg.embeddings) if strategie == "few_shot_similaires" else None
         sim_test = voisins(train, test, cfg.k_exemples, cfg.embeddings) if strategie == "few_shot_similaires" else None
+        if strategie == "few_shot_similaires":
+            sim_dev_k, sim_test_k = sim_dev, sim_test
         s_dev, _ = score(gen, conversations(strategie, dev, ins, train, cfg, sim_dev), dev, cfg)
         s_test, sorties = score(gen, conversations(strategie, test, ins, train, cfg, sim_test), test, cfg)
         resultats[strategie] = {"dev": s_dev, "test": s_test, "exemple": sorties[0].strip()[:200]}
         print(f"[prompt] {strategie:22s} dev {s_dev['exactitude']:.3f}  test {s_test['exactitude']:.3f}")
 
+    if cfg.evaluation.mode == "etiquette" and "few_shot_similaires" in cfg.strategies:
+        # Témoin sans modèle de langage : vote des étiquettes des k exemples les plus proches. Il dit ce que le LLM
+        # apporte au-delà de la simple recherche d'exemples voisins.
+        resultats["temoin_voisins"] = {nom: preuve.taux([vote(train, idx) == q["cible"] for q, idx in zip(qs, sim)])
+                                       for nom, qs, sim in (("dev", dev, sim_dev_k), ("test", test, sim_test_k))}
+        print(f"[prompt] {'temoin_voisins':22s} dev {resultats['temoin_voisins']['dev']['exactitude']:.3f}  "
+              f"test {resultats['temoin_voisins']['test']['exactitude']:.3f}")
+
     meilleure = max((k for k in cfg.strategies), key=lambda k: resultats[k]["dev"]["exactitude"])
-    rapport.enregistrer(cfg, **{k: v for k, v in resultats.items() if k in cfg.strategies},
+    sections = [k for k in cfg.strategies] + (["temoin_voisins"] if "temoin_voisins" in resultats else [])
+    rapport.enregistrer(cfg, **{k: resultats[k] for k in sections},
                         meilleure_strategie_dev=meilleure, instruction_optimisee=instruction_optimisee,
                         historique=resultats.get("historique_optimisation"))
 

@@ -93,7 +93,7 @@ Améliorer le résultat autour du modèle ; fonctionne aussi avec un modèle fer
 
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
-| [EXEC17](17-optimisation-prompt) | Optimisation du prompt | Instruction, CoT, few-shot (aléatoire / par similarité), OPRO ; DSPy en infra | Tout LLM local ou API ; VLM ; diffusion (réécriture de prompts) | ✅ | 🟡 principal |
+| [EXEC17](17-optimisation-prompt) | Optimisation du prompt | Instruction, CoT, few-shot (aléatoire / par similarité), OPRO ; DSPy en infra | Tout LLM local ou API ; VLM ; diffusion (réécriture de prompts) | ✅ | 🟢 principal |
 | [EXEC18](18-rag) | RAG | BM25, dense, hybride RRF, reranker ; Qdrant + TEI + vLLM en infra | Tout LLM local ou API | ✅ | 🟢 principal |
 | [EXEC19](19-outils-agents) | Outils et agents | Function calling, boucle agentique | LLM entraînés aux outils (≥ 3B), API | ✅ | 🟢 principal |
 | [EXEC20](20-calcul-inference) | Calcul à l'inférence | Self-consistency, best-of-N (RM, vraisemblance), self-refine, pass@N | Tout LLM ; code ; diffusion (best-of-N) | ✅ | 🟢 principal |

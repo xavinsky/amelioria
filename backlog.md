@@ -19,7 +19,7 @@ GPU réservé à une autre tâche de Xavier : aucun calcul GPU avant sa confirma
 
 ## Grille des exemples
 
-Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et réserve de chaque exemple : [exemples.yaml](exemples.yaml), source unique affichée par `make liste` et reprise dans le README (`make readme`). Bilan : 17 démontrés, 13 non prouvés ; versions `infra/` non testées. La tâche fil rouge arithmétique est **saturée** pour Qwen2.5-0.5B-Instruct (0,955 d'exactitude avec 256 tokens de génération) : les exemples qui l'utilisent pour enseigner une compétence ne peuvent rien démontrer.
+Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et réserve de chaque exemple : [exemples.yaml](exemples.yaml), source unique affichée par `make liste` et reprise dans le README (`make readme`). Bilan : 18 démontrés, 12 non prouvés ; versions `infra/` non testées. La tâche fil rouge arithmétique est **saturée** pour Qwen2.5-0.5B-Instruct (0,955 d'exactitude avec 256 tokens de génération) : les exemples qui l'utilisent pour enseigner une compétence ne peuvent rien démontrer.
 
 ## 1. Terminer la passe finale en cours
 
@@ -39,6 +39,7 @@ Relire les papiers de chaque méthode (`docs/references.md`) avant d'implémente
 - [x] **Tâche commune « routage de demandes clients »** : banking77 (77 intentions, 10 003 exemples d'entraînement, 3 080 de test), liste des intentions en message système, non-régression sur l'arithmétique, remélange de 15 % de demandes générales (réponses du modèle d'origine).
   - 02 SFT complet : 0,231 → 0,904 ; non-régression 0,955 → 0,765 (0,025 sans remélange). Variante encodeur ModernBERT : 0,937 en 85 s.
   - 03 LoRA : 0,229 → 0,891 ; non-régression 0,955 → 0,95 ; adaptateur désactivé 0,955.
+- [x] **17 prompt sur banking77** : zéro-shot 0,229 ; consigne OPRO 0,263 ; 8 exemples les plus proches 0,816 ; témoin sans LLM (vote des voisins) 0,920.
 - [ ] **Raisonnement vérifiable** : GSM8K (7 473 / 1 319), tâche des papiers de référence.
   - 05 RL : GRPO/DAPO sur GSM8K avec récompense vérifiable (DeepSeekMath, DAPO) ; test complet 1 319.
   - 07 données synthétiques : rejection sampling fine-tuning sur GSM8K (RFT, STaR).

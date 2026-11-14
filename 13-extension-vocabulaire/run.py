@@ -89,7 +89,14 @@ def main():
 
     nouveaux = cfg.vocabulaire.get("liste") or candidats(tok, train, cfg.vocabulaire.n_nouveaux, cfg.vocabulaire.min_freq)
     print(f"[vocabulaire] {len(nouveaux)} nouveaux tokens, ex. {nouveaux[:8]}")
-    mesure = lambda m, t: {"tokens_corpus_test": sum(len(t(x)["input_ids"]) for x in test), "bits_par_caractere": bits_par_caractere(m, t, test)}
+    caracteres = sum(len(x) for x in test)
+
+    def mesure(m, t):
+        """Sur les textes jamais vus : longueur en tokens (coût de génération et de contexte) et qualité."""
+        n_tokens = sum(len(t(x)["input_ids"]) for x in test)
+        return {"tokens_corpus_test": n_tokens, "caracteres_par_token": round(caracteres / n_tokens, 3),
+                "bits_par_caractere": bits_par_caractere(m, t, test)}
+
     avant = mesure(model, tok_ancien)
 
     # Token enregistré avec son espace initial, comme les tokens BPE de mots (« ĠKavelmor ») : « le Kavelmor » -> 2 tokens.

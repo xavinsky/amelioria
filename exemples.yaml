@@ -559,13 +559,12 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 17-optimisation-prompt
-    statut: non-prouve
-    fait: "Compare des stratégies de prompt (consigne, raisonnement pas à pas, exemples, optimisation automatique) sur GSM8K."
-    piste: "Tester sur les 1 319 questions de test pour resserrer l'intervalle, ou une tâche où la consigne compte davantage."
+    statut: demontre
+    fait: "Compare des stratégies de prompt (consigne, consigne optimisée par OPRO, exemples au hasard, exemples les plus proches) pour router des messages bancaires vers 77 intentions, sans entraînement."
     duree_test: "18 s"
-    duree_complet: "20 min"
-    resultat: "GSM8K : zéro-shot 0,60 ; instruction 0,67 ; CoT 0,67 ; few-shot 0,535 ; OPRO 0,575"
-    reserve: écarts dans l'intervalle de confiance
+    duree_complet: "8 min"
+    resultat: "intentions : zéro-shot 0,229 ; consigne OPRO 0,263 ; 8 exemples au hasard 0,312 ; 8 exemples les plus proches 0,816 (n = 3 080)"
+    reserve: "le vote des 8 exemples les plus proches, sans LLM, fait mieux (0,920)"
     prerequis: {gpu: conseille, api: true}
 
   - chemin: 18-rag

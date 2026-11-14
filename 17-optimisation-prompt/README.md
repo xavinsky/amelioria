@@ -52,7 +52,7 @@ flowchart TD
   classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
   classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
 
-  Hub["Hugging Face Hub<br/>Qwen2.5-1.5B, MiniLM<br/>GSM8K"]
+  Hub["Hugging Face Hub<br/>Qwen2.5-0.5B, MiniLM<br/>banking77"]
   Cache[("cache disque<br/>~/.cache/huggingface")]
   subgraph Py["Processus Python"]
     Run["run.py<br/>stratégies de prompt<br/>boucle OPRO"]
@@ -63,7 +63,7 @@ flowchart TD
   API["Serveur compatible OpenAI<br/>Ollama, vLLM…"]
   Out[("sorties/17-optimisation-prompt/")]
 
-  Hub -- "① HTTPS GET, 1re fois<br/>poids, GSM8K" --> Cache
+  Hub -- "① HTTPS GET, 1re fois<br/>poids, banking77" --> Cache
   Cache -- "② lecture des poids<br/>et des données" --> Run
   Run -- "③ copie des poids<br/>en mémoire GPU" --> GPU
   Run -- "④ ⑧ ⑩ appel Python<br/>chat()" --> Gen
@@ -80,19 +80,19 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=EXEC17` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, stratégies comparées, nombre d'exemples, réglages de l'optimisation, données) et charge GSM8K depuis le Hugging Face Hub : 500 problèmes d'entraînement, qui servent seulement de réserve d'exemples pour le few-shot, et 260 problèmes de test, coupés en 60 de validation et 200 de test. Aucun poids n'est modifié. Le modèle est chargé en local par défaut ; avec `make run EX=EXEC17 API=http://localhost:11434/v1 MODELE=qwen3:8b`, il est servi par une API compatible OpenAI.
+`make run EX=EXEC17` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, stratégies comparées, nombre d'exemples, réglages de l'optimisation, données). La tâche est celle de [DATA02](../02-fine-tuning-supervise) et [DATA03](../03-peft) : router les messages de clients d'une banque vers l'une de 77 intentions (banking77), la liste des intentions figurant dans le message système de toutes les stratégies. Les 10 003 messages d'entraînement donnent 9 803 exemples pour le few-shot et 200 messages de validation, qui servent à choisir ; les 3 080 messages de test servent à confirmer. Aucun poids n'est modifié. Le modèle est chargé en local par défaut ; avec `make run EX=EXEC17 API=http://localhost:11434/v1 MODELE=qwen3:8b`, il est servi par une API compatible OpenAI.
 
-- **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-1.5B-Instruct et de l'encodeur all-MiniLM-L6-v2, ainsi que le jeu `openai/gsm8k`, sont téléchargés depuis le Hugging Face Hub, par HTTPS.
+- **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-0.5B-Instruct et de l'encodeur all-MiniLM-L6-v2, ainsi que le jeu banking77, sont téléchargés depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** `commun/generateur.py` charge le modèle avec transformers et copie ses poids en bf16 dans la mémoire du GPU. En mode API, cette étape n'a pas lieu.
-- **④ Stratégies simples.** Pour `zero_shot`, `instruction`, `cot` et `few_shot`, `run.py` construit une conversation par question (consigne système, 4 exemples tirés au hasard pour `few_shot`, « Let's think step by step » pour `cot`) et appelle `chat()`, d'abord sur la validation, puis sur le test.
-- **⑤ Génération sur le GPU.** Les conversations passent par lots de 16 ; le modèle produit chaque réponse token par token, en décodage glouton, jusqu'à 384 tokens. Le nombre final de chaque réponse est comparé au résultat attendu.
+- **④ Stratégies simples.** Pour `zero_shot`, `instruction` et `few_shot`, `run.py` construit une conversation par message : la consigne (`prompts.instruction`) pour `instruction`, 8 exemples message → intention tirés au hasard pour `few_shot`, en tours de dialogue. Il appelle `chat()`, d'abord sur la validation, puis sur le test.
+- **⑤ Génération sur le GPU.** Les conversations passent par lots de 32 ; le modèle produit au plus 16 tokens en décodage glouton, dont la première ligne doit être l'intention attendue.
 - **⑤' Génération par API.** Quand `modele.api_base` est renseigné, `chat()` envoie chaque conversation au serveur par HTTP POST sur `/v1/chat/completions` à la place de ⑤ (de même pour ⑨ et ⑪) ; c'est le serveur qui génère.
-- **⑥ Recherche d'exemples proches.** Pour `few_shot_similaires`, `run.py` charge all-MiniLM-L6-v2 avec sentence-transformers et encode les 500 problèmes d'entraînement et les questions.
-- **⑦ Embeddings sur le GPU.** Chaque texte devient un vecteur normalisé ; le produit scalaire donne la similarité cosinus, et les 4 exemples les plus proches de chaque question sont retenus.
-- **⑧ Few-shot par similarité.** Les conversations sont reconstruites avec ces 4 exemples, puis envoyées à `chat()`.
+- **⑥ Recherche d'exemples proches.** Pour `few_shot_similaires`, `run.py` charge all-MiniLM-L6-v2 avec sentence-transformers et encode les 9 803 exemples et les messages à classer.
+- **⑦ Embeddings sur le GPU.** Chaque texte devient un vecteur normalisé ; le produit scalaire donne la similarité cosinus, et les 8 exemples les plus proches de chaque message sont retenus. Leurs intentions servent aussi au témoin : un vote majoritaire, sans LLM.
+- **⑧ Few-shot par similarité.** Les conversations sont reconstruites avec ces 8 exemples, puis envoyées à `chat()`.
 - **⑨ Génération sur le GPU**, avec le même décodage qu'en ⑤.
-- **⑩ Optimisation de l'instruction.** Boucle de type OPRO : 4 tours où le modèle lui-même (ou `optimiseur.nom` s'il est renseigné) reçoit les instructions déjà essayées avec leur score et en propose 4 nouvelles, échantillonnées à température 1,0 ; chaque proposition est notée sur les 60 questions de validation. La meilleure est ensuite mesurée sur le test.
+- **⑩ Optimisation de l'instruction.** Boucle de type OPRO : 4 tours où le modèle lui-même (ou `optimiseur.nom` s'il est renseigné) reçoit les instructions déjà essayées avec leur score et en propose 4 nouvelles, échantillonnées à température 1,0 ; chaque proposition est notée sur les 200 messages de validation. La meilleure est ensuite mesurée sur le test.
 - **⑪ Génération sur le GPU**, pour les propositions comme pour les mesures.
 - **⑫ Écriture du rapport** dans `sorties/17-optimisation-prompt/resultats.json`, avec le même tableau affiché dans le terminal.
 
@@ -102,24 +102,48 @@ flowchart TD
 
 | Fichier | Contenu |
 |---|---|
-| `resultats.json` | Pour chaque stratégie : exactitude en validation et en test, début de la première réponse de test ; stratégie la meilleure en validation ; instruction retenue par l'optimisation ; historique de toutes les instructions essayées avec leur score de validation |
+| `resultats.json` | Pour chaque stratégie et pour le témoin des voisins : exactitude en validation et en test, avec intervalle à 95 % et réponse de chaque message ; comparaisons appariées avec le zéro-shot ; stratégie la meilleure en validation ; instruction retenue par l'optimisation ; historique de toutes les instructions essayées avec leur score de validation |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
 ## Utilisation
 
 ```bash
 python run.py --quick
-python run.py                                                      # 6 stratégies, Qwen2.5-1.5B-Instruct
+python run.py                                                      # 5 stratégies et le témoin, Qwen2.5-0.5B-Instruct, banking77, ~8 min
 python run.py --set modele.api_base=http://localhost:11434/v1 --set modele.nom=qwen3:8b       # modèle servi par Ollama
 python run.py --set optimiseur.nom=Qwen/Qwen2.5-7B-Instruct         # un optimiseur plus fort
-python run.py --set "strategies=[few_shot, few_shot_similaires]" --set k_exemples=8
+python run.py --set "strategies=[few_shot, few_shot_similaires]" --set k_exemples=4
+# Raisonnement mathématique (GSM8K), où la consigne et le raisonnement pas à pas comptent davantage :
+python run.py --set donnees.source=gsm8k --set donnees.n_train=500 --set evaluation.mode=nombre \
+  --set evaluation.dev_depuis_train=false --set evaluation.n_dev=60 --set evaluation.n_test=200 \
+  --set evaluation.max_new_tokens=384 --set evaluation.systeme=null --set k_exemples=4 \
+  --set "strategies=[zero_shot, instruction, cot, few_shot, few_shot_similaires, optimisation]" \
+  --set "prompts.instruction=Solve the problem. Show the intermediate calculations, then finish with 'Answer: <number>'." \
+  --set "optimisation.tache=solve math word problems"
 ```
 
 ## Ce que fait l'exemple
 
-1. Mesure chaque stratégie sur 60 questions de validation, puis sur 200 questions de test.
-2. Pour `optimisation` : 4 tours de 4 propositions d'instruction, chacune évaluée sur la validation.
-3. Rapport : exactitude validation et test par stratégie, meilleure stratégie selon la validation, instruction trouvée et historique complet de l'optimisation.
+**Le besoin** : le même routage de messages bancaires vers 77 intentions qu'en [DATA02](../02-fine-tuning-supervise), sans rien entraîner. Jusqu'où va-t-on en ne changeant que le prompt ?
+
+**Résultats** (Qwen2.5-0.5B-Instruct, RTX 5070 Ti Laptop ; 3 080 messages de test) :
+
+| Stratégie | Exactitude | Écart apparié avec le zéro-shot |
+|---|---|---|
+| `zero_shot` : la liste des intentions seule | 0,229 [0,214 ; 0,244] | |
+| `instruction` : consigne rédigée à la main | 0,225 [0,211 ; 0,240] | −0,004, non significatif |
+| `optimisation` : consigne trouvée par OPRO | 0,263 [0,248 ; 0,279] | +0,035 [+0,023 ; +0,046] |
+| `few_shot` : 8 exemples au hasard | 0,312 [0,296 ; 0,329] | +0,083 [+0,067 ; +0,100] |
+| **`few_shot_similaires` : les 8 exemples les plus proches** | **0,816** [0,802 ; 0,829] | **+0,587** [+0,569 ; +0,606] |
+| Témoin sans LLM : vote des 8 exemples les plus proches | 0,920 [0,910 ; 0,929] | +0,691 |
+
+Pour comparaison, sur les mêmes messages : SFT complet 0,904 ([DATA02](../02-fine-tuning-supervise)), LoRA 0,891 ([DATA03](../03-peft)), encodeur ModernBERT fine-tuné 0,937.
+
+**Ce qu'on en retient.**
+
+- **La consigne compte peu ici** : rédigée ou optimisée, elle ne change l'exactitude que de quelques points. Le modèle sait déjà ce qu'on attend ; ce qui lui manque, c'est de savoir à quoi ressemble chaque intention.
+- **Les exemples choisis par similarité changent tout** : 0,229 → 0,816, sans entraînement, en montrant au modèle des messages proches avec leur intention. C'est la stratégie de prompt à essayer en premier dès qu'on dispose d'exemples annotés.
+- **Mais le témoin montre d'où vient le gain** : le simple vote des intentions de ces 8 exemples, sans LLM, fait mieux (0,920). Le gain vient de la recherche des bons exemples, et le petit LLM en perd une partie. Pour une classification pure avec des exemples annotés, un classifieur (voisins, encodeur fine-tuné) est le bon outil ; le prompt d'un LLM se justifie quand la sortie doit être rédigée, ou quand on n'a pas d'exemples.
 
 ## Paramètres principaux (`config.yaml`)
 
@@ -128,9 +152,12 @@ python run.py --set "strategies=[few_shot, few_shot_similaires]" --set k_exemple
 | `modele.nom`, `modele.api_base` | Modèle local ou API |
 | `optimiseur.*` | Modèle qui propose des instructions |
 | `strategies` | Stratégies comparées |
-| `k_exemples`, `embeddings` | Few-shot |
+| `k_exemples`, `embeddings` | Few-shot : nombre d'exemples, encodeur qui trouve les plus proches |
+| `prompts.instruction`, `prompts.cot` | Consigne de départ, et phrase ajoutée par la stratégie `cot` |
+| `optimisation.tache` | Description de la tâche donnée à l'optimiseur OPRO |
 | `optimisation.tours`, `candidats` | Budget de recherche |
-| `evaluation.n_dev`, `n_test` | Validation (choix) et test (confirmation) |
+| `evaluation.n_dev`, `n_test`, `dev_depuis_train` | Validation (choix) et test (confirmation) ; validation prise dans l'entraînement pour garder le test entier |
+| `evaluation.systeme` | Cadre commun à toutes les stratégies ; `{intentions}` y est remplacé par la liste des intentions |
 
 ## Grosse infra
 
@@ -142,6 +169,7 @@ python run.py --set "strategies=[few_shot, few_shot_similaires]" --set k_exemple
 ## Pièges
 
 - **Surapprentissage du prompt** : toujours un jeu de test séparé.
+- **Un témoin sans LLM** : quand les exemples sont choisis par similarité, comparer au vote de ces mêmes exemples. Ici il fait mieux que le LLM.
 - **Sensibilité** : l'ordre des exemples, le format et même les espaces changent les scores. Comparer sur assez d'exemples (≥ 200) pour que les écarts soient significatifs.
 - **CoT et petits modèles** : le raisonnement explicite aide surtout au-delà de quelques milliards de paramètres.
 - **Modèles de raisonnement** (o1, R1, Qwen3 thinking) : ils raisonnent déjà. Le CoT et le few-shot de raisonnement peuvent *dégrader* leurs résultats.
