@@ -24,16 +24,51 @@ def taux_format(model, tok, test, cfg):
     return round(sum(bool(re.search(r"Answer:\s*-?\d+\s*\.?$", s.strip())) for s in sorties) / len(sorties), 4)
 
 
+def chemin_de_calcul(solution):
+    """Suite des nombres d'une solution : deux solutions qui font les mêmes calculs dans le même ordre ont la même."""
+    return tuple(n.replace(",", "") for n in re.findall(r"\d[\d,]*(?:\.\d+)?", solution))
+
+
+def justes_distinctes(sols, cible, toutes):
+    """Solutions justes d'une question : toutes celles dont le chemin de calcul diffère (RFT), ou une seule au hasard."""
+    justes = [s.strip() for s in sols if evaluation.correct(s, cible, "nombre")]
+    if not toutes:
+        return [random.choice(justes)] if justes else []
+    vus, gardees = set(), []
+    for s in justes:
+        if chemin_de_calcul(s) not in vus:
+            vus.add(chemin_de_calcul(s))
+            gardees.append(s)
+    return gardees
+
+
 def strategie_rejet(cfg, gen, tok_gen, questions):
+    g = cfg.generation
     prompts = [modeles.prompt_texte(tok_gen, q["question"]) for q in questions]
     candidats = modeles.generer(gen, tok_gen, prompts, max_new_tokens=cfg.evaluation.max_new_tokens,
-                                temperature=cfg.generation.temperature, n=cfg.generation.k, batch=cfg.generation.batch)
-    gardes = []
+                                temperature=g.temperature, n=g.k, batch=g.batch)
+    gardes, ratees = [], []
     for q, sols in zip(questions, candidats):
-        justes = [s.strip() for s in sols if evaluation.correct(s, q["cible"], "nombre")]
-        if justes:
-            gardes.append({"question": q["question"], "reponse": random.choice(justes), "cible": q["cible"]})
-    return gardes, {"questions_resolues": round(len(gardes) / len(questions), 4)}
+        justes = justes_distinctes(sols, q["cible"], g.get("toutes_justes"))
+        gardes += [{"question": q["question"], "reponse": s, "cible": q["cible"]} for s in justes]
+        if not justes:
+            ratees.append(q)
+    stats = {"questions_resolues": round(1 - len(ratees) / len(questions), 4),
+             "solutions_gardees": len(gardes)}
+    if g.get("rationalisation") and ratees:
+        # STaR : pour une question ratée, le modèle reçoit la réponse attendue en indice et rédige le raisonnement
+        # qui y mène. On le garde s'il aboutit à cette réponse sans citer l'indice, puis on l'entraîne sur la
+        # question seule, sans l'indice.
+        indices = [modeles.prompt_texte(tok_gen, f"{q['question']}\n\n{g.indice.format(cible=q['cible'])}") for q in ratees]
+        rationalisees = modeles.generer(gen, tok_gen, indices, max_new_tokens=cfg.evaluation.max_new_tokens,
+                                        temperature=g.temperature, n=g.k_rationalisation, batch=g.batch)
+        n_avant = len(gardes)
+        for q, sols in zip(ratees, rationalisees):
+            sols = [s for s in sols if not re.search(r"\b(hint|given answer|correct (final )?answer is)\b", s, re.I)]
+            justes = justes_distinctes(sols, q["cible"], False)
+            gardes += [{"question": q["question"], "reponse": s, "cible": q["cible"]} for s in justes]
+        stats["rationalisations_gardees"] = len(gardes) - n_avant
+    return gardes, stats
 
 
 def strategie_self_instruct(cfg, gen, tok_gen, questions):

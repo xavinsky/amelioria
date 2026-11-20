@@ -4,15 +4,22 @@ modele:
   dtype: float32
 
 croissance:
-  methode: profondeur               # profondeur (SOLAR) | expansion_blocs (LLaMA Pro) | moe (upcycling -> Mixtral)
+  methode: expansion_blocs          # expansion_blocs (LLaMA Pro) | profondeur (SOLAR) | moe (upcycling -> Mixtral)
   m: 8                              # profondeur : 32 couches -> 2 x (32 - 8) = 48 couches
   tous_les: 4                       # expansion_blocs : une couche identité après chaque groupe de 4 (32 -> 40)
   n_experts: 4                      # moe
   top_k: 2
   bruit_experts: 0.0                # moe : bruit relatif ajouté aux experts pour casser la symétrie
 
-donnees:
-  n_textes: 8000
+domaine:                            # ce qu'on veut apprendre : une langue que le modèle connaît mal
+  nom: wikimedia/wikipedia
+  config: 20231101.br               # Wikipédia en breton
+  colonne: text
+  n_textes: 5000                    # 4 000 articles d'entraînement, 1 sur 5 gardé pour le test
+  n_test: 200
+
+donnees:                            # ce qu'on ne doit pas perdre : anglais général (wikitext-2, split test)
+  n_textes: 8000                    # sans section `domaine` : entraînement sur wikitext
   n_test: 100
 
 entrainement:
@@ -20,13 +27,14 @@ entrainement:
   max_steps: 600
   batch: 2
   accumulation: 8
-  lr: 5.0e-5
+  lr: 1.0e-4
   warmup: 50
   scheduler: cosine
   gradient_checkpointing: true
   logging_steps: 20
 
-temoin: true                        # modèle d'origine entraîné pareil, pour isoler l'effet de la croissance
+suivi_tous_les: 50                  # perplexités relevées pendant l'entraînement des deux modèles (comparaison à domaine égal)
+temoin: true                        # modèle d'origine entraîné en entier, mêmes textes, mêmes pas : pré-entraînement continu classique
 
 sauvegarder: true
 
@@ -37,6 +45,9 @@ quick:
     m: 10
     tous_les: 10
     n_experts: 2
+  domaine:
+    n_textes: 40
+    n_test: 4
   donnees:
     n_textes: 50
     n_test: 4
@@ -46,4 +57,5 @@ quick:
     batch: 2
     accumulation: 1
     gradient_checkpointing: false
+  suivi_tous_les: 1
   sauvegarder: false

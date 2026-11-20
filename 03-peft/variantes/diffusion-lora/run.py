@@ -2,8 +2,14 @@
 
 Recette DreamBooth-LoRA : images du sujet + prompt contenant un identifiant rare ("sks"), perte de débruitage
 standard, seuls les adaptateurs LoRA de l'UNet (couches d'attention) sont entraînés.
+
+Mesure (celle du papier DreamBooth) : chaque prompt d'évaluation est tiré avec les mêmes graines avant et après.
+- fidélité au sujet : similarité DINO (ViT-S/16) moyenne entre une image générée et les photos du sujet ;
+- fidélité au prompt : similarité CLIP entre l'image et le prompt sans l'identifiant (« a dog on the beach »).
+Les écarts après − avant sont appariés image par image (même prompt, même graine).
 """
 
+import json
 import pathlib
 import sys
 
@@ -18,7 +24,7 @@ from peft import LoraConfig
 from peft.utils import get_peft_model_state_dict
 from PIL import Image
 
-from commun import config, modeles, rapport
+from commun import config, modeles, preuve, rapport
 
 
 def images_entrainement(cfg) -> list[Image.Image]:
@@ -42,6 +48,30 @@ def images_entrainement(cfg) -> list[Image.Image]:
     return [Image.open(f).convert("RGB") for f in fichiers[: d.n_images]]
 
 
+@torch.no_grad()
+def mesureur(cfg, dev, refs):
+    """Fonction image(s), prompts -> scores DINO (au sujet) et CLIP (au prompt) de chaque image."""
+    from transformers import AutoImageProcessor, AutoModel, CLIPModel, CLIPProcessor
+
+    dino_proc, dino = AutoImageProcessor.from_pretrained(cfg.mesure.dino), AutoModel.from_pretrained(cfg.mesure.dino).to(dev).eval()
+    clip_proc, clip = CLIPProcessor.from_pretrained(cfg.mesure.clip), CLIPModel.from_pretrained(cfg.mesure.clip).to(dev).eval()
+
+    def dino_vec(imgs):
+        sortie = dino(**dino_proc(images=imgs, return_tensors="pt").to(dev)).last_hidden_state[:, 0]   # jeton [CLS]
+        return F.normalize(sortie.float(), dim=-1)
+
+    sujet = dino_vec(refs)
+
+    def mesurer(imgs, prompts):
+        d = (dino_vec(imgs) @ sujet.T).mean(1)
+        entree = clip_proc(text=[p.replace("sks ", "") for p in prompts], images=imgs, return_tensors="pt", padding=True).to(dev)
+        sortie = clip(**entree)
+        im, tx = F.normalize(sortie.image_embeds.float(), dim=-1), F.normalize(sortie.text_embeds.float(), dim=-1)
+        return d.tolist(), (im * tx).sum(-1).tolist()
+
+    return mesurer
+
+
 def main():
     cfg = config.charger(__file__)
     dev = modeles.appareil()
@@ -52,15 +82,28 @@ def main():
     for m in (unet, vae, text_encoder):
         m.requires_grad_(False)
 
-    def generer(tag):
-        g = torch.Generator(dev).manual_seed(cfg.graine)
-        imgs = pipe([cfg.donnees.prompt] * cfg.evaluation.n_images, num_inference_steps=cfg.evaluation.pas, generator=g,
-                    height=cfg.donnees.resolution, width=cfg.donnees.resolution).images
-        for i, im in enumerate(imgs):
-            im.save(f"{cfg.sortie}/{tag}-{i}.png")
-        return imgs
+    images = images_entrainement(cfg)
+    ev = cfg.evaluation
+    prompts = [p for p in ev.prompts for _ in range(ev.n_graines)]
+    graines = [cfg.graine + i for _ in ev.prompts for i in range(ev.n_graines)]
+    mesurer = mesureur(cfg, dev, images) if cfg.get("mesure") else None
 
-    generer("avant")
+    def generer(tag):
+        imgs = []
+        for i in range(0, len(prompts), ev.batch):
+            gens = [torch.Generator(dev).manual_seed(g) for g in graines[i:i + ev.batch]]
+            imgs += pipe(prompts[i:i + ev.batch], num_inference_steps=ev.pas, generator=gens,
+                         height=cfg.donnees.resolution, width=cfg.donnees.resolution).images
+        for i, im in enumerate(imgs):   # les premières images de chaque prompt
+            if i % ev.n_graines < ev.n_sauvegardees:
+                im.save(f"{cfg.sortie}/{tag}-p{i // ev.n_graines}-{i % ev.n_graines}.png")
+        if not mesurer:
+            return {}
+        dino, clip = mesurer(imgs, prompts)
+        return {"dino_sujet": round(float(np.mean(dino)), 4), "clip_prompt": round(float(np.mean(clip)), 4),
+                "n": len(imgs), "par_image": {"dino": dino, "clip": clip}}
+
+    avant = generer("avant")
 
     unet.add_adapter(LoraConfig(r=cfg.peft.r, lora_alpha=cfg.peft.alpha, init_lora_weights="gaussian",
                                 target_modules=["to_k", "to_q", "to_v", "to_out.0"]))
@@ -69,7 +112,6 @@ def main():
         p.data = p.data.float()   # adaptateurs en fp32, reste du modèle en bf16
     optim = torch.optim.AdamW(params_lora, lr=cfg.entrainement.lr)
 
-    images = images_entrainement(cfg)
     pixels = torch.stack([torch.from_numpy(np.array(im.resize((cfg.donnees.resolution,) * 2))).permute(2, 0, 1) for im in images])
     pixels = (pixels.float() / 127.5 - 1).to(dev, dtype)
     ids = tokenizer([cfg.donnees.prompt], padding="max_length", max_length=tokenizer.model_max_length, return_tensors="pt").input_ids.to(dev)
@@ -98,14 +140,20 @@ def main():
             print(f"[diffusion-lora] pas {pas} perte {np.mean(pertes[-cfg.entrainement.logging_steps:]):.4f}")
 
     unet.eval()
-    generer("apres")
+    apres = generer("apres")
     if cfg.get("sauvegarder", True):
         couches = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
         StableDiffusionPipeline.save_lora_weights(f"{cfg.sortie}/lora", unet_lora_layers=couches, safe_serialization=True)
-    rapport.enregistrer(cfg, entrainement={"perte_debut": round(float(np.mean(pertes[:10])), 4),
-                                           "perte_fin": round(float(np.mean(pertes[-10:])), 4)},
+    ecarts = {f"{m}_apres_moins_avant": preuve.ecart_moyen_apparie(avant["par_image"][m], apres["par_image"][m])
+              for m in ("dino", "clip")} if mesurer else {}
+    if mesurer:
+        with open(f"{cfg.sortie}/mesures-par-image.json", "w", encoding="utf-8") as f:
+            json.dump({"prompts": prompts, "graines": graines, "avant": avant["par_image"], "apres": apres["par_image"]}, f)
+    rapport.enregistrer(cfg, avant={k: v for k, v in avant.items() if k != "par_image"},
+                        apres={k: v for k, v in apres.items() if k != "par_image"}, **ecarts,
+                        entrainement={"perte_debut": round(float(np.mean(pertes[:10])), 4),
+                                      "perte_fin": round(float(np.mean(pertes[-10:])), 4)},
                         images=f"{cfg.sortie}/avant-*.png, apres-*.png")
-
 
 if __name__ == "__main__":
     main()

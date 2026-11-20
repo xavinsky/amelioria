@@ -125,7 +125,7 @@ python run.py --set peft.methode=prompt_tuning
 python run.py --set peft.fusionner=true                      # écrit aussi le modèle fusionné
 for m in lora dora rslora pissa loha lokr ia3 prompt_tuning prefix_tuning; do python run.py --quick --set peft.methode=$m; done
 python variantes/diffusion-lora/run.py --quick               # pipeline SD miniature
-python variantes/diffusion-lora/run.py                       # SD 1.5, 5 photos de chien, ~10 min
+python variantes/diffusion-lora/run.py                       # SD 1.5, 5 photos de chien, mesures DINO et CLIP, ~8 min
 ```
 
 ## Ce que fait l'exemple
@@ -150,6 +150,21 @@ Gain sur les intentions, apparié sur les mêmes messages : +0,662 [+0,645 ; +0,
 - **Et oublie beaucoup moins** : avec le même remélange, l'arithmétique reste à 0,95, contre 0,765 en fine-tuning complet. C'est le résultat de Biderman et al. (2024), *LoRA Learns Less and Forgets Less*.
 - **L'adaptateur se désactive** : sans lui, le modèle est exactement celui d'origine (0,955). Un seul modèle de base peut servir plusieurs tâches, chacune avec son adaptateur de quelques dizaines de Mo.
 - **Le remélange reste nécessaire** : sans lui, même LoRA perd le raisonnement pas à pas (0,33), car il apprend à répondre par un mot.
+
+### Variante diffusion : apprendre un sujet à Stable Diffusion
+
+[`variantes/diffusion-lora`](variantes/diffusion-lora) apprend à Stable Diffusion 1.5 un chien précis, à partir de 5 photos (`diffusers/dog-example`), associé à l'identifiant rare « sks » (recette DreamBooth-LoRA : rang 8 sur l'attention de l'UNet, 500 pas). Les mesures sont celles du papier DreamBooth. Quatre prompts (« a photo of sks dog », « a sks dog on the beach », « … in the snow », « … wearing a red hat ») sont tirés chacun avec 8 graines, les mêmes avant et après : 32 images par état, comparées image par image.
+
+- **Fidélité au sujet** : similarité DINO (ViT-S/16) moyenne entre l'image générée et les 5 photos.
+- **Fidélité au prompt** : similarité CLIP (ViT-B/32) entre l'image et le prompt sans l'identifiant (« a dog on the beach »). Elle vérifie que le modèle place encore le sujet dans la scène demandée au lieu de recopier les photos.
+
+| | Fidélité au sujet (DINO) | Fidélité au prompt (CLIP) |
+|---|---|---|
+| Avant | 0,281 | 0,300 |
+| Après | **0,751** | 0,293 |
+| Écart apparié (32 images), intervalle à 95 % | +0,470 [+0,439 ; +0,500], p < 0,001 | −0,008 [−0,017 ; +0,001], p = 0,11, non significatif |
+
+Pour situer : dans le papier DreamBooth, les photos réelles d'un sujet entre elles donnent 0,774 en DINO, et DreamBooth sur Stable Diffusion 0,668. L'adaptateur occupe 6 Mo et l'exemple complet dure environ 8 minutes. Les images `avant-p*-*.png` et `apres-p*-*.png` (2 par prompt) montrent le même chien sur la plage, dans la neige, avec un bonnet rouge. Réserves : un seul sujet, et les photos de référence de la mesure sont aussi celles de l'entraînement. Le chien garde souvent la pose et le fond orangé des photos, un début de surapprentissage que la « prior preservation » de DreamBooth (images de la classe « dog » mêlées à l'entraînement) sert à limiter.
 
 ## Paramètres principaux (`config.yaml`)
 

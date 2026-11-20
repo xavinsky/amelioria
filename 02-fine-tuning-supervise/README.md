@@ -114,6 +114,7 @@ python run.py --set modele.nom=meta-llama/Llama-3.2-1B-Instruct --set entraineme
 python variantes/classification-encodeur/run.py --quick
 python variantes/vision/run.py --quick
 python variantes/seq2seq/run.py --quick
+python variantes/seq2seq/run.py                              # Flan-T5-base, DialogSum, ~30 min
 python variantes/audio-whisper/run.py --quick
 ```
 
@@ -137,6 +138,21 @@ Gain sur les intentions, apparié sur les mêmes messages : +0,673 [+0,655 ; +0,
 - Le SFT apprend la taxonomie de l'entreprise : +67 points, sur un jeu de test jamais vu.
 - **L'oubli est réel et se mesure.** Entraîné seulement à répondre par un mot, le modèle répond par un mot partout : il ne raisonne plus pas à pas et rate l'arithmétique (0,955 → 0,025). Mêler 15 % de demandes générales, avec les réponses du modèle d'origine, limite fortement cet oubli (0,765) au prix de 3 points sur les intentions. Il en reste une part : LoRA fait mieux sur ce point ([DATA03](../03-peft)).
 - **Pour une classification pure, un encodeur suffit** : ModernBERT-base, 3 fois plus petit, fait aussi bien en 85 s d'entraînement. Le LLM fine-tuné se justifie quand il doit aussi répondre, extraire ou rédiger.
+
+### Variante seq2seq : résumer des dialogues de service client
+
+**Le besoin** : produire le compte rendu d'une conversation (appel, discussion de support) dans le style maison : qui demande quoi, ce qui est proposé, ce qui est décidé. Le modèle d'origine résume trop court et perd les éléments utiles.
+
+[`variantes/seq2seq`](variantes/seq2seq) fine-tune Flan-T5-base (250 M paramètres, encodeur-décodeur) sur DialogSum (`knkarthick/dialogsum`) : 12 460 dialogues avec un résumé rédigé par un annotateur, 2 époques. Mesure : ROUGE-L, recouvrement en mots avec le résumé de référence (plus longue sous-suite commune, F1). Le jeu de test donne plusieurs références par dialogue : on garde la meilleure.
+
+| | ROUGE-L (500 dialogues de test) | Mots par résumé |
+|---|---|---|
+| Flan-T5-base, avant | 0,291 | 14,5 |
+| Après fine-tuning (22 min, 4,3 Gio) | **0,432** | 23,3 |
+
+Gain apparié sur les mêmes dialogues : +0,141 [+0,127 ; +0,156], p de permutation < 10⁻³. Sur un dialogue où une personne n'arrive pas à dormir à cause de ses notes, le modèle d'origine écrit « Person1 is worried about his grades. » (il se trompe de personne et s'arrête là). Après fine-tuning, il donne la cause, les conseils proposés et la réponse, dans la forme des références (`#Person2# …`).
+
+Réserve : ROUGE-L mesure le recouvrement de mots, pas l'exactitude des faits ; une relecture humaine ou un juge reste nécessaire avant un usage réel.
 
 ## Paramètres principaux (`config.yaml`)
 

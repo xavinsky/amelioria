@@ -6,6 +6,9 @@ de plusieurs graines.
 - Comparaison appariée : quand deux modèles répondent aux mêmes questions, on compare question par question.
   L'intervalle de la différence vient d'un bootstrap apparié (rééchantillonnage des questions) ; la p-valeur,
   du test exact de McNemar, qui ne regarde que les questions où les deux modèles divergent.
+- Score continu apparié (similarité d'images, par exemple) : même bootstrap pour l'intervalle de l'écart moyen ;
+  p-valeur d'un test de permutation par inversion de signe (sous l'hypothèse nulle, chaque écart a autant de
+  chances d'être positif que négatif).
 - Graines : moyenne, écart type, minimum et maximum de chaque métrique sur plusieurs exécutions.
 
 Lecture : un gain est net quand l'intervalle de la différence ne contient pas 0 (et p < 0,05).
@@ -75,6 +78,23 @@ def difference_appariee(a: list[bool], b: list[bool], tirages: int = 10_000, gra
     return {"difference": round(sum(ecarts) / n, 4), "ic95": [round(bas, 4), round(haut, 4)],
             "p_mcnemar": mcnemar_exact(a, b), "n": n,
             "net": bas > 0 or haut < 0}
+
+
+def ecart_moyen_apparie(a: list[float], b: list[float], tirages: int = 10_000, graine: int = 0) -> dict:
+    """Écart moyen b − a d'un score continu mesuré sur les mêmes éléments : intervalle à 95 % par bootstrap
+    apparié, p d'un test de permutation par inversion de signe."""
+    import numpy as np
+
+    if len(a) != len(b) or not a:
+        raise ValueError("comparaison appariée : les deux listes doivent porter sur les mêmes éléments")
+    e = np.array(b, dtype=float) - np.array(a, dtype=float)
+    n, rng = len(e), np.random.default_rng(graine)
+    moyennes = np.sort(e[rng.integers(0, n, (tirages, n))].mean(1))
+    signes = rng.choice([-1.0, 1.0], (tirages, n))
+    p = (np.sum(np.abs((signes * e).mean(1)) >= abs(e.mean()) - 1e-12) + 1) / (tirages + 1)
+    bas, haut = float(moyennes[int(0.025 * tirages)]), float(moyennes[int(0.975 * tirages) - 1])
+    return {"difference": round(float(e.mean()), 4), "ic95": [round(bas, 4), round(haut, 4)],
+            "p_permutation": round(float(p), 4), "n": n, "net": bas > 0 or haut < 0}
 
 
 def chercher_succes(section, prefixe: str = "") -> dict[str, list[bool]]:

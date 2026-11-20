@@ -26,9 +26,10 @@ L'intérêt : plus de capacité (profondeur) ou plus de paramètres pour un coû
 
 Le rapport contient :
 
-- les paramètres et le nombre de couches ;
-- la perplexité générale à chaque étape ;
-- l'écart maximal de logits avec l'original (sanity check des transformations censées préserver la fonction).
+- les paramètres, ceux qui sont entraînés et le nombre de couches ;
+- deux perplexités à chaque étape, sur des textes jamais vus : celle du domaine à apprendre et celle de l'anglais général, qu'on ne doit pas perdre ;
+- l'écart maximal de logits avec l'original (vérification des transformations censées préserver la fonction) ;
+- les courbes des deux perplexités pendant l'entraînement, et la comparaison avec le témoin à niveau égal dans le domaine.
 
 ## Modèles concernés
 
@@ -58,13 +59,13 @@ flowchart TD
   classDef gpu fill:#fecaca,stroke:#dc2626,color:#7f1d1d
   classDef disque fill:#dcfce7,stroke:#16a34a,color:#14532d
 
-  Hub["Hugging Face Hub<br/>SmolLM2-360M<br/>wikitext-2"]
+  Hub["Hugging Face Hub<br/>SmolLM2-360M<br/>Wikipédia en breton, wikitext-2"]
   Cache[("cache disque<br/>~/.cache/huggingface")]
   subgraph Py["Processus Python"]
     Run["run.py<br/>charge le modèle<br/>et les textes"]
-    Ev["evaluation.py<br/>perplexité"]
-    Cr["croissance.py<br/>32 → 48 couches"]
-    Tr["Trainer transformers<br/>cicatrisation"]
+    Ev["evaluation.py<br/>deux perplexités"]
+    Cr["croissance.py<br/>32 → 40 couches"]
+    Tr["Trainer transformers<br/>8 nouvelles couches"]
   end
   GPU["GPU CUDA, 12 Go"]
   Out[("sorties/14-croissance-<br/>architecture/")]
@@ -74,7 +75,7 @@ flowchart TD
   Run -- "③ copie des poids<br/>en mémoire GPU" --> GPU
   Run -- "④ ⑧ ⑫ appel Python<br/>trois mesures" --> Ev
   Ev -- "⑤ ⑨ ⑬ noyaux CUDA<br/>forward" --> GPU
-  Run -- "⑥ appel Python<br/>profondeur()" --> Cr
+  Run -- "⑥ appel Python<br/>expansion_blocs()" --> Cr
   Cr -- "⑦ copie de couches<br/>en mémoire GPU" --> GPU
   Run -- "⑩ appel Python<br/>trainer.train()" --> Tr
   Tr -- "⑪ noyaux CUDA<br/>forward, backward" --> GPU
@@ -88,51 +89,74 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=FORM14` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode de croissance, données, réglages) : par défaut, SmolLM2-360M passe de 32 à 48 couches par depth up-scaling (`methode: profondeur`, `m: 8`), puis est cicatrisé par 600 pas de pré-entraînement continu. Les textes sont des paragraphes de Wikipédia du jeu wikitext-2, téléchargé depuis le Hugging Face Hub : 8 000 paragraphes du split `train` pour la cicatrisation, 100 du split `test` pour la perplexité.
+`make run EX=FORM14` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode de croissance, domaine, réglages). Par défaut, SmolLM2-360M passe de 32 à 40 couches par block expansion (`methode: expansion_blocs`, `tous_les: 4`), puis apprend le breton en 600 pas où seules les 8 couches ajoutées sont entraînées. Deux jeux de textes, téléchargés depuis le Hugging Face Hub :
 
-- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de SmolLM2-360M (environ 700 Mo, fichiers safetensors) et datasets télécharge wikitext-2, depuis le Hugging Face Hub, par HTTPS.
+- **Domaine à apprendre** : 5 000 articles tirés au hasard de la Wikipédia en breton (`wikimedia/wikipedia`, `20231101.br`). Un article sur cinq est mis de côté, dont 200 servent au test ; les autres servent à l'entraînement.
+- **Ce qu'on ne doit pas perdre** : 100 paragraphes d'anglais général du split `test` de wikitext-2.
+
+- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de SmolLM2-360M (environ 700 Mo, fichiers safetensors), et datasets télécharge la Wikipédia en breton et wikitext-2, depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en float32 dans la mémoire du GPU. `run.py` y calcule aussitôt les logits du modèle d'origine sur une sonde de 64 tokens, gardés pour la comparaison de ⑧.
-- **④ Mesure de l'origine.** `run.py` compte les paramètres (361,8 millions) et les couches (32), puis appelle `commun/evaluation.py` pour la perplexité sur les 100 paragraphes de test, tronqués à 256 tokens, par lots de 4.
+- **④ Mesure de l'origine.** `run.py` compte les paramètres (361,8 millions) et les couches (32), puis appelle `commun/evaluation.py` pour les deux perplexités : 200 articles bretons et 100 paragraphes anglais, tronqués à 256 tokens.
 - **⑤ Forward sur le GPU.** Une passe avant par lot ; la perplexité est l'exponentielle de la perte moyenne de prédiction du token suivant.
-- **⑥ Croissance.** `run.py` appelle `croissance.profondeur` : le modèle garde ses couches 0 à 23 et reçoit une copie des couches 8 à 31, soit 2 × (32 − 8) = 48 couches. Les indices de couche utilisés par le cache KV sont renumérotés.
-- **⑦ Copie de couches sur le GPU.** Les 24 couches dupliquées sont copiées directement dans la mémoire du GPU : le modèle passe à 519,1 millions de paramètres.
-- **⑧ Mesure du modèle transformé.** Mêmes mesures qu'en ④, plus l'écart maximal entre ses logits et ceux de l'origine sur la sonde de ③ : la couture au milieu du modèle le dégrade.
+- **⑥ Croissance.** `run.py` appelle `croissance.expansion_blocs` : après chaque groupe de 4 couches, une copie de la dernière est insérée, avec ses projections de sortie (`o_proj`, `down_proj`) mises à zéro. La nouvelle couche renvoie exactement son entrée par la connexion résiduelle. Les indices de couche utilisés par le cache KV sont renumérotés.
+- **⑦ Copie de couches sur le GPU.** Les 8 couches ajoutées sont copiées directement dans la mémoire du GPU : le modèle passe à 440,5 millions de paramètres.
+- **⑧ Mesure du modèle transformé.** Mêmes mesures qu'en ④, plus l'écart maximal entre ses logits et ceux de l'origine sur la sonde de ③ : 0, le modèle agrandi est identique à l'original.
 - **⑨ Forward sur le GPU**, comme en ⑤.
-- **⑩ Cicatrisation.** `run.py` confie le modèle au `Trainer` de transformers. Les 8 000 paragraphes sont tokenisés, concaténés et découpés en 2 757 blocs de 512 tokens. Tous les paramètres sont entraînés.
-- **⑪ Forward et backward sur le GPU.** Chaque pas traite 16 blocs (lots de 2, accumulation sur 8) : passe avant, perte du token suivant, passe arrière, mise à jour. 600 pas, soit environ 3,5 passages sur les données, taux d'apprentissage 5e-5 en cosinus après 50 pas de chauffe, gradient checkpointing activé.
-- **⑫ Mesure après cicatrisation.** Les mêmes 100 paragraphes de test sont repassés dans le modèle à 48 couches.
+- **⑩ Entraînement sur le breton.** Les 32 couches d'origine, les embeddings et la tête de sortie sont figés : seules les 8 nouvelles couches apprennent, soit 78,7 millions de paramètres. `run.py` confie le modèle au `Trainer` de transformers. Les articles d'entraînement sont tokenisés, concaténés et découpés en 3 181 blocs de 512 tokens. Tous les 50 pas, un rappel (`Courbe`) remesure les deux perplexités.
+- **⑪ Forward et backward sur le GPU.** Chaque pas traite 16 blocs (lots de 2, accumulation sur 8) : passe avant, perte du token suivant, passe arrière, mise à jour. 600 pas, soit environ 3 passages sur les données, taux d'apprentissage 1e-4 en cosinus après 50 pas de chauffe, gradient checkpointing activé.
+- **⑫ Mesure après entraînement.** Les mêmes textes de test sont repassés dans le modèle à 40 couches.
 - **⑬ Forward sur le GPU**, comme en ⑤.
-- **⑭ Écriture du modèle agrandi** et de son tokenizer dans `sorties/14-croissance-architecture/modele-profondeur/`.
+- **⑭ Écriture du modèle agrandi** et de son tokenizer dans `sorties/14-croissance-architecture/modele-expansion_blocs/`.
 - **⑮ Écriture du rapport** dans `sorties/14-croissance-architecture/resultats.json`, avec le même tableau affiché dans le terminal.
 
-**Témoin.** Avant ⑮, le modèle agrandi quitte le GPU et SmolLM2-360M d'origine (32 couches) y est rechargé. Il est entraîné comme en ⑩ et ⑪ : mêmes textes, mêmes 600 pas, mêmes réglages, puis mesuré comme en ⑫. L'écart avec `apres_cicatrisation` isole l'effet de la croissance, l'entraînement étant le même. `temoin: false` le désactive.
+**Témoin.** Avant ⑮, le modèle agrandi quitte le GPU et SmolLM2-360M d'origine (32 couches) y est rechargé. Il est entraîné en entier, comme dans un pré-entraînement continu classique : mêmes textes, mêmes 600 pas, mêmes réglages, mêmes relevés tous les 50 pas, puis il est mesuré comme en ⑫. Le témoin apprend plus vite. On cherche donc le premier relevé où il atteint le niveau en breton que LLaMA Pro a en fin d'entraînement, puis on compare leurs perplexités en anglais à ce moment-là (section `a_domaine_egal`). `temoin: false` le désactive.
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Il n'y a pas de génération : les mesures (⑤, ⑨, ⑬) sont de simples passes avant sur des textes connus. La croissance (⑦) n'est qu'une copie de tenseurs d'une zone de la mémoire du GPU à une autre, sans calcul. En cicatrisation (⑪), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis la mise à jour par l'optimiseur AdamW, dont l'état existe pour les 519,1 millions de paramètres. Un seul modèle occupe la mémoire du GPU. Le pic mesuré, sur un calibrage aux mêmes réglages de modèle et d'entraînement, est d'environ 9,6 Go.
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Il n'y a pas de génération : les mesures (⑤, ⑨, ⑬ et les relevés) sont de simples passes avant sur des textes connus. La croissance (⑦) n'est qu'une copie de tenseurs d'une zone de la mémoire du GPU à une autre. Pendant l'entraînement de LLaMA Pro (⑪), la passe arrière traverse tout le modèle, mais seuls les gradients et l'état de l'optimiseur AdamW des 8 nouvelles couches sont gardés. Le témoin, lui, entraîne ses 361,8 millions de paramètres. Un seul modèle occupe la mémoire du GPU à la fois.
 
 **Ce qui est écrit.**
 
 | Fichier | Contenu |
 |---|---|
-| `modele-profondeur/model.safetensors` | Les poids du modèle à 48 couches après cicatrisation (2,1 Go, en float32) |
-| `modele-profondeur/config.json`, `generation_config.json` | L'architecture agrandie (`num_hidden_layers: 48`) et les réglages de génération, pour recharger le modèle avec `AutoModelForCausalLM.from_pretrained` |
-| `modele-profondeur/tokenizer.json`, `tokenizer_config.json` | Le tokenizer, copié pour que le dossier se suffise à lui-même |
-| `modele-profondeur/training_args.bin` | Les réglages d'entraînement utilisés |
+| `modele-expansion_blocs/model.safetensors` | Les poids du modèle à 40 couches après entraînement (1,8 Go, en float32) |
+| `modele-expansion_blocs/config.json`, `generation_config.json` | L'architecture agrandie (`num_hidden_layers: 40`) et les réglages de génération, pour recharger le modèle avec `AutoModelForCausalLM.from_pretrained` |
+| `modele-expansion_blocs/tokenizer.json`, `tokenizer_config.json` | Le tokenizer, copié pour que le dossier se suffise à lui-même |
+| `modele-expansion_blocs/training_args.bin` | Les réglages d'entraînement utilisés |
 | `temoin/` | Dossier de travail du Trainer pour le témoin, sans point de contrôle |
-| `resultats.json` | Pour l'origine, le modèle transformé, le modèle cicatrisé et le témoin : paramètres, nombre de couches, perplexité ; écart maximal de logits avec l'origine pour le modèle transformé |
+| `resultats.json` | Pour l'origine, le modèle transformé, le modèle entraîné et le témoin : paramètres, paramètres entraînés, couches, perplexités du domaine et générale ; écart de logits du modèle transformé ; courbes des deux entraînements et comparaison à domaine égal |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
-Avec `SET="croissance.methode=expansion_blocs"` ou `"croissance.methode=moe"`, le dossier du modèle s'appelle `modele-expansion_blocs/` ou `modele-moe/`.
+Avec `SET="croissance.methode=profondeur"` ou `"croissance.methode=moe"`, le dossier du modèle s'appelle `modele-profondeur/` ou `modele-moe/`.
 
 ## Utilisation
 
 ```bash
 python run.py --quick
-python run.py                                                   # SmolLM2-360M 32 -> 48 couches (SOLAR) + 600 pas
-python run.py --set croissance.methode=expansion_blocs          # 32 -> 40 couches, seules les 8 nouvelles apprennent
+python run.py                                                   # SmolLM2-360M 32 -> 40 couches (LLaMA Pro), breton, ~55 min avec le témoin
+python run.py --set domaine.config=20231101.oc                  # une autre langue : occitan
+python run.py --set croissance.methode=profondeur               # 32 -> 48 couches (SOLAR), tout est entraîné
+make graines EX=FORM14 N=3                                      # trois graines : moyenne et écart type (~3 h)
 python run.py --set croissance.methode=moe --set croissance.n_experts=4 --set modele.dtype=auto --set entrainement.optim=adamw_bnb_8bit   # ~1B paramètres : bf16 + AdamW 8 bits
-python run.py --set croissance.methode=profondeur --set croissance.m=12
+python run.py --set domaine=null                                # sans domaine : cicatrisation sur l'anglais général (wikitext)
 ```
+
+## Ce que fait l'exemple
+
+**Le besoin** : apprendre à un modèle une langue ou un domaine qu'il connaît mal, sans lui faire oublier ce qu'il sait. Le pré-entraînement continu classique apprend le domaine mais dégrade le reste. LLaMA Pro ajoute des couches neuves et n'entraîne qu'elles : les poids d'origine ne bougent pas.
+
+**Résultats** (SmolLM2-360M, RTX 5070 Ti Laptop ; 200 articles bretons et 100 paragraphes anglais jamais vus ; 3 graines, `make graines EX=FORM14 N=3`, moyenne ± écart type). Plus la perplexité est basse, mieux le modèle connaît la langue :
+
+| | Paramètres entraînés | Perplexité en breton | Perplexité en anglais |
+|---|---|---|---|
+| Modèle d'origine | | 145,6 | 19,86 |
+| LLaMA Pro, 600 pas | 78,7 M | 10,9 ± 0,3 | **22,0 ± 0,2** |
+| Témoin entraîné en entier, au pas 150 (même niveau en breton) | 361,8 M | 10,3 ± 0,2 | **23,6 ± 0,1** |
+| Témoin entraîné en entier, 600 pas | 361,8 M | 7,8 ± 0,1 | 26,5 ± 0,5 |
+
+- **À niveau égal en breton, LLaMA Pro oublie moins.** Sa perplexité en anglais monte de 2,1 points, celle du témoin de 3,7. L'écart est de 1,57 ± 0,21 point (1,34 à 1,74 selon la graine), et la plus mauvaise graine de LLaMA Pro (22,1) reste sous la meilleure du témoin (23,5). Au point de comparaison, le témoin est même un peu meilleur en breton : la comparaison le favorise.
+- **L'écart se retrouve tout au long de l'entraînement.** À 20 de perplexité en breton, par exemple, LLaMA Pro est à 21,1 en anglais et le témoin à environ 21,9 (courbes dans `resultats.json`).
+- **Le prix.** LLaMA Pro met 4 fois plus de pas pour atteindre ce niveau en breton, et le modèle garde 22 % de paramètres en plus à l'inférence.
+- **Réserves.** Modèle de 360 M paramètres et un seul domaine ; la perplexité est mesurée sur des textes fixes. LLaMA Pro limite l'oubli sans le supprimer : la passe avant change dès que les nouvelles couches apprennent.
 
 ## Paramètres principaux (`config.yaml`)
 
@@ -142,7 +166,10 @@ python run.py --set croissance.methode=profondeur --set croissance.m=12
 | `croissance.m` | Chevauchement SOLAR : couches totales = 2(n-m) |
 | `croissance.tous_les` | Fréquence des blocs identité |
 | `croissance.n_experts`, `top_k`, `bruit_experts` | Configuration MoE |
-| `entrainement.*` | Cicatrisation (pré-entraînement continu) |
+| `domaine.*` | Le domaine à apprendre (jeu Hugging Face, colonne, nombre d'articles et de tests) ; sans cette section, l'entraînement porte sur wikitext |
+| `entrainement.*` | Pré-entraînement continu |
+| `suivi_tous_les` | Intervalle des relevés de perplexité pendant l'entraînement |
+| `temoin` | Entraîner aussi le modèle d'origine en entier, pour comparaison |
 
 ## Grosse infra
 

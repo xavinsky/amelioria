@@ -368,13 +368,12 @@ exemples:
     resultat: "CIFAR-10 0,10 → 0,97"
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/seq2seq
-    statut: non-prouve
-    fait: "Fine-tune FLAN-T5 (encodeur-décodeur) sur des problèmes d'arithmétique."
-    piste: "Une tâche naturellement seq2seq, traduction ou résumé de domaine, mesurée en chrF ou ROUGE."
+    statut: demontre
+    fait: "Fine-tune Flan-T5-base (encodeur-décodeur) pour résumer des dialogues de service client (DialogSum)."
     duree_test: "10 s"
-    duree_complet: "57 s"
-    resultat: "exactitude 0 → 0,22"
-    reserve: l'arithmétique est inadaptée au découpage des nombres de T5
+    duree_complet: "30 min"
+    resultat: "ROUGE-L 0,291 → 0,432 (+0,141 [+0,127 ; +0,156], n = 500)"
+    reserve: ROUGE-L mesure le recouvrement de mots, pas l'exactitude des faits
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/audio-whisper
     statut: non-prouve
@@ -394,13 +393,12 @@ exemples:
     resultat: "intentions 0,229 → 0,891 (n = 3 080) ; non-régression 0,955 → 0,95 ; adaptateur désactivé 0,955"
     prerequis: {gpu: requis, extras_selon: {peft.methode=qlora: [bitsandbytes]}}
   - chemin: 03-peft/variantes/diffusion-lora
-    statut: non-prouve
-    fait: "Apprend un nouveau sujet à Stable Diffusion à partir de quelques images (DreamBooth-LoRA)."
-    piste: "Une mesure chiffrée : similarité DINO ou CLIP entre les images générées et le sujet, avant et après."
+    statut: demontre
+    fait: "Apprend un chien précis à Stable Diffusion 1.5 à partir de 5 photos (DreamBooth-LoRA), mesuré comme dans le papier DreamBooth : similarité DINO au sujet et CLIP au prompt, 4 prompts × 8 graines appariés avant/après."
     duree_test: "20 s"
-    duree_complet: "74 s"
-    resultat: sujet appris à l'inspection visuelle des images
-    reserve: aucune mesure chiffrée
+    duree_complet: "8 min"
+    resultat: "fidélité au sujet (DINO) 0,281 → 0,751 (p < 0,001) ; fidélité au prompt (CLIP) 0,300 → 0,293 (n.s.)"
+    reserve: "un seul sujet, références de mesure = photos d'entraînement ; pose et fond des photos souvent recopiés"
     prerequis: {gpu: requis, extras: [diffusers]}
 
   - chemin: 04-optimisation-preferences
@@ -455,11 +453,11 @@ exemples:
 
   - chemin: 07-donnees-synthetiques
     statut: non-prouve
-    fait: "Le modèle résout 3 000 problèmes de GSM8K 4 fois chacun, garde une solution juste par question et s'entraîne dessus (rejection sampling) ; témoin sur les solutions humaines."
-    piste: "Toutes les solutions justes et distinctes de chaque question (RFT), rationalisation des questions ratées (STaR), une seule époque."
+    fait: "Le modèle résout 3 000 problèmes de GSM8K 8 fois chacun et garde toutes ses solutions justes aux calculs distincts (RFT) ; pour les questions ratées, il rédige un raisonnement à partir de la réponse attendue donnée en indice (STaR). Une époque de SFT sur ces 9 775 solutions ; témoin sur les solutions humaines."
+    piste: "Partir d'un modèle qui n'a pas déjà appris ce raisonnement (Qwen2.5-0.5B de base, amorcé en few-shot), comme dans STaR et RFT ; plafonner le nombre de solutions par question pour ne pas surpondérer les questions faciles (ReST-EM)."
     duree_test: "30 s"
-    duree_complet: "1 h 45"
-    resultat: "GSM8K (n = 1 319) : 0,411 → 0,387 ; témoin solutions humaines 0,301"
+    duree_complet: "3 h 20"
+    resultat: "GSM8K (n = 1 319) : 0,411 → 0,393 (n.s.) ; témoin solutions humaines 0,280 ; non-régression 0,955 → 0,92 (n.s.)"
     reserve: "pas de gain sur le modèle de départ, seulement sur le témoin"
     prerequis: {gpu: requis}
 
@@ -517,13 +515,12 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 14-croissance-architecture
-    statut: non-prouve
-    fait: "Agrandit SmolLM2-360M de 32 à 48 couches (SOLAR) puis le réentraîne ; compare au modèle d'origine entraîné pareil."
-    piste: "La croissance LLaMA Pro (blocs ajoutés, l'original est préservé) et un budget de cicatrisation plus grand, toujours comparés au témoin."
+    statut: demontre
+    fait: "Ajoute 8 couches neutres à SmolLM2-360M (LLaMA Pro) et n'entraîne qu'elles sur la Wikipédia en breton ; compare au modèle d'origine entraîné en entier, sur 3 graines."
     duree_test: "13 s"
-    duree_complet: "24 min"
-    resultat: "perplexité 19,9 → 26,9 (transformé) → 14,9 (cicatrisé) ; témoin sans croissance 14,3"
-    reserve: à entraînement égal, le modèle d'origine fait mieux que le modèle agrandi ; la croissance demande un budget de cicatrisation bien plus grand
+    duree_complet: "55 min"
+    resultat: "breton 145,6 → 10,9 ; anglais 19,9 → 22,0 ; témoin au même niveau en breton : anglais 23,6 (écart 1,57 ± 0,21, 3 graines)"
+    reserve: "LLaMA Pro met 4 fois plus de pas pour atteindre ce niveau en breton et garde 22 % de paramètres en plus"
     prerequis: {gpu: requis}
 
   - chemin: 15-quantification
@@ -546,12 +543,12 @@ exemples:
 
   - chemin: 16-elagage
     statut: non-prouve
-    fait: "Met à zéro 50 % des poids de Qwen2.5-0.5B (Wanda), puis récupère la qualité par distillation."
-    piste: "Plus de pas de distillation, ou un élagage 2:4 moins agressif, pour récupérer la tâche."
+    fait: "Met à zéro 50 % des poids de Qwen2.5-0.5B-Instruct (Wanda), puis récupère la qualité par distillation sur Wikipédia et sur des conversations du modèle d'origine."
+    piste: "Un élagage structuré (couches, largeur), qui accélère réellement, sur un modèle plus grand."
     duree_test: "21 s"
-    duree_complet: "6 min"
-    resultat: "perplexité 22,3 → 37,9 → 25,4 ; tâche 0,88 → 0,31 → 0,42"
-    reserve: la cicatrisation ne récupère qu'une partie de la tâche
+    duree_complet: "20 min"
+    resultat: "tâche 0,88 → 0,34 → 0,66 ; perplexité 22,3 → 37,9 → 25,3 ; 2:4 : tâche 0,38"
+    reserve: la cicatrisation ne récupère qu'une partie de la tâche, sans gain de vitesse en PyTorch standard
     prerequis: {gpu: requis}
 
   - chemin: 17-optimisation-prompt

@@ -16,8 +16,12 @@ principes:
   - "Every intermediate result must be arithmetically correct."
 
 generation:
-  k: 4                              # solutions échantillonnées par question
+  k: 8                              # solutions échantillonnées par question
   temperature: 0.8
+  toutes_justes: true               # RFT : garder toutes les solutions justes aux calculs distincts, pas une seule
+  rationalisation: true             # STaR : questions ratées reprises avec la réponse attendue en indice
+  k_rationalisation: 4
+  indice: "Hint: the correct final answer is {cible}. Solve the problem step by step without mentioning this hint."
   batch: 32
   n_lots: 50                        # self_instruct : nombre de demandes de 10 nouvelles questions
   filtrer: true
@@ -30,7 +34,7 @@ donnees:
 
 entrainement:
   max_length: 768
-  epochs: 2
+  epochs: 1
   batch: 4
   accumulation: 4
   gradient_checkpointing: true
@@ -60,6 +64,7 @@ quick:
   tours: 1
   generation:
     k: 4
+    k_rationalisation: 2
     n_lots: 2
     batch: 8
   donnees:

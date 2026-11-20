@@ -86,36 +86,36 @@ flowchart TD
 - **③ Copie sur le GPU.** Les poids sont copiés en float32 dans la mémoire du GPU. Le même modèle sert de générateur et d'élève (`generateur.nom: null`).
 - **④ Mesure de départ (tour 0).** `run.py` appelle `commun/evaluation.py`, qui pose les 1 319 problèmes de test, puis 200 problèmes d'arithmétique de non-régression, par lots de 32.
 - **⑤ Génération sur le GPU.** Le modèle raisonne jusqu'à 512 tokens, en décodage glouton ; le nombre final est comparé au résultat attendu.
-- **⑥ Échantillonnage.** `run.py` demande 4 solutions par question pour les 3 000 questions, par lots de 32 questions.
-- **⑦ Génération sur le GPU**, cette fois par tirage aléatoire à la température 0,8 : les 4 solutions d'une même question diffèrent.
-- **⑧ Filtrage et écriture.** Pour chaque question, `run.py` garde au hasard une des solutions dont le nombre final est juste, et écarte la question si aucune ne l'est (2 061 questions gardées, 69 %). Le corpus est écrit dans `donnees-tour-1.jsonl`.
+- **⑥ Échantillonnage.** `run.py` demande 8 solutions par question pour les 3 000 questions, par lots de 32 questions.
+- **⑦ Génération sur le GPU**, cette fois par tirage aléatoire à la température 0,8 : les 8 solutions d'une même question diffèrent.
+- **⑧ Filtrage, rationalisation et écriture.** Pour chaque question, `run.py` garde toutes les solutions dont le nombre final est juste et dont la suite de calculs diffère (RFT) : 9 503 solutions, 78 % des questions résolues. Les questions ratées repartent au GPU avec la réponse attendue en indice ; le modèle en rédige 4 raisonnements, et un raisonnement juste qui ne cite pas l'indice est gardé, associé à la question seule (STaR) : 272 de plus. Le corpus est écrit dans `donnees-tour-1.jsonl`.
 - **⑨ Entraînement.** `run.py` confie le modèle et le corpus au SFTTrainer de TRL : fine-tuning complet, perte calculée sur la réponse seulement.
-- **⑩ Forward et backward sur le GPU.** Lots de 4, accumulés 4 fois (16 exemples par pas), 2 époques, taux d'apprentissage 1e-5.
+- **⑩ Forward et backward sur le GPU.** Lots de 4, accumulés 4 fois (16 exemples par pas), 1 époque, taux d'apprentissage 1e-5.
 - **⑪ Remesure**, sur les mêmes problèmes, avec le même décodage qu'en ⑤.
-- **⑫ Témoin.** Le modèle d'origine est rechargé et entraîné de la même façon sur les mêmes 2 061 questions, avec les solutions écrites par les auteurs de GSM8K, puis mesuré.
+- **⑫ Témoin.** Le modèle d'origine est rechargé et entraîné de la même façon sur les mêmes questions, avec une solution écrite par les auteurs de GSM8K pour chacune, puis mesuré.
 - **⑬ Écriture du modèle et du rapport** : `sorties/07-donnees-synthetiques/modele/`, puis `resultats.json`, avec le même tableau affiché dans le terminal.
 
 Avec `tours: 2` ou plus, les étapes ⑥ à ⑪ se répètent sur de nouvelles questions, en échantillonnant avec le modèle du tour précédent : c'est l'auto-amélioration itérée (STaR, ReST-EM).
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑦, ⑫), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées ; à l'échantillonnage (⑦), chaque lot de 32 questions donne 128 suites produites en parallèle ; c'est l'essentiel de la durée (environ 1 h sur 1 h 45). En entraînement (⑩), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis leur mise à jour par l'optimiseur AdamW, dont l'état couvre tous les poids ; le gradient checkpointing recalcule les activations pendant la passe arrière au lieu de les garder. Le filtrage (⑧) se fait sur CPU, en Python. 
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑦, ⑫), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées ; à l'échantillonnage (⑦), chaque lot de 32 questions donne 256 suites produites en parallèle ; c'est l'essentiel de la durée (environ 2 h 30 sur 3 h 20). En entraînement (⑩), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis leur mise à jour par l'optimiseur AdamW, dont l'état couvre tous les poids ; le gradient checkpointing recalcule les activations pendant la passe arrière au lieu de les garder. Le filtrage (⑧) se fait sur CPU, en Python. 
 
 **Ce qui est écrit.**
 
 | Fichier | Contenu |
 |---|---|
-| `donnees-tour-1.jsonl` | Le corpus synthétique, une ligne `{"question", "reponse", "cible"}` par question résolue (2 061 lignes). Réutilisable par 02 ou 03 |
+| `donnees-tour-1.jsonl` | Le corpus synthétique, une ligne `{"question", "reponse", "cible"}` par solution gardée (9 775 lignes). Réutilisable par 02 ou 03 |
 | `modele/model.safetensors` | Tous les poids du modèle après le dernier tour (1,98 Go, en float32) |
 | `modele/config.json`, `generation_config.json` | Architecture Qwen2 et réglages de génération, pour recharger le modèle avec `AutoModelForCausalLM.from_pretrained` |
 | `modele/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
 | `tour-1/`, `temoin/` | Dossiers de travail du trainer, vides : aucun point de contrôle intermédiaire n'est sauvegardé |
-| `resultats.json` | Pour le tour 0, le tour 1 et le témoin : exactitude sur GSM8K et sur la non-régression, avec intervalle à 95 % et réponse de chaque question ; part des questions résolues à l'échantillonnage ; comparaison appariée `synthetique_contre_temoin` |
+| `resultats.json` | Pour le tour 0, le tour 1 et le témoin : exactitude sur GSM8K et sur la non-régression, avec intervalle à 95 % et réponse de chaque question ; part des questions résolues à l'échantillonnage, solutions et rationalisations gardées ; comparaison appariée `synthetique_contre_temoin` |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
 ## Utilisation
 
 ```bash
 python run.py --quick
-python run.py                                                  # rejection sampling sur GSM8K, Qwen2.5-0.5B s'auto-entraîne, ~1 h 45
+python run.py                                                  # RFT + STaR sur GSM8K, Qwen2.5-0.5B s'auto-entraîne, ~3 h 20
 python run.py --set strategie=self_instruct --set donnees.source=arith --set generateur.nom=Qwen/Qwen2.5-1.5B-Instruct
 python run.py --set strategie=critique_revision --set donnees.source=arith
 python run.py --set tours=3                                    # itérer (STaR / ReST-EM)
@@ -125,19 +125,20 @@ Le jeu généré est sauvegardé dans `sorties/.../donnees-tour-N.jsonl`, réuti
 
 ## Ce que fait l'exemple
 
-- **`rejet`** (par défaut) : le modèle produit 4 solutions par question, on garde une solution juste par question résolue, on l'entraîne dessus, on remesure ; un témoin est entraîné pareil sur les solutions humaines.
+- **`rejet`** (par défaut) : le modèle produit 8 solutions par question et garde toutes les justes aux calculs distincts (RFT) ; les questions ratées sont rationalisées à partir de la réponse attendue (STaR) ; une époque de SFT, puis remesure. Un témoin est entraîné pareil sur les solutions humaines. `generation.toutes_justes: false` garde une seule solution juste par question.
 
 **Résultats** (Qwen2.5-0.5B-Instruct, RTX 5070 Ti Laptop ; 1 319 problèmes de test de GSM8K) :
 
 | | GSM8K | Non-régression (arithmétique) |
 |---|---|---|
 | Avant | 0,411 [0,385 ; 0,438] | 0,955 |
-| Entraîné sur ses 2 061 solutions justes | 0,387 [0,361 ; 0,414] | 0,92 |
-| Témoin : solutions humaines des mêmes questions | 0,301 [0,277 ; 0,326] | 0,88 |
+| RFT + STaR : 9 775 solutions écrites par le modèle | 0,393 [0,367 ; 0,419] | 0,92 |
+| Une solution juste par question, 2 époques | 0,387 [0,361 ; 0,414] | 0,92 |
+| Témoin : solutions humaines des mêmes questions | 0,280 [0,256 ; 0,305] | 0,825 |
 
-Écarts appariés : après − avant −0,024 [−0,049 ; +0,002], p = 0,09, non significatif ; synthétique − témoin +0,086 [+0,058 ; +0,115].
+Écarts appariés : RFT + STaR − avant −0,018 [−0,045 ; +0,008], p = 0,19, non significatif ; RFT + STaR − témoin +0,113, p < 0,001.
 
-**Non démontré.** Ses propres solutions valent nettement mieux que les solutions humaines, trop laconiques, mais elles ne font pas progresser le modèle. Ce sont surtout des solutions aux problèmes qu'il sait déjà résoudre, une seule par question. Les pistes des papiers : garder toutes les solutions justes et distinctes d'une question (RFT : des dizaines par question), rationaliser les questions ratées en donnant la réponse au modèle (STaR), une seule époque pour ne pas surapprendre ses propres sorties.
+**Non démontré.** Ses propres solutions valent nettement mieux que les solutions humaines, trop laconiques, mais ne font pas progresser le modèle, qu'on en garde une ou toutes par question. Le modèle de départ est un modèle instruct déjà entraîné à ce raisonnement : 78 % des questions sont résolues en 8 tirages, et réapprendre ses propres solutions justes ne déplace pas son décodage glouton. Le RL en ligne ([SIGN05](../05-rl-en-ligne)), qui pénalise aussi les solutions fausses, le fait progresser (0,411 → 0,465). STaR et RFT partent de modèles de base amorcés en few-shot ; c'est le cadre à reprendre.
 
 - **`self_instruct`** : le générateur écrit de nouveaux problèmes du même style. On ne garde que ceux dont l'expression se calcule, et la réponse vient du calcul lui-même, donc elle est garantie juste.
 - **`critique_revision`** : un principe (« être concis et donner le résultat final sous la forme Answer: N ») guide la critique puis la réécriture.
@@ -149,6 +150,8 @@ Le jeu généré est sauvegardé dans `sorties/.../donnees-tour-N.jsonl`, réuti
 | `strategie` | `rejet`, `self_instruct` ou `critique_revision` |
 | `generateur.nom` | `null` = le modèle entraîné lui-même (auto-amélioration) ; sinon un modèle plus fort |
 | `generation.k`, `temperature` | Diversité des candidats |
+| `generation.toutes_justes` | RFT : toutes les solutions justes aux calculs distincts, sinon une seule par question |
+| `generation.rationalisation`, `k_rationalisation`, `indice` | STaR : raisonnements rédigés à partir de la réponse attendue pour les questions ratées |
 | `tours` | Nombre d'itérations générer / filtrer / entraîner |
 | `principes` | Liste de principes pour `critique_revision` |
 

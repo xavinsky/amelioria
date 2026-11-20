@@ -31,7 +31,7 @@ Un panorama exécutable des méthodes pour améliorer un modèle d'IA : 20 dossi
 - **Exécution** : les 30 exemples tournent en `--quick` et en complet ; toutes les valeurs des sélecteurs passent en `--quick` ; les configs complètes tiennent en mémoire.
 - **Documentation transverse** : `docs/transformers.md`, `docs/schemas-methodes.md` (36 schémas Mermaid validés), `docs/bibliotheques.md`, `docs/references.md` (182 papiers vérifiés sur arXiv), `docs/cahier-des-charges.md`.
 - **Passe complète finale** (code et configs actuels, `logs/complet_final.txt`, un journal par exemple dans `logs/complet/`) : 01 à 15 terminés sans erreur ; arrêtée pour libérer le GPU avant 15 variante GGUF, 16, 17, 18, 19 et 20.
-- **Catalogue** (`exemples.yaml`, `make liste`) : 5 catégories (données, signal, chirurgie, remodeler, sans toucher aux poids) ; 21 exemples démontrés, 9 non prouvés, versions `infra/` non testées.
+- **Catalogue** (`exemples.yaml`, `make liste`) : 5 catégories (données, signal, chirurgie, remodeler, sans toucher aux poids) ; 24 exemples démontrés, 6 non prouvés, versions `infra/` non testées.
 - **Commandes** : `Makefile` racine et un par dossier ; chaque `make test/run` vérifie d'abord les prérequis. Non encore exécuté de bout en bout sur un venv neuf.
 - **Cause principale des refontes** : la tâche fil rouge arithmétique est déjà résolue par Qwen2.5-0.5B-Instruct (0,955) et 1,5B-Instruct (0,995). Les exemples qui l'utilisent pour enseigner une compétence ne démontrent rien. Pour 13 et 14, l'effet n'est pas isolé faute de témoin.
 
@@ -65,14 +65,17 @@ Faits (résultats dans `exemples.yaml` et les README) :
 - [x] **FORM13 vocabulaire**, Wikipédia en breton, 3 graines : −15,8 % de tokens, qualité 2 % sous le témoin.
 - [x] **SIGN06 distillation** sur GSM8K : 0,411 → 0,451 ; témoin sur solutions humaines 0,302.
 - [x] **SIGN05 RL** DAPO sur GSM8K : 0,411 → 0,465, non-régression inchangée.
+- [x] **DATA03 diffusion** : fidélité au sujet DINO 0,281 → 0,751, fidélité au prompt CLIP inchangée.
+- [x] **DATA02 seq2seq** : résumé de dialogues, ROUGE-L 0,291 → 0,432.
+- [x] **FORM14 croissance** : LLaMA Pro sur le breton, 3 graines : à niveau de breton égal, anglais 22,0 contre 23,6 pour le témoin.
 
 À faire, dans cet ordre :
 
-1. [ ] **SIGN07 données synthétiques** : mesuré sur GSM8K sans gain (0,411 → 0,387). Reprendre avec toutes les solutions justes et distinctes de chaque question (RFT), la rationalisation des questions ratées (STaR), une seule époque.
+1. [ ] **SIGN07 données synthétiques** : sans gain sur Qwen2.5-0.5B-Instruct, en rejection sampling (0,387) comme en RFT + STaR (0,393). Reprendre sur Qwen2.5-0.5B de base amorcé en few-shot, avec un plafond de solutions par question (ReST-EM).
 2. [ ] **DATA01 connaissance interne** : entraînement mixte de *Physics of Language Models 3.1* (documents de tous les personnages + questions-réponses d'une moitié), extraction mesurée sur l'autre moitié.
 3. [ ] **SIGN04 préférences** : jeu de préférences réel (UltraFeedback ou HelpSteer), taux de victoire mesuré par un modèle de récompense externe, non-régression.
-4. [ ] **Variantes DATA02 seq2seq et Whisper, DATA03 diffusion** : traduction ou résumé de domaine (chrF) ; audio où Whisper se trompe (accent, bruit) ; score CLIP ou DINO.
-5. [ ] **FORM14 croissance, FORM16 élagage** : budget de cicatrisation plus grand, `expansion_blocs` (LLaMA Pro) ; sinon conclusion « ne paie pas à ce budget ».
+4. [ ] **Variante DATA02 Whisper** : audio où Whisper se trompe (accent, bruit).
+5. [ ] **FORM16 élagage** : Wanda 50 % récupère la tâche à 0,66 sur 0,88 ; élagage structuré ou conclusion documentée.
 6. [ ] **EDIT08 fusion multi-compétences** : fusionner le routage banking77 (DATA02) et le RL GSM8K (SIGN05), mesurer les deux tâches.
 7. [ ] **EDIT09, EDIT11** : jeux d'évaluation plus larges et intervalles de confiance.
 

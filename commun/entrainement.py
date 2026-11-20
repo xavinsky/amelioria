@@ -196,27 +196,31 @@ def remelange(model, tok, r, n_tache: int, cache_dir) -> list[dict]:
     """Exemples de remélange contre l'oubli : des demandes générales et les réponses du modèle AVANT entraînement.
 
     Mêlés aux exemples de la tâche (part `r.part`), ils apprennent au modèle à garder sa façon de répondre hors de
-    la tâche : sans eux, un SFT sur des réponses d'un mot rend le modèle laconique partout. Les réponses sont
-    générées une fois puis gardées en cache (même modèle, mêmes demandes -> mêmes réponses).
+    la tâche : sans eux, un SFT sur des réponses d'un mot rend le modèle laconique partout.
     Renvoie des exemples au format commun, sans message système (`systeme: None`).
     """
+    n = round(r.get("part", 0.15) * n_tache / (1 - r.get("part", 0.15)))
+    return reponses_du_modele(model, tok, n, cache_dir, r.get("max_new_tokens", 512), r.get("batch", 32), r.get("graine", 0))
+
+
+def reponses_du_modele(model, tok, n: int, cache_dir, max_new_tokens: int = 512, batch: int = 32, graine: int = 0) -> list[dict]:
+    """n demandes générales (Alpaca) et les réponses complètes du modèle, générées une fois puis gardées en cache
+    (même modèle, mêmes demandes -> mêmes réponses). Sert au remélange et à la distillation sur des conversations."""
     import json
     import pathlib
 
     from . import donnees
 
-    n = round(r.get("part", 0.15) * n_tache / (1 - r.get("part", 0.15)))
     cache = pathlib.Path(cache_dir) / f"{model.config._name_or_path.replace('/', '--')}-{n}-complets.json"
     if cache.exists():
         return json.loads(cache.read_text())
     # Une réponse coupée par la limite de tokens apprendrait au modèle à s'arrêter en pleine phrase : on n'en garde
     # que des complètes, en générant pour plus de demandes qu'il n'en faut.
-    limite = r.get("max_new_tokens", 512)
-    consignes = donnees.consignes_generales(2 * n, r.get("graine", 0))
+    consignes = donnees.consignes_generales(2 * n, graine)
     reponses = modeles.generer(model, tok, [modeles.prompt_texte(tok, c) for c in consignes],
-                               max_new_tokens=limite, batch=r.get("batch", 32))
+                               max_new_tokens=max_new_tokens, batch=batch)
     exemples = [{"question": c, "reponse": rep.strip(), "systeme": None} for c, rep in zip(consignes, reponses)
-                if len(tok(rep, add_special_tokens=False)["input_ids"]) < limite - 1][:n]
+                if len(tok(rep, add_special_tokens=False)["input_ids"]) < max_new_tokens - 1][:n]
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_text(json.dumps(exemples, ensure_ascii=False))
     return exemples

@@ -20,9 +20,20 @@ entrainement:
   lr: 1.0e-4
   logging_steps: 50
 
-evaluation:
-  n_images: 2
+evaluation:                         # chaque prompt tiré avec les mêmes graines avant et après
+  prompts:
+    - "a photo of sks dog"
+    - "a sks dog on the beach"
+    - "a sks dog in the snow"
+    - "a sks dog wearing a red hat"
+  n_graines: 8                      # 4 prompts × 8 graines = 32 images par état
+  batch: 4
   pas: 30
+  n_sauvegardees: 2                 # images écrites en PNG, par prompt et par état
+
+mesure:                             # métriques du papier DreamBooth
+  dino: facebook/dino-vits16        # fidélité au sujet : similarité aux photos du sujet
+  clip: openai/clip-vit-base-patch32  # fidélité au prompt : similarité image-texte
 
 sauvegarder: true
 
@@ -39,6 +50,9 @@ quick:
     batch: 2
     logging_steps: 5
   evaluation:
-    n_images: 1
+    prompts: ["a sks checkerboard pattern", "a sks checkerboard pattern on a wall"]
+    n_graines: 2
+    batch: 2
     pas: 2
+    n_sauvegardees: 2
   sauvegarder: false

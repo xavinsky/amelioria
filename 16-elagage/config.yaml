@@ -13,10 +13,11 @@ calibration:
 
 cicatrisation:
   mode: distillation                # aucune | lm | distillation
-  n_textes: 4000
+  n_textes: 4000                    # paragraphes Wikipédia
+  n_conversations: 1765             # demandes générales + réponses du modèle d'origine (même cache que le remélange de DATA02/03)
   longueur_bloc: 256
   entrainement:
-    max_steps: 300
+    max_steps: 1000
     batch: 2
     accumulation: 8
     optim: adamw_bnb_8bit           # AdamW 8 bits : l'enseignant (original) tient à côté de l'élève
@@ -31,7 +32,7 @@ donnees:
 
 evaluation:
   mode: nombre
-  n: 100
+  n: 300
   max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
   n_textes_generaux: 50
 
@@ -46,6 +47,7 @@ quick:
   cicatrisation:
     mode: lm
     n_textes: 40
+    n_conversations: 11
     longueur_bloc: 64
     entrainement:
       max_steps: 2

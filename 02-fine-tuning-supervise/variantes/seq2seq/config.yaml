@@ -4,22 +4,30 @@ modele:
   nom: google/flan-t5-base          # google/flan-t5-large, facebook/bart-large, google/mt5-base, facebook/nllb-200-distilled-600M
 
 donnees:
-  source: arith
-  niveau: 1                         # une opération : T5 découpe les nombres irrégulièrement (« 51 », « ▁51 »), le calcul lui est difficile
-  n_train: 5000
+  source: hf
+  nom: knkarthick/dialogsum         # conversations du quotidien et du travail, résumées par des annotateurs
+  champs: {question: dialogue, reponse: summary}
+  n_train: 12460                    # tout le jeu d'entraînement
+  n_test_lignes: 1500               # 500 conversations de test × 3 résumés de référence
+  consigne: "Summarize the following dialogue:\n"
+  # source: arith                   # problèmes d'arithmétique (evaluation.mode: nombre, consigne: "")
 
 entrainement:
-  max_length: 128
-  epochs: 3
-  batch: 32
-  lr: 3.0e-4                        # T5 supporte (et préfère) des lr élevés
+  max_length: 512                   # conversation en entrée
+  max_length_cible: 128             # résumé
+  epochs: 2
+  batch: 4
+  accumulation: 4
+  gradient_checkpointing: true
+  lr: 1.0e-4
   warmup: 0.05
   logging_steps: 50
 
 evaluation:
-  mode: nombre
-  n: 200
-  max_new_tokens: 64
+  mode: rouge_l                     # rouge_l (résumés) | nombre (arithmétique)
+  n: 500                            # conversations de test
+  max_new_tokens: 96
+  batch: 32
 
 sauvegarder: true
 
@@ -27,10 +35,13 @@ quick:
   modele:
     nom: google/flan-t5-small
   donnees:
-    n_train: 128
+    n_train: 64
+    n_test_lignes: 48
   entrainement:
     epochs: 1
-    batch: 16
+    batch: 8
+    accumulation: 1
   evaluation:
-    n: 16
+    n: 8
+    max_new_tokens: 32
   sauvegarder: false

@@ -74,7 +74,7 @@ Les jeux réels (GSM8K, UltraFeedback, TOFU, SST-2, CIFAR-10, MLS...) se branche
 | `modeles.py` | Chargement de LLM (bf16/fp32, bitsandbytes, multi-GPU), prompts, génération, log-probs, couches. `sans_autocast` retire l'autocast qu'accelerate laisse sur le modèle après un entraînement : les mesures avant/après se font dans la même précision |
 | `donnees.py` | Jeux fil rouge, banking77, demandes générales du remélange, chargeurs Hugging Face |
 | `evaluation.py` | Exactitude (avec intervalle à 95 % et détail par question), perplexité, évaluation pilotée par la config |
-| `preuve.py` | Intervalle de Wilson, comparaison appariée (bootstrap, McNemar), agrégation de plusieurs graines |
+| `preuve.py` | Intervalle de Wilson, comparaison appariée (bootstrap, McNemar), écart moyen apparié d'un score continu (bootstrap, permutation), agrégation de plusieurs graines |
 | `entrainement.py` | Arguments communs, SFT (TRL) avec durée et pic de mémoire GPU, remélange, LM causal, tokenisation pour boucles manuelles, LoRA. `liberer` rend la mémoire de l'optimiseur après l'entraînement |
 | `generateur.py` | Chat unifié modèle local / API compatible OpenAI |
 | `rapport.py` | `resultats.json` + tableau, intervalles et comparaisons appariées |

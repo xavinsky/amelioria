@@ -2,11 +2,15 @@
 
 Méthodes (`--set methode=...`) : magnitude, wanda, 2:4 (non structuré / semi-structuré) ; couches, largeur (structuré).
 Cicatrisation (`--set cicatrisation.mode=...`) : aucune | lm (pré-entraînement continu) | distillation (depuis l'original).
+La cicatrisation lit du texte Wikipédia et, pour un modèle de conversation, des conversations : demandes générales
+(Alpaca) et réponses du modèle d'origine (`cicatrisation.n_conversations`). Ces dernières entretiennent ce que
+le texte brut n'exerce pas : suivre une consigne et répondre dans le format appris.
 Étapes : mesurer -> élaguer -> mesurer -> cicatriser -> mesurer -> sauvegarder.
 """
 
 import copy
 import pathlib
+import random
 import sys
 import time
 
@@ -68,6 +72,12 @@ def main():
     textes_test = donnees.textes_generaux(cfg.evaluation.n_textes_generaux, graine=123, split="test")
     test = donnees.charger_qa(cfg.donnees, "test", cfg.evaluation.n)
     res = {"origine": mesurer(cfg, model, tok, test, textes_test)}
+    c = cfg.cicatrisation
+    # Conversations de cicatrisation : générées par le modèle d'origine avant l'élagage (cache partagé avec le remélange).
+    conversations = [modeles.prompt_texte(tok, e["question"]) + e["reponse"] + tok.eos_token
+                     for e in entrainement.reponses_du_modele(model, tok, c.n_conversations,
+                                                              pathlib.Path(cfg.sortie).parent / "cache-remelange")]\
+        if c.mode != "aucune" and c.get("n_conversations") else []
     # Enseignant de la cicatrisation : copie de l'original, en précision de calcul (il ne sert qu'en inférence).
     original = copy.deepcopy(model).to(modeles.dtype_calcul()).eval().requires_grad_(False) if cfg.cicatrisation.mode == "distillation" else None
 
@@ -89,9 +99,9 @@ def main():
         raise ValueError(m)
     res["elague"] = mesurer(cfg, model, tok, test, textes_test)
 
-    c = cfg.cicatrisation
     if c.mode != "aucune":
-        textes = donnees.textes_generaux(c.n_textes, graine=cfg.graine)
+        textes = donnees.textes_generaux(c.n_textes, graine=cfg.graine) + conversations
+        random.Random(cfg.graine).shuffle(textes)
         if c.mode == "lm":
             trainer = entrainement.lm_causal(model, tok, textes, c.entrainement, cfg.sortie, c.longueur_bloc, callbacks=rappels)
         else:

@@ -50,8 +50,8 @@ Entraîner les poids sur des exemples, texte brut ou paires question/réponse.
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
 | [DATA01](01-pre-entrainement-continu) | Pré-entraînement continu | Continued pretraining, DAPT, adaptation à une langue, MLM continu | LLM de base ; encodeurs (variante MLM) ; seq2seq, vision, audio (même principe) | ⚠️ ≤ 1,5B · ☁️ | 🟡 principal · 🟢 mlm-encodeur |
-| [DATA02](02-fine-tuning-supervise) | Fine-tuning supervisé | SFT, instruction tuning, fine-tuning complet | LLM ; variantes : encodeur (classification), vision (ViT), seq2seq (T5), speech (Whisper) | ⚠️ ≤ 1B (LLM), ✅ autres | 🟢 principal · 🟢 classification-encodeur · 🟢 vision · 🟡 seq2seq · 🟡 audio-whisper |
-| [DATA03](03-peft) | PEFT (LoRA, QLoRA...) | LoRA, QLoRA, DoRA, rsLoRA, PiSSA, LoHa, LoKr, IA³, prompt et prefix tuning | Tous (couches linéaires) ; variante : diffusion (DreamBooth-LoRA) | ✅ ≤ 3B (LoRA), ≤ 8B (QLoRA) | 🟢 principal · 🟡 diffusion-lora |
+| [DATA02](02-fine-tuning-supervise) | Fine-tuning supervisé | SFT, instruction tuning, fine-tuning complet | LLM ; variantes : encodeur (classification), vision (ViT), seq2seq (T5), speech (Whisper) | ⚠️ ≤ 1B (LLM), ✅ autres | 🟢 principal · 🟢 classification-encodeur · 🟢 vision · 🟢 seq2seq · 🟡 audio-whisper |
+| [DATA03](03-peft) | PEFT (LoRA, QLoRA...) | LoRA, QLoRA, DoRA, rsLoRA, PiSSA, LoHa, LoKr, IA³, prompt et prefix tuning | Tous (couches linéaires) ; variante : diffusion (DreamBooth-LoRA) | ✅ ≤ 3B (LoRA), ≤ 8B (QLoRA) | 🟢 principal · 🟢 diffusion-lora |
 
 ### SIGN · Apprendre à partir d'un signal
 
@@ -83,7 +83,7 @@ Changer la forme du modèle (fenêtre de contexte, vocabulaire, couches, précis
 |---|---|---|---|---|---|
 | [FORM12](12-extension-contexte) | Extension de contexte | Position Interpolation, NTK dynamique, YaRN, ABF | LLM à RoPE ; VLM (M-RoPE) ; encodeurs RoPE | ⚠️ petits modèles, 8k · ☁️ | 🟢 principal |
 | [FORM13](13-extension-vocabulaire) | Extension de vocabulaire | Added tokens, fusion BPE, init par moyenne, entraînement en 2 phases | LLM, encodeurs, seq2seq, tokens spéciaux VLM | ✅ ≤ 1B | 🟢 principal |
-| [FORM14](14-croissance-architecture) | Croissance d'architecture | Depth up-scaling (SOLAR), block expansion (LLaMA Pro), upcycling MoE | LLM famille LLaMA/Mistral ; encodeurs, ViT | ⚠️ transformation ✅, cicatrisation ☁️ | 🟡 principal |
+| [FORM14](14-croissance-architecture) | Croissance d'architecture | Depth up-scaling (SOLAR), block expansion (LLaMA Pro), upcycling MoE | LLM famille LLaMA/Mistral ; encodeurs, ViT | ⚠️ transformation ✅, cicatrisation ☁️ | 🟢 principal |
 | [FORM15](15-quantification) | Quantification | bitsandbytes, torchao, GPTQ, AWQ, QAT ; variante GGUF llama.cpp | Tous : LLM, MoE, encodeurs, VLM, diffusion, Whisper | ✅ | 🟢 principal · 🟢 gguf-llamacpp |
 | [FORM16](16-elagage) | Élagage | Magnitude, Wanda, 2:4, suppression de couches, réduction de largeur + cicatrisation | LLM ; encodeurs ; CNN/ViT ; diffusion | ⚠️ ≤ 0,5B avec cicatrisation · ☁️ | 🟡 principal |
 
