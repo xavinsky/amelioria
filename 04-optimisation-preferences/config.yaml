@@ -17,31 +17,48 @@ peft:
   modules: all-linear
 
 donnees:
-  source: arith                     # arith (paires : bon calcul vs erreur de calcul) | hf
-  niveau: 2
-  n_train: 2000
+  source: hf                        # hf (vraies préférences) | arith (paires : bon calcul vs erreur de calcul)
+  nom: trl-lib/ultrafeedback_binarized   # 62 135 paires : demandes variées, réponses de 17 modèles notées par GPT-4
+  split_train: train
+  split_test: test
+  n_train: 16000
   graine: 0
-  # source: hf
-  # nom: trl-lib/ultrafeedback_binarized
-  # split_train: train
-  # split_test: test
+  niveau: 2                         # arith : difficulté
+
+juge:                               # modèle de récompense externe : note les réponses aux demandes de test
+  nom: Skywork/Skywork-Reward-V2-Qwen3-1.7B
+  max_length: 2048
+  batch: 8
+
+temoin_sft:                         # même LoRA sur les seules réponses préférées : ce qu'apporte l'imitation sans la préférence
+  activer: true
+  entrainement:
+    lr: 1.0e-4                      # taux d'usage d'un SFT LoRA
 
 entrainement:
-  max_length: 512
+  max_length: 1024
   epochs: 1
-  batch: 2                          # 2 x 8 = lot effectif de 16
-  accumulation: 8
+  batch: 1                          # 1 x 16 = lot effectif de 16
+  accumulation: 16
   gradient_checkpointing: true
-  lr: 5.0e-6                        # LoRA : 5e-6 à 5e-5 ; DPO complet : 1e-7 à 1e-6, avec optim: adamw_bnb_8bit sur 12 Go
+  lr: 5.0e-5                        # LoRA : 5e-6 à 5e-5 ; DPO complet : 1e-7 à 1e-6, avec optim: adamw_bnb_8bit sur 12 Go
   warmup: 0.1
   scheduler: cosine
   logging_steps: 20
 
 evaluation:
-  mode: nombre
+  n_prompts: 500                    # demandes de test : réponses du modèle de départ et du modèle entraîné, notées par le juge
+  n_paires: 300                     # paires de test : part où le modèle préfère la réponse préférée (log-prob par token)
+  max_new_tokens: 512
+  batch: 32
+  non_regression:                   # tâche hors sujet que le modèle réussit : elle ne doit pas se dégrader
+    source: arith
+    niveau: 2
+    n: 200
+    mode: nombre
+    max_new_tokens: 256
+  mode: nombre                      # source arith : exactitude sur n problèmes
   n: 200
-  n_paires: 100
-  max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
 
 sauvegarder: true
 
@@ -49,13 +66,18 @@ quick:
   modele:
     nom: HuggingFaceTB/SmolLM2-135M-Instruct
   donnees:
-    n_train: 32
+    n_train: 16
+  juge:
+    nom: Skywork/Skywork-Reward-V2-Qwen3-0.6B
   entrainement:
-    batch: 4
+    max_length: 256
+    batch: 2
     accumulation: 1
-    lr: 5.0e-6
   evaluation:
-    n: 8
-    n_paires: 16
-    max_new_tokens: 48
+    n_prompts: 6
+    n_paires: 8
+    max_new_tokens: 32
+    non_regression:
+      n: 4
+      max_new_tokens: 32
   sauvegarder: false

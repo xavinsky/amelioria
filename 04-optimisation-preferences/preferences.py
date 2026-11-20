@@ -103,3 +103,51 @@ def construire_trainer(cfg, model, tok, paires: list[dict], sortie: str):
         return KTOTrainer(model=model, args=KTOConfig(**commun), train_dataset=Dataset.from_list(non_appariees),
                           processing_class=tok, peft_config=peft_config)
     raise ValueError(f"algo inconnu : {algo} (disponibles : {ALGOS})")
+
+
+def prompts_test(cfg, n: int, longueur_max: int = 2000) -> list[str]:
+    """Demandes du split de test du jeu de préférences (premier message de l'utilisateur), jamais vues à
+    l'entraînement ; les très longues sont écartées pour borner la génération."""
+    from datasets import load_dataset
+
+    d = cfg.donnees
+    ds = load_dataset(d.nom, split=d.split_test).shuffle(seed=d.graine)
+    prompts = [ex["chosen"][0]["content"] for ex in ds if len(ex["chosen"][0]["content"]) <= longueur_max]
+    return prompts[:n]
+
+
+def repondre(model, tok, prompts: list[str], ev) -> list[str]:
+    """Réponses en décodage glouton : la même demande donne la même réponse, la comparaison est appariée."""
+    textes = [modeles.prompt_texte(tok, p) for p in prompts]
+    return [r.strip() for r in modeles.generer(model, tok, textes, max_new_tokens=ev.max_new_tokens, batch=ev.get("batch", 32))]
+
+
+@torch.no_grad()
+def noter(j, prompts: list[str], jeux: dict[str, list[str]]) -> dict[str, list[float]]:
+    """Note de chaque (demande, réponse) par un modèle de récompense externe (section `juge` de la config).
+
+    Le juge n'a vu ni le modèle entraîné ni ses sorties : il départage deux réponses à la même demande."""
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+    tok = AutoTokenizer.from_pretrained(j.nom)
+    juge = AutoModelForSequenceClassification.from_pretrained(j.nom, dtype=torch.bfloat16, num_labels=1).to(modeles.appareil()).eval()
+    notes = {}
+    for nom, reponses in jeux.items():
+        textes = [tok.apply_chat_template([{"role": "user", "content": p}, {"role": "assistant", "content": r}], tokenize=False)
+                  for p, r in zip(prompts, reponses)]
+        res = []
+        for i in range(0, len(textes), j.get("batch", 8)):
+            enc = tok(textes[i : i + j.get("batch", 8)], return_tensors="pt", padding=True, truncation=True,
+                      max_length=j.get("max_length", 2048), add_special_tokens=False).to(juge.device)
+            res += juge(**enc).logits[:, 0].float().tolist()
+        notes[nom] = res
+    del juge
+    torch.cuda.empty_cache()
+    return notes
+
+
+def victoires(notes_a: list[float], notes_b: list[float]) -> dict:
+    """Taux de victoire de b contre a (note du juge strictement plus haute) : 0,5 = aussi bien l'un que l'autre."""
+    from commun import preuve
+
+    return preuve.taux([b > a for a, b in zip(notes_a, notes_b)], "taux_victoire")

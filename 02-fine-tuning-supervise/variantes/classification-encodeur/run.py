@@ -13,7 +13,7 @@ import numpy as np
 from datasets import load_dataset
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, DataCollatorWithPadding, Trainer, TrainingArguments
 
-from commun import config, entrainement, modeles, preuve, rapport
+from commun import config, entrainement, modeles, preuve, rapport, reprise
 
 
 def main():
@@ -47,7 +47,7 @@ def main():
     )
     avant = trainer.evaluate()  # tête de classification aléatoire : ~ hasard
     avant_taux = preuve.taux(dernier["succes"])
-    trainer.train()
+    reprise.entrainer(trainer)
     apres = trainer.evaluate()
 
     if cfg.get("sauvegarder", True):

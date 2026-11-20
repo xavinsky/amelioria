@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import pathlib
 
-from . import preuve
+from . import preuve, reprise
 
 
 def _aplatir(d: dict, prefixe: str = "") -> dict:
@@ -68,6 +68,7 @@ def enregistrer(cfg, **sections) -> pathlib.Path:
         if tache and tache.get("exemples"):
             ex = tache["exemples"][0]
             print(f"\n[{nom}] Q: {ex['question'][:120]}\n  -> {ex['sortie'][:200]!r} (attendu {ex['attendu']})")
+    reprise.nettoyer()
     print(f"\nrésultats complets : {chemin}")
     print("=" * 70)
     return chemin

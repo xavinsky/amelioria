@@ -22,7 +22,7 @@ import torch.nn.functional as F  # noqa: E402
 from transformers import Trainer, TrainingArguments  # noqa: E402
 
 import elagage  # noqa: E402
-from commun import config, donnees, entrainement, evaluation, modeles, rapport  # noqa: E402
+from commun import config, donnees, entrainement, evaluation, modeles, rapport, reprise  # noqa: E402
 
 
 class TrainerDistillation(Trainer):
@@ -111,7 +111,7 @@ def main():
                                           train_dataset=entrainement.blocs_texte(tok, textes, c.longueur_bloc),
                                           data_collator=DataCollatorForLanguageModeling(tok, mlm=False), enseignant=original,
                                           callbacks=rappels)
-            trainer.train()
+            reprise.entrainer(trainer)
         model = trainer.model
         res["cicatrise"] = mesurer(cfg, model, tok, test, textes_test)
 

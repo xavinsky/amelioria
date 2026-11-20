@@ -403,12 +403,12 @@ exemples:
 
   - chemin: 04-optimisation-preferences
     statut: non-prouve
-    fait: "DPO sur des paires « raisonnement juste / raisonnement avec une erreur de calcul »."
-    piste: "De vraies préférences (UltraFeedback, HelpSteer), un taux de victoire mesuré par un modèle de récompense externe, et un contrôle de non-régression."
-    duree_test: "23 s"
-    duree_complet: "4 min"
-    resultat: "génération 0,955 → 0,985 ; marge de préférence 0,40 → 0,91"
-    reserve: préférences artificielles, gain proche de l'intervalle de confiance
+    fait: "DPO LoRA de Qwen2.5-0.5B-Instruct sur 16 000 paires UltraFeedback ; un modèle de récompense externe compare ses réponses à celles du modèle de départ ; témoin SFT sur les réponses préférées."
+    piste: "Deux graines de plus pour confirmer le gain, ou partir d'un modèle non aligné (base + SFT) où la marge est plus grande."
+    duree_test: "1 min"
+    duree_complet: "2 h"
+    resultat: "victoires contre le départ 0,552 [0,508 ; 0,595] ; témoin SFT 0,380 ; non-régression 0,955 → 0,975"
+    reserve: "une seule graine ; gain faible sur un modèle déjà aligné par ses auteurs"
     prerequis: {gpu: requis}
   - chemin: 04-optimisation-preferences/variantes/dpo-iteratif
     statut: non-prouve

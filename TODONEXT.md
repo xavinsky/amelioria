@@ -9,7 +9,7 @@ Un panorama exécutable des méthodes pour améliorer un modèle d'IA : 20 dossi
 ## À lire avant d'agir
 
 1. [docs/cahier-des-charges.md](docs/cahier-des-charges.md) : critères et grille de validation d'un exemple.
-2. [exemples.yaml](exemples.yaml) (`make liste`) : catégories, statut, résultat et prérequis de chaque exemple ; [backlog.md](backlog.md) : plan détaillé.
+2. [exemples.yaml](exemples.yaml) (`make liste`) : catégories, statut, résultat et prérequis de chaque exemple ; [backlog.md](backlog.md) : plan détaillé. [estimations.md](estimations.md) : temps de code et de calcul de chaque démonstration manquante, à mettre à jour après chaque tâche.
 3. [session-status.md](session-status.md) : avancement (journal daté des étapes), environnement, faits techniques établis, journaux.
 4. [README.md](README.md), [docs/structure-commune.md](docs/structure-commune.md), puis le README et le `run.py` du dossier sur lequel on travaille.
 5. [docs/references.md](docs/references.md) : papiers à relire avant de refondre une méthode.
@@ -19,6 +19,7 @@ Un panorama exécutable des méthodes pour améliorer un modèle d'IA : 20 dossi
 - **GPU (RTX 5070 Ti Laptop, 11,5 Gio utilisables)** : partagé entre les projets de Xavier, tout calcul passe par le skill `gpu-local`.
 - Calculs longs : lancer détachés (`setsid nohup bash -c '...' > journal 2>&1 &`) puis sonder le journal. Les tâches d'arrière-plan de Claude Code sont arrêtées par le garde-fou mémoire à cause du swap des autres applications, alors que la RAM reste disponible.
 - Décharger les modèles Ollama avant un entraînement.
+- Interruption : un calcul arrêté (GPU à rendre) se relance avec la même commande ; il reprend au dernier point de contrôle d'entraînement (toutes les 10 min) et relit les phases déjà terminées (`commun/reprise.py`).
 - Installation d'un poste : `TORCH_INDEX_URL=https://download.pytorch.org/whl/cu130 bash scripts/installer.sh --extras`, puis `bash scripts/installer.sh --llmcompressor` (déjà fait sur ce poste).
 - Commandes : `make test EX=NN [VAR=...]`, `make run EX=NN`, `make smoke`, `make complet EX=NN` (journaux dans `logs/complet/`), `make selecteurs EX=NN`, `make help`. Sur ce poste, préfixer les calculs GPU par `LANCEUR="gpu-local executer --motif ameliorer-modele-ia --"`.
 - Tout changement de statut ou de résultat se fait dans `exemples.yaml`, puis `make readme`.
@@ -73,7 +74,7 @@ Faits (résultats dans `exemples.yaml` et les README) :
 
 1. [ ] **SIGN07 données synthétiques** : sans gain sur Qwen2.5-0.5B-Instruct, en rejection sampling (0,387) comme en RFT + STaR (0,393). Reprendre sur Qwen2.5-0.5B de base amorcé en few-shot, avec un plafond de solutions par question (ReST-EM).
 2. [ ] **DATA01 connaissance interne** : entraînement mixte de *Physics of Language Models 3.1* (documents de tous les personnages + questions-réponses d'une moitié), extraction mesurée sur l'autre moitié.
-3. [ ] **SIGN04 préférences** : jeu de préférences réel (UltraFeedback ou HelpSteer), taux de victoire mesuré par un modèle de récompense externe, non-régression.
+3. [ ] **SIGN04 préférences** : DPO sur UltraFeedback, victoires contre le départ 0,552 [0,508 ; 0,595] sur une graine ; témoin SFT 0,380. À confirmer sur 2 graines (~4 h), ou partir d'un modèle non aligné.
 4. [ ] **Variante DATA02 Whisper** : audio où Whisper se trompe (accent, bruit).
 5. [ ] **FORM16 élagage** : Wanda 50 % récupère la tâche à 0,66 sur 0,88 ; élagage structuré ou conclusion documentée.
 6. [ ] **EDIT08 fusion multi-compétences** : fusionner le routage banking77 (DATA02) et le RL GSM8K (SIGN05), mesurer les deux tâches.

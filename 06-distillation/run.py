@@ -18,7 +18,7 @@ import torch.nn.functional as F
 from datasets import Dataset
 from transformers import Trainer, TrainingArguments
 
-from commun import config, donnees, entrainement, evaluation, modeles, preuve, rapport
+from commun import config, donnees, entrainement, evaluation, modeles, preuve, rapport, reprise
 
 
 class TrainerKD(Trainer):
@@ -75,7 +75,7 @@ def main():
             data_collator=entrainement.collate_causal(tok),
             enseignant=enseignant, temperature=cfg.kd.temperature, alpha=cfg.kd.alpha,
         )
-        trainer.train()
+        reprise.entrainer(trainer)
     elif cfg.mode == "on_policy":
         from trl import DistillationConfig, DistillationTrainer
 
@@ -83,7 +83,7 @@ def main():
         args = DistillationConfig(**entrainement.arguments(e, cfg.sortie, max_completion_length=cfg.evaluation.max_new_tokens,
                                                            temperature=cfg.kd.temperature, beta=cfg.kd.beta_jsd))
         trainer = DistillationTrainer(model=eleve, teacher_model=enseignant, args=args, train_dataset=ds, processing_class=tok)
-        trainer.train()
+        reprise.entrainer(trainer)
     else:
         raise ValueError(cfg.mode)
 

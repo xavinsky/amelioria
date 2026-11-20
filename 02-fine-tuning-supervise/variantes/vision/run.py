@@ -13,7 +13,7 @@ import torch
 from datasets import load_dataset
 from transformers import AutoImageProcessor, AutoModelForImageClassification, Trainer, TrainingArguments
 
-from commun import config, entrainement, modeles, preuve, rapport
+from commun import config, entrainement, modeles, preuve, rapport, reprise
 
 
 def main():
@@ -49,7 +49,7 @@ def main():
     )
     avant = trainer.evaluate()
     avant_taux = preuve.taux(dernier["succes"])
-    trainer.train()
+    reprise.entrainer(trainer)
     apres = trainer.evaluate()
 
     if cfg.get("sauvegarder", True):

@@ -137,4 +137,7 @@ def charger(fichier_script: str, argv=None) -> Cfg:
     with open(pathlib.Path(cfg.sortie) / "config_effective.yaml", "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg.en_dict(), f, allow_unicode=True, sort_keys=False)
     print(f"[config] {nom} | quick={args.quick} | sortie={cfg.sortie}")
+    from . import reprise
+
+    reprise.initialiser(cfg)
     return cfg

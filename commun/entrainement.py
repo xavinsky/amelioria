@@ -6,7 +6,7 @@ import contextlib
 
 from datasets import Dataset
 
-from . import config, modeles
+from . import config, modeles, reprise
 
 # Clés courtes de la section `entrainement` des configs -> champs de transformers.TrainingArguments
 _CORRESPONDANCE = {
@@ -98,7 +98,7 @@ def sft(model, tok, exemples: list[dict], e, sortie: str, peft_config=None, max_
     trainer = SFTTrainer(model=model, args=conf, train_dataset=Dataset.from_list(exemples),
                          processing_class=tok, peft_config=peft_config)
     with mesurer() as mesures:
-        trainer.train()
+        reprise.entrainer(trainer)
     trainer.mesures = mesures
     return liberer(trainer)
 
@@ -144,7 +144,7 @@ def lm_causal(model, tok, textes: list[str], e, sortie: str, longueur_bloc: int 
         data_collator=DataCollatorForLanguageModeling(tok, mlm=False),
         callbacks=callbacks,
     )
-    trainer.train()
+    reprise.entrainer(trainer)
     return liberer(trainer)
 
 

@@ -18,7 +18,7 @@ from transformers import AutoModelForSequenceClassification  # noqa: E402
 from trl import RewardConfig, RewardTrainer  # noqa: E402
 
 import preferences  # noqa: E402
-from commun import config, entrainement, modeles, preuve, rapport  # noqa: E402
+from commun import config, entrainement, modeles, preuve, rapport, reprise  # noqa: E402
 
 
 @torch.no_grad()
@@ -57,7 +57,7 @@ def main():
     args = RewardConfig(**entrainement.arguments(cfg.entrainement, cfg.sortie, max_length=cfg.entrainement.max_length,
                                                  center_rewards_coefficient=0.01))
     trainer = RewardTrainer(model=model, args=args, train_dataset=Dataset.from_list(paires), processing_class=tok, peft_config=peft_config)
-    trainer.train()
+    reprise.entrainer(trainer)
     apres = exactitude(trainer.model, tok, test)
 
     if cfg.get("sauvegarder", True):

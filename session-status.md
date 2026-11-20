@@ -41,6 +41,7 @@ Une ligne par étape terminée, exemple validé ou en échec, la plus récente e
 | 2026-11-19 | FORM14 : LLaMA Pro (32 → 40 couches, 78,7 M paramètres entraînés) sur la Wikipédia en breton, témoin entraîné en entier, perplexités relevées tous les 50 pas | breton 148,9 → 11,2, anglais 19,9 → 21,8 ; témoin au même niveau en breton (pas 150) : anglais 23,6 ; témoin à 600 pas : breton 7,9, anglais 26,3. Une graine, reste non prouvé | `logs/banking77/run_14b.txt` |
 | 2026-11-20 | DATA02 variante seq2seq : Flan-T5-base fine-tuné 2 époques sur DialogSum (12 460 dialogues), ROUGE-L sur 500 dialogues de test | 0,291 → 0,432 (+0,141 [+0,127 ; +0,156], p < 0,001). Démontré | `logs/banking77/run_02_seq2seq.txt` |
 | 2026-11-20 | FORM14 sur 3 graines (`make graines EX=FORM14 N=3`) | à niveau de breton égal : anglais 22,0 ± 0,2 (LLaMA Pro) contre 23,6 ± 0,1 (témoin), écart 1,57 ± 0,21 ; breton 145,6 → 10,9 ± 0,3. Démontré | `logs/banking77/graines_14.txt` |
+| 2026-11-20 | SIGN04 sur UltraFeedback : DPO LoRA de Qwen2.5-0.5B-Instruct, juge Skywork-Reward-V2-Qwen3-1.7B sur 500 demandes de test, témoin SFT sur les réponses préférées | 4 000 paires, lr 2e-5 : victoires 0,506 (n.s.) ; 16 000 paires, lr 5e-5 : victoires 0,552 [0,508 ; 0,595], note +0,40 (p = 0,005), non-régression 0,955 → 0,975 ; témoin SFT 0,380, non-régression 0,860. Une graine, reste non prouvé | `logs/banking77/run_04.txt`, `logs/banking77/run_04b.txt` |
 
 ## Environnement
 

@@ -19,7 +19,7 @@ import torch
 from datasets import Dataset
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, DataCollatorForSeq2Seq, Seq2SeqTrainer, Seq2SeqTrainingArguments
 
-from commun import config, donnees, entrainement, evaluation, modeles, preuve, rapport
+from commun import config, donnees, entrainement, evaluation, modeles, preuve, rapport, reprise
 
 
 def mots(texte):
@@ -94,7 +94,7 @@ def main():
         train_dataset=ds, data_collator=DataCollatorForSeq2Seq(tok, model=model),
     )
     with entrainement.mesurer() as mesures:
-        trainer.train()
+        reprise.entrainer(trainer)
     apres = mesurer(trainer.model, tok, test, cfg)
 
     if cfg.get("sauvegarder", True):

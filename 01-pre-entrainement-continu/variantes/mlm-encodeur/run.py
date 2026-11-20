@@ -13,7 +13,7 @@ sys.path.insert(0, str(next(p for p in pathlib.Path(__file__).resolve().parents 
 from datasets import Dataset
 from transformers import AutoModelForMaskedLM, AutoTokenizer, DataCollatorForLanguageModeling, Trainer, TrainingArguments
 
-from commun import config, donnees, entrainement, modeles, rapport
+from commun import config, donnees, entrainement, modeles, rapport, reprise
 
 
 def main():
@@ -38,7 +38,7 @@ def main():
         data_collator=collator,
     )
     perte_avant = trainer.evaluate()["eval_loss"]
-    trainer.train()
+    reprise.entrainer(trainer)
     perte_apres = trainer.evaluate()["eval_loss"]
 
     if cfg.get("sauvegarder", True):

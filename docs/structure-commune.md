@@ -78,4 +78,5 @@ Les jeux réels (GSM8K, UltraFeedback, TOFU, SST-2, CIFAR-10, MLS...) se branche
 | `entrainement.py` | Arguments communs, SFT (TRL) avec durée et pic de mémoire GPU, remélange, LM causal, tokenisation pour boucles manuelles, LoRA. `liberer` rend la mémoire de l'optimiseur après l'entraînement |
 | `generateur.py` | Chat unifié modèle local / API compatible OpenAI |
 | `rapport.py` | `resultats.json` + tableau, intervalles et comparaisons appariées |
+| `reprise.py` | Reprise après interruption : point de contrôle d'entraînement toutes les 10 min, résultats des phases déjà calculées gardés ; une relance avec la même configuration repart de là |
 | `infra/` | accelerate FSDP2 et DeepSpeed ZeRO-3, Slurm multi-nœuds, évaluation lm-eval + vLLM |

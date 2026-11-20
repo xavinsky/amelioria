@@ -14,7 +14,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from datasets import Dataset  # noqa: E402
 
 import recompenses  # noqa: E402
-from commun import config, donnees, entrainement, evaluation, modeles, rapport  # noqa: E402
+from commun import config, donnees, entrainement, evaluation, modeles, rapport, reprise  # noqa: E402
 
 # Réglages qui définissent chaque variante d'algorithme (le reste de la boucle est identique)
 ALGOS = {
@@ -67,7 +67,7 @@ def main():
 
         trainer = GRPOTrainer(model=model, reward_funcs=fonctions, args=GRPOConfig(**commun), train_dataset=ds,
                               processing_class=tok, peft_config=peft_config)
-    trainer.train()
+    reprise.entrainer(trainer)
     apres = evaluation.evaluer(trainer.model, tok, cfg, test)
 
     historique = [h for h in trainer.state.log_history if "reward" in h]
