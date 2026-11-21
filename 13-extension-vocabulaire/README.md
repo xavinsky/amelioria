@@ -152,6 +152,8 @@ make graines EX=FORM13 N=3                                     # trois graines :
 
 Par graine, écart de bits par caractère entre le modèle étendu et le témoin : +0,025, +0,033, +0,031.
 
+**Avec plus d'entraînement** (3 époques par phase, 2 graines ; bits par caractère après la phase 1, après la phase 2, témoin) : 1,624 / 1,708 / 1,690 pour la graine 42 et 1,695 / 1,782 / 1,751 pour la graine 43. Après la phase 2, l'écart avec le témoin est de +0,018 et +0,031 ; après la seule phase 1 (embeddings seuls), le modèle étendu est sous le témoin, mais le témoin n'a pas eu le même budget. Le témoin se dégrade lui aussi avec les époques : le corpus d'entraînement (2 400 articles) est petit et les mêmes textes sont répétés, ce qui mêle sur-apprentissage et budget d'entraînement.
+
 **Ce qu'on en retient.**
 
 - **Le gain de la méthode est la compression** : le même texte breton tient en 16 % de tokens en moins, sur les trois graines. La génération demande autant de passes en moins, et le contexte contient 19 % de texte en plus.

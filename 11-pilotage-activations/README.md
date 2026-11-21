@@ -118,6 +118,21 @@ python run.py --set "pilotage.alphas=[-4, 4]"
 3. **Mode vecteur** : la même mesure pour chaque α. Attendu : α > 0 augmente fortement le taux positif, même pour les demandes négatives ; α < 0 le fait chuter.
 4. **Mode ablation** : attendu, les demandes de texte négatif produisent des textes nettement moins négatifs, avec des poids modifiés de façon permanente.
 
+**Résultats** (Qwen2.5-1.5B-Instruct ; 100 demandes par type ; sujets de test jamais utilisés pour calculer la direction ; 3 graines ; différence avec la génération sans intervention, moyenne des 3 graines) :
+
+| α | Demandes neutres : positivité | note du juge | perte par token | Demandes de texte négatif : positivité | note du juge | perte par token |
+|---|---|---|---|---|---|---|
+| sans intervention | 0,677 | −1,15 | 0,79 | 0,133 | −2,62 | 0,81 |
+| 0,5 | +0,10 | −0,21 | +0,16 | +0,02 | −0,57 | +0,09 |
+| 1,0 | +0,16 | −0,97 | +0,56 | +0,40 | −2,17 | +0,68 |
+| 1,5 | +0,24 | −3,76 | +1,44 | +0,62 | −4,10 | +1,47 |
+| 2,0 | +0,29 | −6,17 | +2,17 | +0,77 | −4,94 | +2,05 |
+| −2,0 (concept opposé) | | −3,83 | 2,44 (absolu) | | −4,20 | 1,85 (absolu) |
+
+La note du juge est celle d'un modèle de récompense externe (Skywork 0,6B) sur la réponse à la demande ; la perte par token est celle du texte généré sous le modèle non piloté (plus elle monte, moins le texte est cohérent).
+
+Le pilotage déplace bien le ton : la positivité monte avec α et, à α = 1, les demandes de texte négatif passent de 0,13 à 0,53. Mais la cohérence du texte baisse en même temps : à α = 1 la perte par token augmente de 0,56 et 0,68, et la note du juge de 0,97 et 2,17. À α = 0,5, la cohérence est presque intacte (note du juge non significative), mais l'effet sur les demandes de texte négatif n'est plus net (+0,02, non significatif sur les graines). Aucun α ne donne à la fois une hausse nette de positivité et une cohérence conservée : la variante reste « non prouvée ». Le coût en qualité est mesurable ; c'est un réglage entre effet et cohérence, pas un gain gratuit.
+
 ## Paramètres principaux (`config.yaml`)
 
 | Clé | Rôle |

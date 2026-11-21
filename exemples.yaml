@@ -447,13 +447,13 @@ exemples:
     piste: "Témoin de même style (auto-distillation filtrée), 3 graines."
     prerequis: {gpu: requis}
   - chemin: 06-distillation/variantes/encodeur-classification
-    statut: pret-a-tester
-    fait: "Distille un classifieur de sentiment RoBERTa vers un BERT 10 fois plus petit."
+    statut: non-prouve
+    fait: "Distille un classifieur de sentiment RoBERTa vers un BERT 10 fois plus petit, contre un élève sans enseignant et un élève pseudo-étiqueté sur les mêmes 20 000 textes, 3 graines."
     duree_test: "25 s"
     duree_complet: "78 s"
-    resultat: "sans enseignant 0,758 ; distillé 0,839"
-    reserve: "l'élève distillé voit 18 000 textes de plus que le témoin : distillation et données de transfert sont confondues ; une graine"
-    piste: "Témoin pseudo-étiqueté (mêmes 20 000 textes, étiquettes dures de l'enseignant), 3 graines."
+    resultat: "SST-2 (872 phrases) : sans enseignant 0,768 ± 0,020 ; pseudo-étiqueté 0,827 ± 0,002 ; distillé 0,829 ± 0,006 ; enseignant 0,940. Pseudo-étiqueté contre sans enseignant +0,060, net sur chaque graine ; distillé contre pseudo-étiqueté +0,002, non significatif"
+    reserve: "le gain vient des 18 000 textes annotés par l'enseignant, pas de la distillation par probabilités ; sur 2 classes les probabilités n'ajoutent presque rien aux étiquettes dures"
+    piste: "Un classifieur à beaucoup de classes proches (banking77, 77 intentions), où les probabilités de l'enseignant portent de l'information que l'étiquette dure n'a pas ; mêmes trois élèves."
     prerequis: {gpu: conseille}
 
   - chemin: 07-donnees-synthetiques
@@ -503,13 +503,13 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 11-pilotage-activations
-    statut: pret-a-tester
-    fait: "Rend les réponses plus positives en ajoutant une direction d'activations pendant la génération."
+    statut: non-prouve
+    fait: "Rend les réponses plus positives en ajoutant une direction d'activations pendant la génération, sur des sujets jamais utilisés pour calculer la direction ; cohérence mesurée par un juge externe et la perte par token, 3 graines."
     duree_test: "12 s"
-    duree_complet: "27 s"
-    resultat: "taux de réponses positives 0,60 → 0,97"
-    reserve: "seule la part de textes positifs est mesurée : à α = 2 le texte dérive hors sujet sans que le chiffre le montre ; les sujets du test sont ceux de la direction ; n = 30 par condition, une graine"
-    piste: "Mesurer la cohérence du texte (perplexité, juge), des sujets jamais vus, n = 100, 3 graines."
+    duree_complet: "5 min"
+    resultat: "positivité des demandes de texte négatif 0,13 → 0,53 à α = 1 (+0,40), mais perte par token +0,68 et note du juge −2,17 ; à α = 0,5 la cohérence est presque intacte (note du juge non significative) mais l'effet sur ces demandes n'est plus net (+0,02)"
+    reserve: "aucun α ne donne une hausse nette de positivité avec une cohérence conservée : le pilotage est un réglage entre effet et cohérence, pas un gain gratuit"
+    piste: "Direction calculée sur plus de paires (jeu SST-2) et α choisi sur une courbe effet / cohérence avec un seuil de cohérence fixé avant la mesure."
     prerequis: {gpu: requis}
 
   - chemin: 12-extension-contexte
@@ -523,13 +523,13 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 13-extension-vocabulaire
-    statut: pret-a-tester
+    statut: non-prouve
     fait: "Ajoute 1 000 mots bretons au tokenizer de Qwen2.5-0.5B, les initialise et les entraîne sur la Wikipédia en breton ; compare à un témoin sans nouveaux tokens, sur 3 graines."
     duree_test: "23 s"
     duree_complet: "13 min"
-    resultat: "tokens du texte breton −15,8 % (2,48 → 2,94 caractères par token, 3 graines) ; bits par caractère 1,602 contre 1,572 pour le témoin"
-    reserve: "tokens −15,8 % mesuré sur 3 graines avec témoin, mais à entraînement égal les bits par caractère sont pires que le témoin sans nouveaux tokens (1,569 contre 1,543) : le gain est un coût d'inférence, pas une qualité"
-    piste: "Parité de qualité (bits par caractère au plus égaux au témoin) avec plus d'entraînement, ou annoncer le seul gain d'inférence."
+    resultat: "tokens du texte breton −15,8 % (2,48 → 2,94 caractères par token) ; bits par caractère 1,602 contre 1,572 pour le témoin (1 époque par phase, 3 graines) ; à 3 époques par phase (2 graines) : 1,708 et 1,782 contre 1,690 et 1,751, soit +0,018 et +0,031 ; après la seule phase 1 : 1,624 et 1,695, sous le témoin"
+    reserve: "le gain démontré est un coût d'inférence (−15,8 % de tokens), pas une qualité : après les deux phases les bits par caractère restent au-dessus du témoin sur chaque graine ; le témoin se dégrade lui aussi avec les époques (corpus de 2 400 articles d'entraînement : sur-apprentissage)"
+    piste: "Même budget d'entraînement avec plus de textes (9 000 articles, 1 époque par phase) au lieu de répéter les mêmes ; ou annoncer le seul gain d'inférence."
     prerequis: {gpu: requis}
 
   - chemin: 14-croissance-architecture

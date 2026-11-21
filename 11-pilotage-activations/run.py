@@ -28,7 +28,15 @@ import preferences  # noqa: E402
 from commun import config, modeles, preuve, rapport  # noqa: E402
 
 SUJETS = ["the weather", "my new job", "this restaurant", "the movie", "our neighbourhood", "the train journey",
-          "the concert", "my phone", "the meeting", "the holiday", "this book", "the city", "the hotel", "school", "the game"]
+          "the concert", "my phone", "the meeting", "the holiday", "this book", "the city", "the hotel", "school", "the game",
+          "the opera", "my haircut", "the harbour", "the ice cream van", "the book club", "the zoo", "my dentist", "the playground",
+          "the chess tournament", "the bank", "the post office", "the council meeting", "the vineyard", "the lighthouse", "the carnival",
+          "the fish market", "my laptop charger", "the autumn", "the thunderstorm", "the night shift", "the taxi ride", "the cooking class",
+          "the farmers fair", "the old castle", "the new mayor", "the plane journey", "my yoga class", "the pharmacy", "the barbershop",
+          "the youth hostel", "the camping trip", "the rainy day", "the orchestra", "the poetry reading", "the car wash", "the bus driver",
+          "the elevator", "the fireworks", "the marathon", "my backpack", "the new tablet", "the printer", "the sushi bar", "the fishing trip",
+          "the village fete", "the tennis match", "the cable car", "the street musician", "the flower shop", "the ski resort",
+          "the planetarium", "the pottery workshop", "the heating system", "the roller coaster", "the night train", "the open day"]
 # Sujets de test, jamais utilisés pour calculer la direction : chaque graine en tire une partie.
 SUJETS_TEST = ["the library", "my commute", "the new cafe", "the football match", "my landlord", "the museum", "the bus service",
                "this software update", "the local market", "my gym", "the airport", "the supermarket", "our team meeting", "the park",
@@ -39,6 +47,7 @@ SUJETS_TEST = ["the library", "my commute", "the new cafe", "the football match"
                "the delivery", "the tram", "the town hall", "the language class", "the new phone plan", "the sunrise", "the coffee machine",
                "the school canteen", "the weekend", "the hiking trail", "the art gallery", "the car park", "the swimming pool",
                "the train station", "the bookshop", "the parade"]
+assert not set(SUJETS) & set(SUJETS_TEST), "les sujets de la direction et ceux du test doivent être distincts"
 POSITIF = "I absolutely love {s}, it is wonderful, delightful and makes me so happy."
 NEGATIF = "I absolutely hate {s}, it is terrible, awful and makes me so miserable."
 NEUTRES = ["Write one sentence about {s}.", "Tell me what you think about {s}.", "Describe {s} in a few words."]
@@ -135,6 +144,20 @@ def ecarts(resultats, reference="sans_intervention"):
     return res
 
 
+def verdict_seuil(ec, seuil):
+    """Pour chaque α : la positivité des demandes de texte négatif monte nettement (intervalle apparié qui exclut 0) ET, pour les
+    deux types de demande, la note du juge ne baisse pas de plus de `seuil.note_juge` et la perte par token ne monte pas de plus de
+    `seuil.nll`. Le seuil est fixé dans la configuration avant la mesure."""
+    res = {}
+    for n, par_type in ec.items():
+        neg = par_type["demande_negative"]["positivite"]
+        monte = int(neg["ic95"][0] > 0)
+        coherent = int(all(-t["note_juge"]["difference"] <= seuil["note_juge"] and t["nll_par_token"]["difference"] <= seuil["nll"]
+                           for t in par_type.values()))
+        res[n] = {"positivite_nette": monte, "coherence_conservee": coherent, "satisfait": monte * coherent}
+    return res
+
+
 def sans_details(resultats):
     """Résultats sans les listes par exemple (gardées pour les écarts appariés) ni les textes."""
     return {n: {type_: {k: v for k, v in r.items() if not k.startswith("par_exemple") and k not in ("succes", "textes")}
@@ -178,7 +201,8 @@ def main():
     del classifieur
     coherence(model, tok, cfg, res, {"neutre": neutres, "demande_negative": negatives})
     ec = ecarts(res)
-    rapport.enregistrer(cfg, **sans_details(res), ecarts_avec_sans_intervention=ec)
+    verdict = {"verdict_seuil": verdict_seuil(ec, cfg.evaluation.seuil)} if cfg.evaluation.get("seuil") else {}
+    rapport.enregistrer(cfg, **sans_details(res), ecarts_avec_sans_intervention=ec, **verdict)
 
 
 if __name__ == "__main__":

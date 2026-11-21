@@ -152,16 +152,19 @@ python variantes/encodeur-classification/run.py                 # RoBERTa-base S
 
 **Le besoin** : un classifieur de texte (sentiment, modération, routage) qui tourne sur CPU ou à fort débit, alors que le bon modèle est un gros encodeur. On a peu d'exemples étiquetés, mais beaucoup de textes sans étiquette.
 
-[`variantes/encodeur-classification`](variantes/encodeur-classification) distille RoBERTa-base fine-tuné sur SST-2 (125 M paramètres) vers BERT-mini (11 M), la recette DistilBERT / TinyBERT. L'élève apprend les probabilités de classes de l'enseignant (température 3) ; les deux modèles tokenisent chacun le texte, leurs tokenizers peuvent différer. L'élève voit 2 000 phrases étiquetées et 18 000 phrases sans étiquette annotées par l'enseignant. Témoin : le même élève entraîné sur les seules 2 000 phrases étiquetées, sans enseignant (`alpha=0`). La mesure porte sur les 872 phrases de validation de SST-2.
+[`variantes/encodeur-classification`](variantes/encodeur-classification) distille RoBERTa-base fine-tuné sur SST-2 (125 M paramètres) vers BERT-mini (11 M), la recette DistilBERT / TinyBERT. L'élève apprend les probabilités de classes de l'enseignant (température 3) ; les deux modèles tokenisent chacun le texte, leurs tokenizers peuvent différer. Trois élèves sont comparés, avec le même BERT-mini de départ : sans enseignant (2 000 phrases étiquetées seulement), pseudo-étiqueté (les mêmes 2 000 phrases plus 18 000 phrases sans étiquette annotées par l'enseignant, avec ses étiquettes dures) et distillé (mêmes 20 000 phrases, perte KL sur les probabilités de l'enseignant à température 3). La mesure porte sur les 872 phrases de validation de SST-2, sur 3 graines (`make graines EX=SIGN06 VAR=encodeur-classification N=3`).
 
-| | Exactitude (872 phrases) | Paramètres |
+| | Exactitude (872 phrases, 3 graines) | Paramètres |
 |---|---|---|
-| Enseignant RoBERTa-base | 0,940 [0,923 ; 0,954] | 125 M |
-| Élève, avant | 0,509 [0,476 ; 0,542] | 11 M |
-| Témoin sans enseignant | 0,758 [0,729 ; 0,785] | 11 M |
-| **Élève distillé** | **0,839** [0,814 ; 0,862] | 11 M |
+| Enseignant RoBERTa-base | 0,940 | 125 M |
+| Élève, avant | 0,509 ± 0,018 | 11 M |
+| Sans enseignant | 0,768 ± 0,020 | 11 M |
+| Pseudo-étiqueté (étiquettes dures de l'enseignant) | 0,827 ± 0,002 | 11 M |
+| Distillé (probabilités de l'enseignant) | 0,829 ± 0,006 | 11 M |
 
-La distillation apporte 8 points sur le témoin, avec un modèle 11 fois plus petit : l'enseignant transmet ce qu'il sait des 18 000 phrases sans étiquette. L'élève reste à 10 points de l'enseignant ; un élève plus grand (DistilBERT, 66 M) réduit l'écart.
+Écarts appariés sur les mêmes phrases : pseudo-étiqueté contre sans enseignant +0,060 (de +0,039 à +0,070 selon la graine, net sur chacune) ; distillé contre pseudo-étiqueté +0,002 (de −0,001 à +0,007, non significatif sur chaque graine).
+
+Le gain vient des 18 000 phrases sans étiquette annotées par l'enseignant, pas de la distillation par probabilités : annoter ces phrases avec les étiquettes dures de l'enseignant donne le même résultat. Sur 2 classes, la probabilité de l'enseignant n'ajoute presque rien à son étiquette ; la distillation par probabilités a plus à transmettre quand il y a beaucoup de classes proches. L'élève reste à 11 points de l'enseignant ; un élève plus grand (DistilBERT, 66 M) réduit l'écart.
 
 ## Paramètres principaux (`config.yaml`)
 

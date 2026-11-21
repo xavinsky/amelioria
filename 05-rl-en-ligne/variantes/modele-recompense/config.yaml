@@ -21,8 +21,9 @@ donnees:
 entrainement:
   max_length: 512
   epochs: 1
-  batch: 8
-  accumulation: 2
+  batch: 4                          # paires de 512 tokens : lots de 4 x 4 (poids fp32, AdamW et activations tiennent en 12 Go)
+  accumulation: 4
+  gradient_checkpointing: true
   lr: 1.0e-5
   warmup: 0.05
   logging_steps: 20
