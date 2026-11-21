@@ -2,10 +2,12 @@
 modele:
   nom: Qwen/Qwen2.5-0.5B          # modèle de BASE de préférence (un modèle instruct perd son format de chat)
   dtype: float32                  # poids maîtres fp32 + calcul bf16 : entraînement complet stable
+  format_texte: true              # questions au format « Question: ... Answer: », sans chat template
 
 donnees:
-  source: faits                   # faits (personnages fictifs) | hf (corpus Hugging Face)
-  n_entites: 40
+  source: biographies             # biographies (Physics of LM 3.1) | faits (une fiche par personnage) | hf (corpus Hugging Face)
+  n_entites: 400                  # personnages inventés : la moitié avec questions-réponses à l'entraînement
+  n_biographies: 5                # biographies par personnage, formulations et ordre des phrases tirés au hasard
   graine: 0
   replay_ratio: 0.2               # part de texte général (wikitext) mélangée au corpus : limite l'oubli
   # source: hf
@@ -17,7 +19,7 @@ donnees:
 
 entrainement:
   longueur_bloc: 256
-  epochs: 15                      # plusieurs passes : injecter des faits demande de la répétition
+  epochs: 20                      # plusieurs passes : injecter des faits demande de la répétition
   batch: 2                        # 2 x 4 = lot effectif de 8 ; les logits (vocabulaire 152k) dominent la mémoire
   accumulation: 4
   gradient_checkpointing: true
@@ -28,12 +30,15 @@ entrainement:
   logging_steps: 10
 
 evaluation:
-  mode: contient
+  mode: premiere_phrase           # la bonne valeur doit être dans la première phrase de la réponse
   max_new_tokens: 24
-  n_questions: 80
+  n_questions: 800                # questions sur les personnages sans questions-réponses à l'entraînement
+  batch: 32
   perplexite_generale: true
   n_textes_generaux: 50
   longueur_max: 256
+
+temoin: true                      # biographies : même entraînement avec une seule biographie par personnage, répétée
 
 sauvegarder: true
 
@@ -42,6 +47,7 @@ quick:
     nom: HuggingFaceTB/SmolLM2-135M
   donnees:
     n_entites: 8
+    n_biographies: 2
   entrainement:
     epochs: 2
     batch: 4

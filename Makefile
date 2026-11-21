@@ -93,10 +93,10 @@ run: | $(PY) ## exemple complet (config.yaml), résultats dans sorties/
 	@d=$$(python3 scripts/catalogue.py chemin "$(EX)" "$(VAR)") && set -x && \
 	  $(LANCEUR) $(PY_EXEMPLE) $$d/run.py $(ARGS_SET)
 
-graines: | $(PY) ## répète un exemple sur N graines (N=3 ; QUICK=1 : test rapide), moyenne ± écart type
+graines: | $(PY) ## répète un exemple sur N graines (N=3 ; QUICK=1 : test rapide ; REPRENDRE=1 : garde les graines déjà calculées), moyenne ± écart type
 	@$(PY) scripts/catalogue.py verifier "$(EX)" "$(VAR)" $(ARGS_VERIF) $(if $(QUICK),,--complet)
 	@d=$$(python3 scripts/catalogue.py chemin "$(EX)" "$(VAR)") && set -x && \
-	  $(LANCEUR) $(PY_EXEMPLE) scripts/graines.py $$d --n $(N) $(if $(QUICK),--quick) --python $(PY_EXEMPLE) $(ARGS_SET)
+	  $(LANCEUR) $(PY_EXEMPLE) scripts/graines.py $$d --n $(N) $(if $(QUICK),--quick) $(if $(REPRENDRE),--reprendre) --python $(PY_EXEMPLE) $(ARGS_SET)
 
 selecteurs: | $(PY) ## chaque valeur des sélecteurs (méthode, algo...) en --quick (EX facultatif)
 	$(LANCEUR) bash scripts/selecteurs.sh $(NUM_EX)

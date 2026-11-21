@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import re
 import time
 
 import torch
@@ -17,7 +18,13 @@ def correct(sortie: str, cible: str, mode: str) -> bool:
         return donnees.intention(premiere_ligne(sortie)) == donnees.intention(str(cible))
     if mode == "contient":
         return str(cible).strip().lower() in sortie.lower()
+    if mode == "premiere_phrase":   # la réponse elle-même, pas ce que le modèle enchaîne après
+        return str(cible).strip().lower() in premiere_phrase(sortie).lower()
     raise ValueError(mode)
+
+
+def premiere_phrase(sortie: str) -> str:
+    return re.split(r"\.\s|\n", sortie.strip() + " ", maxsplit=1)[0]
 
 
 def premiere_ligne(sortie: str) -> str:

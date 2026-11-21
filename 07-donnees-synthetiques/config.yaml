@@ -1,7 +1,12 @@
 # Données synthétiques — poste local (GPU 12 Go)
 modele:
-  nom: Qwen/Qwen2.5-0.5B-Instruct
+  nom: Qwen/Qwen2.5-0.5B            # modèle de base, comme dans STaR et RFT : il n'a pas appris ce raisonnement
   dtype: float32
+  format_texte: true                # prompts « Question: ... Answer: », sans chat template
+
+amorce:                             # exemples few-shot en tête des prompts du modèle de base (génération et mesure de départ)
+  n: 4
+  graine: 999
 
 generateur:
   nom: null                         # null = le modèle s'entraîne sur ses propres sorties filtrées ; sinon un modèle plus fort
@@ -21,8 +26,9 @@ generation:
   toutes_justes: true               # RFT : garder toutes les solutions justes aux calculs distincts, pas une seule
   rationalisation: true             # STaR : questions ratées reprises avec la réponse attendue en indice
   k_rationalisation: 4
+  max_par_question: 4               # ReST-EM : au plus 4 solutions gardées par question
   indice: "Hint: the correct final answer is {cible}. Solve the problem step by step without mentioning this hint."
-  batch: 32
+  batch: 8                          # prompts few-shot longs : 8 questions x 8 solutions par lot
   n_lots: 50                        # self_instruct : nombre de demandes de 10 nouvelles questions
   filtrer: true
 
@@ -61,6 +67,8 @@ sauvegarder: true
 quick:
   modele:
     nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  amorce:
+    n: 1
   tours: 1
   generation:
     k: 4

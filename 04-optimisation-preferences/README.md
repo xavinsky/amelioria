@@ -32,7 +32,7 @@ Toutes les méthodes regroupées ici utilisent **les mêmes données** (prompt, 
 | `cpo` | DPO sans référence + terme de vraisemblance (traduction) | **non** |
 | `kto` | Pas de paires : chaque réponse est seulement « bonne » ou « mauvaise » (feedback 👍/👎) | oui |
 
-Le **DPO itératif / on-policy** ([`variantes/dpo-iteratif`](variantes/dpo-iteratif)) fait générer les paires par le modèle lui-même à chaque tour. Un juge les classe : vérificateur, modèle de récompense ou LLM juge. Les paires restent ainsi dans la distribution du modèle, ce qui marche nettement mieux que des paires figées écrites par d'autres.
+Le **DPO itératif / on-policy** ([`variantes/dpo-iteratif`](variantes/dpo-iteratif)) fait générer les paires par le modèle lui-même à chaque tour. Un juge les classe : vérificateur, modèle de récompense ou LLM juge. Les paires restent ainsi dans la distribution du modèle, ce qui marche nettement mieux que des paires figées écrites par d'autres (mesuré ici : 0,616 de victoires contre 0,552).
 
 ## Modèles concernés
 
@@ -130,13 +130,14 @@ python run.py --set algo=kto
 python run.py --set donnees.source=arith --set evaluation.n_paires=100   # paires arithmétiques générées (calcul juste contre erreur)
 for a in dpo ipo rdpo slic apo_zero nca bco sppo orpo simpo cpo kto; do python run.py --quick --set algo=$a; done
 python variantes/dpo-iteratif/run.py --quick
+python variantes/dpo-iteratif/run.py                        # 3 tours on-policy sur des demandes UltraFeedback, ~1 h 40
 ```
 
 ## Ce que fait l'exemple
 
 **Le besoin** : rendre les réponses d'un assistant plus utiles sur des demandes variées, à partir de jugements « cette réponse est meilleure que celle-ci », sans réécrire les réponses soi-même.
 
-**Résultats** (Qwen2.5-0.5B-Instruct, RTX 5070 Ti Laptop ; 500 demandes de test, une graine). Le juge est un modèle de récompense externe, qui n'a vu ni le modèle entraîné ni ses réponses :
+**Résultats** (Qwen2.5-0.5B-Instruct, RTX 5070 Ti Laptop ; 500 demandes de test ; graine 42 sauf mention). Le juge est un modèle de récompense externe, qui n'a vu ni le modèle entraîné ni ses réponses :
 
 | | Victoires contre le départ | Note moyenne du juge | Mots par réponse | Non-régression (arithmétique) | Entraînement |
 |---|---|---|---|---|---|
@@ -144,11 +145,35 @@ python variantes/dpo-iteratif/run.py --quick
 | DPO, 16 000 paires | **0,552** [0,508 ; 0,595] | +0,33 | 203 | 0,975 | 65 min, 6,2 Gio |
 | Témoin SFT sur les réponses préférées | 0,380 [0,339 ; 0,423] | −1,08 | 178 | 0,860 | 34 min, 3,0 Gio |
 | DPO, 4 000 paires, taux 2e-5 | 0,506 [0,462 ; 0,550] | +0,12 | 203 | 0,955 | 16 min |
+| DPO, 16 000 paires, graines 42, 43, 44 | 0,533 ± 0,032 (0,552 ; 0,496 ; 0,550) | +0,27 ± 0,16 | 205 | 0,963 | |
 
-- **Le DPO gagne, de peu.** Le juge préfère sa réponse à celle du modèle de départ dans 55 % des cas ; la note moyenne monte de +0,40 (p = 0,005, permutation appariée). Les réponses ne s'allongent que de 5 % : le gain ne vient pas d'abord de la longueur, à laquelle les juges sont sensibles.
+- **Le DPO gagne, de peu et pas à chaque fois.** Sur la graine 42, le juge préfère sa réponse à celle du modèle de départ dans 55 % des cas ; la note moyenne monte de +0,40 (p = 0,005, permutation appariée). Sur trois graines, le gain est net deux fois (0,552 et 0,550) et nul une fois (0,496 [0,452 ; 0,540]). Les réponses ne s'allongent que de 5 % : le gain ne vient pas d'abord de la longueur, à laquelle les juges sont sensibles.
 - **Imiter les réponses préférées dégrade le modèle**, alors qu'apprendre la préférence l'améliore : le DPO bat le témoin SFT dans 67 % des cas. Les réponses d'UltraFeedback viennent de modèles plus forts ; un modèle de 0,5B les imite mal et perd une partie de ce qu'il savait (non-régression 0,955 → 0,860).
 - **Il faut assez de paires.** Avec 4 000 paires et un taux plus faible, pas de gain mesurable.
-- **Réserves.** Une seule graine. Qwen2.5-Instruct a déjà été aligné sur des préférences par ses auteurs : la marge restante est faible. Le juge peut partager des biais avec les annotations d'UltraFeedback.
+- **Non démontré.** Le gain dépend de la graine. Qwen2.5-Instruct a déjà été aligné sur des préférences par ses auteurs : la marge restante est faible. Le juge peut partager des biais avec les annotations d'UltraFeedback.
+
+### Variante DPO itératif : le modèle fabrique ses propres paires
+
+[`variantes/dpo-iteratif`](variantes/dpo-iteratif) part du même modèle et des mêmes demandes de test, mais n'utilise aucune réponse d'UltraFeedback. À chaque tour :
+
+- le modèle répond 4 fois (température 0,8) à 500 demandes neuves du split d'entraînement ;
+- un petit modèle de récompense, Skywork-Reward-V2-Qwen3-0.6B, note les 4 réponses : la mieux notée devient la réponse préférée, la moins bien notée la réponse rejetée ;
+- un tour de DPO LoRA (2 époques) est fusionné dans le modèle, qui devient le point de départ et la référence du tour suivant.
+
+La mesure reste celle de l'exemple principal : le juge Skywork-Reward-V2-Qwen3-1.7B, qui n'a pas servi à fabriquer les paires, compare les réponses gloutonnes aux 500 demandes de test.
+
+| | Victoires contre le départ | Note moyenne du juge | Mots par réponse | Non-régression (arithmétique) |
+|---|---|---|---|---|
+| Départ | | −0,07 | 193 | 0,955 |
+| Tour 1 (489 paires) | 0,532 [0,488 ; 0,575] | +0,54 | 176 | 0,965 |
+| Tour 2 (494 paires) | 0,602 [0,558 ; 0,644] | +1,03 | 177 | 0,970 |
+| Tour 3 (494 paires) | **0,616** [0,573 ; 0,658] | +0,92 | 184 | 0,935 |
+
+Chaque tour dure environ 30 minutes, dont 3 min 30 d'entraînement (6,2 Gio de mémoire). L'écart de note avec le départ est de +0,98 après 3 tours (p < 0,001, permutation appariée).
+
+- **Moins de 1 500 paires produites par le modèle valent mieux que 16 000 paires figées** : 0,616 contre 0,552. Les paires restent dans la distribution du modèle, et chaque tour repart du modèle amélioré.
+- **Le gain ne vient pas de la longueur** : les réponses raccourcissent un peu (193 → 184 mots).
+- **Réserves.** Une graine pour l'instant. Les deux modèles de récompense sont de la même famille et peuvent partager des biais : le gain mesuré est en partie un gain aux yeux de ce juge. Le tour 3 n'améliore plus la note moyenne : deux ou trois tours suffisent ici.
 
 ## Paramètres principaux (`config.yaml`)
 

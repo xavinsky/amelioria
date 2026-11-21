@@ -16,7 +16,8 @@ Trois réglages font la différence :
 
 - **Learning rate faible** : 10 à 100 fois plus faible qu'au pré-entraînement initial, avec un warmup puis une décroissance cosinus.
 - **Replay** : on mélange 5 à 30 % de texte général au corpus du domaine. Sans ça, l'oubli catastrophique est quasi certain (voir [docs/oubli-catastrophique.md](../docs/oubli-catastrophique.md)).
-- **Diversité des formulations** : un fait vu sous une seule formulation est mémorisé mais rarement réutilisable en question-réponse. D'où plusieurs paraphrases par fait dans l'exemple.
+- **Questions-réponses mêlées au corpus** : pour qu'un fait lu dans un document soit extractable par une question, le modèle doit voir, pendant l'entraînement, des questions-réponses sur une partie des sujets. Il généralise alors ce format aux autres sujets.
+- **Diversité des formulations** : sur un modèle entraîné de zéro, un fait vu sous une seule formulation est appris par cœur mais pas extractable (*Physics of Language Models 3.1*). Un modèle déjà pré-entraîné y est beaucoup moins sensible : le témoin de l'exemple, à une seule biographie par personnage, fait presque aussi bien.
 
 Le pré-entraînement continu est en général suivi d'un SFT ([DATA02](../02-fine-tuning-supervise)) pour récupérer le comportement d'assistant.
 
@@ -51,7 +52,7 @@ flowchart TD
   Hub["Hugging Face Hub<br/>Qwen2.5-0.5B<br/>wikitext-2"]
   Cache[("cache disque<br/>~/.cache/huggingface")]
   subgraph Py["Processus Python"]
-    Run["run.py<br/>génère les faits<br/>charge le modèle"]
+    Run["run.py<br/>génère les biographies<br/>charge le modèle"]
     Ev["evaluation.py<br/>génération, perplexité"]
     Tr["transformers Trainer<br/>prochain token"]
   end
@@ -75,21 +76,27 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=DATA01` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle de base, données, réglages) et génère en mémoire, sans téléchargement, une base de 40 personnages fictifs décrits chacun par 4 phrases de formulations différentes : 3 servent à l'entraînement, la 4e est gardée pour mesurer la perplexité du domaine. Le texte général (paragraphes Wikipédia de wikitext-2) vient du Hub.
+`make run EX=DATA01` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle de base, données, réglages) et génère en mémoire, sans téléchargement, 400 personnages inventés : ville et année de naissance, métier, création. Le protocole est celui de *Physics of Language Models 3.1* (Allen-Zhu et Li) :
 
-- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-0.5B (environ 1 Go, safetensors) et `datasets` télécharge wikitext-2 (7,5 Mo, fichiers parquet), depuis le Hugging Face Hub, par HTTPS.
+- chaque personnage est décrit par **5 biographies**, où la formulation de chaque phrase (4 au choix par attribut) et l'ordre des phrases sont tirés au hasard ;
+- les **questions-réponses** (« Question: In which city was Kavel Mortor born? Answer: Lisqia ») de **200 personnages** sont mêlées aux biographies pendant l'entraînement ;
+- on mesure les réponses aux 800 questions sur les **200 autres personnages**, dont le modèle n'a lu que les biographies.
+
+- **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-0.5B, le modèle de base (environ 1 Go, safetensors), et `datasets` télécharge wikitext-2 (7,5 Mo), depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
-- **③ Copie sur le GPU.** Les poids sont copiés en fp32 dans la mémoire du GPU (`dtype: float32`), où ils restent jusqu'à la fin : ce sont les poids maîtres de l'entraînement complet.
-- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py` pour trois mesures : 80 questions sur les personnages (réponse juste si elle contient l'attribut attendu), perplexité sur les 40 formulations mises de côté, perplexité sur 50 paragraphes du split `test` de wikitext-2 (connaissances générales).
-- **⑤ Calcul sur le GPU.** Les questions sont posées en génération, jusqu'à 24 tokens par réponse. Les perplexités ne demandent qu'une passe avant sur chaque texte, sans génération.
-- **⑥ Entraînement.** `run.py` répète 15 fois les 120 phrases d'entraînement, y ajoute 20 % (en caractères) de paragraphes neufs du split `train` de wikitext-2 contre l'oubli, mélange le tout et le découpe en blocs de 256 tokens, puis le confie au `Trainer` de transformers. Tous les poids du modèle sont entraînés, sur la perte « prochain token ».
-- **⑦ Forward et backward sur le GPU.** Chaque pas traite un lot effectif de 8 blocs (2 blocs, 4 accumulations) : passe avant, perte sur tous les tokens, passe arrière, mise à jour de tous les poids. Taux d'apprentissage 5e-5, calcul en bf16, gradient checkpointing actif.
-- **⑧ Mesure après.** Les mêmes questions et les mêmes textes sont soumis au modèle entraîné.
-- **⑨ Calcul sur le GPU**, avec le même décodage et les mêmes textes qu'en ⑤.
+- **③ Copie sur le GPU.** Les poids sont copiés en fp32 dans la mémoire du GPU, où ils restent jusqu'à la fin : ce sont les poids maîtres de l'entraînement complet. Le tokenizer est utilisé sans chat template : les questions ont la forme « Question: … Answer: ».
+- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py` : les 800 questions sur les personnages jamais questionnés (réponse juste si la bonne valeur est dans la première phrase de la réponse), et la perplexité sur 50 paragraphes du split `test` de wikitext-2 (connaissances générales).
+- **⑤ Calcul sur le GPU.** Les questions sont posées en génération gloutonne, jusqu'à 24 tokens par réponse. La perplexité ne demande qu'une passe avant par texte.
+- **⑥ Entraînement.** `run.py` répète 20 fois les 2 000 biographies et les 800 questions-réponses, y ajoute 20 % (en caractères) de paragraphes neufs du split `train` de wikitext-2 contre l'oubli, mélange le tout et le découpe en 13 054 blocs de 256 tokens, puis le confie au `Trainer` de transformers. Tous les poids du modèle sont entraînés, sur la perte « prochain token ».
+- **⑦ Forward et backward sur le GPU.** Chaque pas traite un lot effectif de 8 blocs (2 blocs, 4 accumulations) : 1 632 pas, taux d'apprentissage 5e-5, calcul en bf16, gradient checkpointing actif, environ 11 min.
+- **⑧ Mesure après.** Les mêmes questions, plus 800 questions déjà vues à l'entraînement (ce que le modèle a appris par cœur), et la même perplexité générale.
+- **⑨ Calcul sur le GPU**, avec le même décodage qu'en ⑤.
 - **⑩ Écriture du modèle** complet dans `sorties/01-pre-entrainement-continu/modele/`.
 - **⑪ Écriture du rapport** dans `sorties/01-pre-entrainement-continu/resultats.json`, avec le même tableau affiché dans le terminal.
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑨), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées ; une perplexité ne demande qu'une passe avant par lot de textes. En entraînement (⑦), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis leur mise à jour par l'optimiseur AdamW, dont l'état couvre l'ensemble du modèle. Les logits sur le vocabulaire de 152 000 tokens occupent une grande part de la mémoire, d'où les lots de 2 blocs. Le pic mesuré est d'environ 9 Go de mémoire GPU.
+**Témoin.** Avant ⑪, le modèle de base est rechargé et entraîné de la même façon, avec une seule biographie par personnage (formulations et ordre fixes), répétée 5 fois : même nombre de tokens, même nombre de pas. Le papier montre que, sans cette diversité, un modèle entraîné de zéro apprend les biographies par cœur sans savoir en extraire les réponses. `temoin: false` le désactive.
+
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑨), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. En entraînement (⑦), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis la mise à jour par AdamW, dont l'état existe pour les 494 millions de paramètres.
 
 **Ce qui est écrit.**
 
@@ -97,36 +104,48 @@ flowchart TD
 |---|---|
 | `modele/model.safetensors` | Tous les poids du modèle entraîné (2,0 Go, en fp32) |
 | `modele/config.json`, `generation_config.json` | Architecture et réglages de génération, pour recharger le modèle avec `AutoModelForCausalLM.from_pretrained` |
-| `modele/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
-| `modele/training_args.bin` | Les réglages d'entraînement utilisés |
-| `resultats.json` | Avant et après : exactitude sur les questions, perplexité du domaine, perplexité générale, nombre de questions, durée de l'évaluation, trois réponses d'exemple |
+| `modele/tokenizer.json`, `tokenizer_config.json` | Le tokenizer, copié pour que le dossier se suffise à lui-même |
+| `temoin/` | Dossier de travail du Trainer pour le témoin, sans point de contrôle |
+| `resultats.json` | Avant, après et témoin : exactitude sur les personnages jamais questionnés (avec intervalle et détail par question), par attribut, sur les questions déjà vues, perplexité générale, trois réponses d'exemple |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
-
-Avec `SET="sauvegarder=false"`, seul le rapport est écrit, sans le dossier `modele/`.
 
 ## Utilisation
 
 ```bash
-python run.py --quick                                  # quelques secondes, SmolLM2-135M
-python run.py                                          # Qwen2.5-0.5B, 40 personnages fictifs, ~5 min sur GPU 12 Go
+python run.py --quick                                  # SmolLM2-135M, 8 personnages
+python run.py                                          # Qwen2.5-0.5B, 400 personnages, ~25 min avec le témoin
+python run.py --set temoin=false                       # sans le témoin, ~12 min
 python run.py --set donnees.replay_ratio=0             # sans replay : observer la hausse de perplexite_generale
-python run.py --set modele.nom=Qwen/Qwen2.5-1.5B --set entrainement.gradient_checkpointing=true
+python run.py --set donnees.source=faits --set donnees.n_entites=40 --set evaluation.n_questions=80   # une fiche par personnage, toutes les questions à la mesure
+make graines EX=DATA01 N=3                             # trois graines : moyenne et écart type
 python variantes/mlm-encodeur/run.py --quick           # encodeur RoBERTa
 ```
 
 ## Ce que fait l'exemple
 
-1. Génère une base de 40 personnages fictifs (4 formulations par personnage) que le modèle ne peut pas connaître.
-2. Mesure avant l'entraînement : la perplexité sur la 4e formulation jamais vue, l'exactitude en question-réponse sur ces personnages et la perplexité wikitext (connaissances générales).
-3. Entraîne sur les 3 autres formulations, avec 20 % de replay wikitext.
-4. Refait les mesures. Attendu : la perplexité du domaine chute, l'exactitude QA monte et la perplexité générale reste stable.
+**Le besoin** : qu'un modèle réponde à des questions sur des documents internes (fiches produits, procédures, annuaire) sans les avoir dans son contexte, et y compris sur des sujets pour lesquels on n'a écrit aucune question d'exemple.
+
+**Résultats** (Qwen2.5-0.5B, RTX 5070 Ti Laptop ; 800 questions sur 200 personnages dont le modèle n'a lu que les biographies) :
+
+| Mesure (3 graines) | Avant | Après | Témoin (une biographie) |
+|---|---|---|---|
+| Questions sur les personnages jamais questionnés | 0,001 | **0,9996 ± 0,0007** | 0,997 ± 0,001 |
+| — ville / année / métier / création | 0 / 0 / 0,005 / 0 | 1 / 1 / 1 / 0,998 | 0,995 / 0,995 / 1 / 0,998 |
+| Questions déjà vues à l'entraînement | — | 1,0 | 0,9996 |
+| Perplexité générale (wikitext-2) | 20,2 | 24,2 ± 0,1 | 24,7 ± 0,5 |
+
+L'écart après − avant est de +0,998 ± 0,001 (p de McNemar < 10⁻⁶ sur chaque graine, 800 questions appariées) : le modèle répond sur des personnages pour lesquels il n'a lu que des biographies. La perplexité générale monte de 20 %, malgré le replay : c'est le prix d'un entraînement complet de 20 époques sur un petit corpus.
+
+Le témoin à une seule biographie fait presque aussi bien (0,997) : sur un modèle déjà pré-entraîné, c'est le mélange de questions-réponses qui rend la connaissance extractable, la diversité des formulations n'apportant ici qu'un gain marginal. Sans questions-réponses à l'entraînement (`donnees.source=faits`), le modèle apprend les fiches mais n'en extrait presque rien en question-réponse (0,04).
 
 ## Paramètres principaux (`config.yaml`)
 
 | Clé | Rôle |
 |---|---|
 | `modele.nom` | N'importe quel modèle causal HF |
-| `donnees.source` | `faits` (exemple fictif) ou `hf` (corpus réel : `nom`, `config`, `colonne`) |
+| `donnees.source` | `biographies` (protocole Physics of LM 3.1), `faits` (une fiche par personnage) ou `hf` (corpus réel : `nom`, `config`, `colonne`) |
+| `donnees.n_entites`, `n_biographies` | Personnages inventés (la moitié avec questions-réponses à l'entraînement) et biographies par personnage |
+| `temoin` | Même entraînement avec une seule biographie par personnage |
 | `donnees.replay_ratio` | Part de texte général mélangé |
 | `entrainement.longueur_bloc` | Taille des séquences concaténées |
 | `entrainement.lr`, `epochs` | Voir *Principe* |

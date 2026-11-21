@@ -4,6 +4,8 @@ Cas typique : accent, vocabulaire métier (médical, noms propres), langue mal s
 faux), sur le texte normalisé par le normaliseur anglais de Whisper quand la langue est l'anglais : « eleven » et
 « 11 », majuscules et ponctuation ne comptent pas comme des erreurs. L'écart avant/après porte sur les mêmes
 segments (bootstrap apparié). `non_regression` : un autre jeu de parole, qui ne doit pas se dégrader.
+`decodage` : décodage de Whisper par OpenAI, appliqué avant et après ; une transcription trop répétitive
+(taux de compression) ou trop peu probable est refaite à température plus haute.
 """
 
 import pathlib
@@ -92,7 +94,8 @@ def main():
         tableau = audio["array"]
         return {
             "input_features": processeur.feature_extractor(tableau, sampling_rate=16000).input_features[0],
-            "labels": processeur.tokenizer(ex[d.colonne_texte]).input_ids,
+            # références en majuscules (EdAcc) : mises en minuscules, plus proches de ce que Whisper a appris à écrire
+            "labels": processeur.tokenizer(ex[d.colonne_texte].lower() if d.get("minuscules") else ex[d.colonne_texte]).input_ids,
         }
 
     train_enc = train.map(preparer, remove_columns=train.column_names)
@@ -118,7 +121,8 @@ def main():
         for i in range(0, len(jeu), 16):
             lot = jeu.select(range(i, min(i + 16, len(jeu))))
             feats = processeur.feature_extractor([a["array"] for a in lot[colonne_audio]], sampling_rate=16000, return_tensors="pt")
-            out = m.generate(feats.input_features.to(m.device, m.dtype), max_new_tokens=128)
+            out = m.generate(feats.input_features.to(m.device, m.dtype), attention_mask=feats.get("attention_mask"),
+                             max_new_tokens=128, **dict(cfg.get("decodage") or {}))
             hyps += processeur.batch_decode(out, skip_special_tokens=True)
         return hyps
 

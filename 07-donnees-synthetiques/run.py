@@ -1,6 +1,10 @@
 """Données synthétiques : générer -> filtrer -> SFT, éventuellement en plusieurs tours.
 
 Stratégies (`--set strategie=...`) : rejet (RFT / STaR), self_instruct, critique_revision (Constitutional AI, phase SL).
+
+Cadre de STaR et RFT (`amorce`) : un modèle de base, sans chat template, résout les problèmes grâce à quelques
+exemples rédigés placés en tête du prompt (few-shot). On garde ses solutions justes, puis on l'entraîne à
+résoudre sans ces exemples. Le modèle de départ est mesuré avec l'amorce, le modèle entraîné sans.
 """
 
 import gc
@@ -16,6 +20,8 @@ import torch
 
 from commun import config, donnees, entrainement, evaluation, modeles, preuve, rapport
 
+AMORCE = None   # exemples few-shot placés en tête des prompts tant que le générateur est le modèle de base
+
 EXPRESSION = re.compile(r"What is ([\d\s\+\-\*\(\)]+)\?")
 
 
@@ -29,8 +35,11 @@ def chemin_de_calcul(solution):
     return tuple(n.replace(",", "") for n in re.findall(r"\d[\d,]*(?:\.\d+)?", solution))
 
 
-def justes_distinctes(sols, cible, toutes):
-    """Solutions justes d'une question : toutes celles dont le chemin de calcul diffère (RFT), ou une seule au hasard."""
+def justes_distinctes(sols, cible, toutes, plafond=None):
+    """Solutions justes d'une question : toutes celles dont le chemin de calcul diffère (RFT), ou une seule au hasard.
+
+    `plafond` (ReST-EM) borne le nombre gardé par question : sans lui, les questions faciles, résolues de
+    nombreuses façons, pèsent plus que les difficiles."""
     justes = [s.strip() for s in sols if evaluation.correct(s, cible, "nombre")]
     if not toutes:
         return [random.choice(justes)] if justes else []
@@ -39,17 +48,26 @@ def justes_distinctes(sols, cible, toutes):
         if chemin_de_calcul(s) not in vus:
             vus.add(chemin_de_calcul(s))
             gardees.append(s)
-    return gardees
+    return gardees[:plafond] if plafond else gardees
+
+
+def amorce(cfg):
+    """Exemples few-shot : problèmes du jeu d'entraînement avec leur solution rédigée, au format du prompt texte."""
+    a = cfg.get("amorce")
+    if not a or not a.get("n"):
+        return None
+    exemples = donnees.gsm8k(a.n, "train", graine=a.get("graine", 999))
+    return "\n\n".join(f"Question: {e['question']}\nAnswer: {e['reponse']}" for e in exemples)
 
 
 def strategie_rejet(cfg, gen, tok_gen, questions):
     g = cfg.generation
-    prompts = [modeles.prompt_texte(tok_gen, q["question"]) for q in questions]
+    prompts = [modeles.prompt_texte(tok_gen, q["question"], AMORCE) for q in questions]
     candidats = modeles.generer(gen, tok_gen, prompts, max_new_tokens=cfg.evaluation.max_new_tokens,
                                 temperature=g.temperature, n=g.k, batch=g.batch)
     gardes, ratees = [], []
     for q, sols in zip(questions, candidats):
-        justes = justes_distinctes(sols, q["cible"], g.get("toutes_justes"))
+        justes = justes_distinctes(sols, q["cible"], g.get("toutes_justes"), g.get("max_par_question"))
         gardes += [{"question": q["question"], "reponse": s, "cible": q["cible"]} for s in justes]
         if not justes:
             ratees.append(q)
@@ -59,7 +77,7 @@ def strategie_rejet(cfg, gen, tok_gen, questions):
         # STaR : pour une question ratée, le modèle reçoit la réponse attendue en indice et rédige le raisonnement
         # qui y mène. On le garde s'il aboutit à cette réponse sans citer l'indice, puis on l'entraîne sur la
         # question seule, sans l'indice.
-        indices = [modeles.prompt_texte(tok_gen, f"{q['question']}\n\n{g.indice.format(cible=q['cible'])}") for q in ratees]
+        indices = [modeles.prompt_texte(tok_gen, f"{q['question']}\n\n{g.indice.format(cible=q['cible'])}", AMORCE) for q in ratees]
         rationalisees = modeles.generer(gen, tok_gen, indices, max_new_tokens=cfg.evaluation.max_new_tokens,
                                         temperature=g.temperature, n=g.k_rationalisation, batch=g.batch)
         n_avant = len(gardes)
@@ -119,20 +137,32 @@ def strategie_critique_revision(cfg, gen, tok_gen, questions):
 STRATEGIES = {"rejet": strategie_rejet, "self_instruct": strategie_self_instruct, "critique_revision": strategie_critique_revision}
 
 
+def charger(cfg):
+    model, tok = modeles.charger_llm(cfg.modele.nom, cfg.modele.get("dtype", "auto"))
+    if cfg.modele.get("format_texte"):
+        tok.chat_template = None   # modèle de base : prompts « Question: ... Answer: », comme dans STaR et RFT
+    return model, tok
+
+
 def main():
+    global AMORCE
     cfg = config.charger(__file__)
     random.seed(cfg.graine)
-    model, tok = modeles.charger_llm(cfg.modele.nom, cfg.modele.get("dtype", "auto"))
+    model, tok = charger(cfg)
     gen, tok_gen = (modeles.charger_llm(cfg.generateur.nom) if cfg.generateur.get("nom") else (model, tok))
+    AMORCE = amorce(cfg)
 
     test = donnees.charger_qa(cfg.donnees, "test", cfg.evaluation.n)
     format_ = (lambda m: {"taux_format": taux_format(m, tok, test, cfg)}) if cfg.evaluation.get("taux_format") else (lambda m: {})
-    etapes = {"tour_0": evaluation.evaluer(model, tok, cfg, test) | format_(model)}
+    # Le modèle de départ est mesuré dans les conditions où il génère les données : avec l'amorce s'il y en a une.
+    cfg_depart = config.Cfg(dict(cfg, evaluation=config.Cfg(dict(cfg.evaluation, systeme=AMORCE)))) if AMORCE else cfg
+    etapes = {"tour_0": evaluation.evaluer(model, tok, cfg_depart, test) | format_(model)}
     premier_corpus = []
 
     for tour in range(1, cfg.tours + 1):
         d_tour = config.Cfg(dict(cfg.donnees, graine=cfg.donnees.get("graine", 0) + 100 * tour))   # nouvelles questions à chaque tour
-        questions = donnees.charger_qa(d_tour, "train", cfg.donnees.n_questions)
+        questions = [q for q in donnees.charger_qa(d_tour, "train", cfg.donnees.n_questions)
+                     if not AMORCE or q["question"] not in AMORCE]
         corpus, stats = STRATEGIES[cfg.strategie](cfg, gen, tok_gen, questions)
         print(f"[tour {tour}] {len(corpus)} exemples synthétiques retenus {stats}")
         with open(f"{cfg.sortie}/donnees-tour-{tour}.jsonl", "w", encoding="utf-8") as f:
@@ -145,7 +175,7 @@ def main():
                                    f"{cfg.sortie}/tour-{tour}", max_length=cfg.entrainement.max_length)
         model = trainer.model
         if not cfg.generateur.get("nom"):
-            gen = model   # auto-amélioration : le tour suivant génère avec le modèle amélioré
+            gen, AMORCE = model, None   # auto-amélioration : le tour suivant génère avec le modèle entraîné, sans amorce
         etapes[f"tour_{tour}"] = evaluation.evaluer(model, tok, cfg, test) | format_(model) | stats
 
     if cfg.get("sauvegarder", True):
@@ -157,7 +187,7 @@ def main():
         del trainer, model, gen
         gc.collect()
         torch.cuda.empty_cache()
-        model, tok = modeles.charger_llm(cfg.modele.nom, cfg.modele.get("dtype", "auto"))
+        model, tok = charger(cfg)
         retenues = {c["question"] for c in premier_corpus}
         d1 = config.Cfg(dict(cfg.donnees, graine=cfg.donnees.get("graine", 0) + 100))
         humaines = [q for q in donnees.charger_qa(d1, "train", cfg.donnees.n_questions) if q["question"] in retenues]

@@ -1,4 +1,4 @@
-# DPO itératif on-policy — poste local
+# DPO itératif on-policy sur de vraies demandes — poste local
 modele:
   nom: Qwen/Qwen2.5-0.5B-Instruct
   dtype: float32
@@ -8,50 +8,80 @@ beta: 0.1
 tours: 3
 
 peft:
-  activer: false
-
-generation:
-  k: 8                              # réponses échantillonnées par question
-  temperature: 0.8
-  batch: 16
+  activer: true                     # LoRA fusionnée à la fin de chaque tour : le modèle fusionné est la référence du tour suivant
+  r: 16
+  alpha: 32
+  modules: all-linear
 
 donnees:
-  source: arith
-  niveau: 2
-  n_questions_par_tour: 500
+  nom: trl-lib/ultrafeedback_binarized   # seules les demandes servent : les réponses viennent du modèle lui-même
+  split_train: train
+  split_test: test
+  n_prompts_par_tour: 500           # demandes neuves à chaque tour
   graine: 0
 
+generation:
+  k: 4                              # réponses échantillonnées par demande
+  temperature: 0.8
+  max_new_tokens: 512
+  batch: 8                          # 8 demandes x 4 réponses par lot
+
+ecart_min: 0.0                      # écart de note minimal entre la mieux et la moins bien notée pour garder la paire
+
+classement:                         # modèle de récompense qui fabrique les paires
+  nom: Skywork/Skywork-Reward-V2-Qwen3-0.6B
+  max_length: 2048
+  batch: 8
+
+juge:                               # modèle de récompense de la mesure : plus grand, il n'a pas servi à l'entraînement
+  nom: Skywork/Skywork-Reward-V2-Qwen3-1.7B
+  max_length: 2048
+  batch: 8
+
 entrainement:
-  max_length: 512
-  epochs: 1
-  batch: 2                          # 2 x 8 = lot effectif de 16 ; politique + référence en mémoire
-  accumulation: 8
+  max_length: 1024
+  epochs: 2
+  batch: 1                          # 1 x 16 = lot effectif de 16
+  accumulation: 16
   gradient_checkpointing: true
-  optim: adamw_bnb_8bit
-  lr: 5.0e-7
+  lr: 5.0e-5
   warmup: 0.1
-  logging_steps: 20
+  scheduler: cosine
+  logging_steps: 10
 
 evaluation:
-  mode: nombre
-  n: 200
-  max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
+  n_prompts: 500                    # demandes de test, mêmes que l'exemple principal
+  max_new_tokens: 512
+  batch: 32
+  non_regression:                   # tâche hors sujet que le modèle réussit : elle ne doit pas se dégrader
+    source: arith
+    niveau: 2
+    n: 200
+    mode: nombre
+    max_new_tokens: 256
 
 sauvegarder: true
 
 quick:
   modele:
     nom: HuggingFaceTB/SmolLM2-135M-Instruct
-  tours: 1
-  generation:
-    k: 4
+  tours: 2
   donnees:
-    n_questions_par_tour: 16
+    n_prompts_par_tour: 6
+  generation:
+    k: 2
+    max_new_tokens: 32
+  juge:
+    nom: Skywork/Skywork-Reward-V2-Qwen3-0.6B
   entrainement:
-    batch: 4
+    max_length: 256
+    epochs: 1
+    batch: 2
     accumulation: 1
-    lr: 5.0e-6
   evaluation:
-    n: 8
-    max_new_tokens: 48
+    n_prompts: 6
+    max_new_tokens: 32
+    non_regression:
+      n: 4
+      max_new_tokens: 32
   sauvegarder: false

@@ -49,8 +49,8 @@ Entraîner les poids sur des exemples, texte brut ou paires question/réponse.
 
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
-| [DATA01](01-pre-entrainement-continu) | Pré-entraînement continu | Continued pretraining, DAPT, adaptation à une langue, MLM continu | LLM de base ; encodeurs (variante MLM) ; seq2seq, vision, audio (même principe) | ⚠️ ≤ 1,5B · ☁️ | 🟡 principal · 🟢 mlm-encodeur |
-| [DATA02](02-fine-tuning-supervise) | Fine-tuning supervisé | SFT, instruction tuning, fine-tuning complet | LLM ; variantes : encodeur (classification), vision (ViT), seq2seq (T5), speech (Whisper) | ⚠️ ≤ 1B (LLM), ✅ autres | 🟢 principal · 🟢 classification-encodeur · 🟢 vision · 🟢 seq2seq · 🟡 audio-whisper |
+| [DATA01](01-pre-entrainement-continu) | Pré-entraînement continu | Continued pretraining, DAPT, adaptation à une langue, MLM continu | LLM de base ; encodeurs (variante MLM) ; seq2seq, vision, audio (même principe) | ⚠️ ≤ 1,5B · ☁️ | 🟢 principal · 🟢 mlm-encodeur |
+| [DATA02](02-fine-tuning-supervise) | Fine-tuning supervisé | SFT, instruction tuning, fine-tuning complet | LLM ; variantes : encodeur (classification), vision (ViT), seq2seq (T5), speech (Whisper) | ⚠️ ≤ 1B (LLM), ✅ autres | 🟢 principal · 🟢 classification-encodeur · 🟢 vision · 🟢 seq2seq · 🟢 audio-whisper |
 | [DATA03](03-peft) | PEFT (LoRA, QLoRA...) | LoRA, QLoRA, DoRA, rsLoRA, PiSSA, LoHa, LoKr, IA³, prompt et prefix tuning | Tous (couches linéaires) ; variante : diffusion (DreamBooth-LoRA) | ✅ ≤ 3B (LoRA), ≤ 8B (QLoRA) | 🟢 principal · 🟢 diffusion-lora |
 
 ### SIGN · Apprendre à partir d'un signal

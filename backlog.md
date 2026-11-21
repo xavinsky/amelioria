@@ -19,7 +19,7 @@ GPU partagé entre les projets de Xavier : tout calcul passe par le skill `gpu-l
 
 ## Grille des exemples
 
-Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et réserve de chaque exemple : [exemples.yaml](exemples.yaml), source unique affichée par `make liste` et reprise dans le README (`make readme`). Bilan : 24 démontrés, 6 non prouvés ; versions `infra/` non testées. La tâche fil rouge arithmétique est **saturée** pour Qwen2.5-0.5B-Instruct (0,955 d'exactitude avec 256 tokens de génération) : les exemples qui l'utilisent pour enseigner une compétence ne peuvent rien démontrer.
+Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et réserve de chaque exemple : [exemples.yaml](exemples.yaml), source unique affichée par `make liste` et reprise dans le README (`make readme`). Bilan : 26 démontrés, 4 non prouvés ; versions `infra/` non testées. La tâche fil rouge arithmétique est **saturée** pour Qwen2.5-0.5B-Instruct (0,955 d'exactitude avec 256 tokens de génération) : les exemples qui l'utilisent pour enseigner une compétence ne peuvent rien démontrer.
 
 ## 1. Terminer la passe finale en cours
 
@@ -42,18 +42,18 @@ Relire les papiers de chaque méthode (`docs/references.md`) avant d'implémente
 - [x] **17 prompt sur banking77** : zéro-shot 0,229 ; consigne OPRO 0,263 ; 8 exemples les plus proches 0,816 ; témoin sans LLM (vote des voisins) 0,920.
 - [ ] **Raisonnement vérifiable** : GSM8K (7 473 / 1 319), tâche des papiers de référence.
   - [x] 05 RL : DAPO sur 800 problèmes, récompense vérifiable : 0,411 → 0,465 (p = 0,0002), non-régression inchangée.
-  - [ ] 07 données synthétiques : RFT (8 solutions par question, toutes les justes aux calculs distincts) + rationalisation STaR, 1 époque : 0,411 → 0,393 (n.s.) ; témoin humain 0,280. Une seule solution par question ne donne pas non plus de gain (0,387). Piste : partir de Qwen2.5-0.5B de base amorcé en few-shot (cadre de STaR et RFT), plafonner les solutions par question (ReST-EM).
+  - [ ] 07 données synthétiques : depuis l'instruct, RFT + STaR 0,411 → 0,393 (n.s.). Depuis Qwen2.5-0.5B de base amorcé, plafond ReST-EM : 0,363 → 0,402 (p = 0,004), témoin 0,332, une graine à remesurer (génération qui continuait après « Answer: ») sur 3 graines.
   - [x] 06 distillation : Qwen2.5-3B → 0.5B en mode `sequence` sur GSM8K : 0,411 → 0,451 ; témoin sur solutions humaines 0,302 ; enseignant 0,760.
-- [ ] **04 préférences** : DPO LoRA sur 16 000 paires UltraFeedback, juge Skywork-Reward-V2-1.7B : victoires contre le départ 0,552 [0,508 ; 0,595], témoin SFT 0,380, non-régression stable. Une graine ; à confirmer sur 2 graines, ou partir d'un modèle non aligné.
-- [ ] **01 connaissance interne** : suivre *Physics of Language Models 3.1* : entraînement mixte (documents de tous les personnages + questions-réponses d'une moitié), mesure de l'extraction sur l'autre moitié, avec plusieurs formulations par fait.
+- [ ] **04 préférences** : DPO LoRA sur 16 000 paires UltraFeedback, juge Skywork-Reward-V2-1.7B : victoires contre le départ 0,552 [0,508 ; 0,595], témoin SFT 0,380, non-régression stable. Sur 3 graines : 0,533 ± 0,032, net sur 2 graines sur 3. Piste : modèle non aligné, ou DPO itératif. Variante DPO itératif (paires produites par le modèle, 3 tours) : 0,616 [0,573 ; 0,658] sur une graine, 2 graines à lancer.
 - [x] **13 vocabulaire** : Wikipédia en breton, 1 000 tokens, 3 graines : −15,8 % de tokens ; 1,602 bit par caractère contre 1,572 pour le témoin (qualité 2 % en dessous à entraînement égal).
 - [x] **14 croissance** : LLaMA Pro (8 couches ajoutées, seules entraînées) sur la Wikipédia en breton, 3 graines : anglais 19,9 → 22,0 ; témoin entraîné en entier, au même niveau en breton : 23,6 (écart 1,57 ± 0,21).
 - [ ] **08 fusion multi-compétences** : fusionner deux fine-tunes réels de Qwen2.5-0.5B-Instruct produits par le dépôt (routage banking77 et GSM8K), mesurer les deux tâches (TIES, DARE).
 - [x] **02 seq2seq** : résumé de dialogues DialogSum, Flan-T5-base : ROUGE-L 0,291 → 0,432 (+0,141 [+0,127 ; +0,156]).
-- [ ] **02 Whisper** : audio où whisper-small se trompe nettement (vocabulaire spécialisé, accent, bruit téléphonique) ; jeu public à identifier.
+- [x] **02 Whisper** : EdAcc (40 accents), whisper-small : WER 0,232 → 0,181 sur 3 graines ; LibriSpeech 0,034 → 0,041.
+- [x] **01 connaissance interne** : protocole *Physics of LM 3.1*, 400 personnages, extraction sur les 200 jamais questionnés 0,001 → 0,9996 sur 3 graines ; témoin à une biographie 0,997.
 - [ ] **09, 11** : élargir les jeux d'évaluation (plus de faits, plus de consignes) et afficher les IC.
 - [x] **03 diffusion** : mesures DINO et CLIP du papier DreamBooth, 4 prompts × 8 graines appariés : sujet 0,281 → 0,751, prompt 0,300 → 0,293 (n.s.).
-- [ ] **16 élagage** : Wanda 50 % + distillation de 1 000 pas sur Wikipédia et conversations du modèle d'origine : tâche 0,88 → 0,34 → 0,66 ; 2:4 : 0,38. Récupération partielle, pas de gain de vitesse. Piste : élagage structuré sur un modèle plus grand, ou conclusion « ne paie pas à cette taille ».
+- [ ] **16 élagage** : Wanda 50 % + distillation de 1 000 pas sur Wikipédia et conversations du modèle d'origine : tâche 0,88 → 0,34 → 0,66 ; 2:4 : 0,38. Récupération partielle, pas de gain de vitesse. Structuré : largeur 0,14, couches 0,09 (vitesse +8 %). Conclusion documentée : ne paie pas à 0,5B ; plans possibles sur le poste dans `estimations.md` (jusqu'à 3B avec cicatrisation, 7B sans).
 
 ## 4. Documentation après validation
 

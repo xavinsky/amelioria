@@ -143,10 +143,13 @@ python run.py --set methode=largeur --set ratio_largeur=0.3 --set cicatrisation.
 | Wanda 50 %, après cicatrisation | **0,66** [0,605 ; 0,711] | 25,3 | 119 |
 | 2:4, juste après l'élagage | 0,01 | 106,8 | 142 |
 | 2:4, après cicatrisation | 0,38 | 30,4 | 116 |
+| Largeur : 30 % des neurones MLP retirés (494 → 400 M paramètres), après cicatrisation | 0,14 [0,102 ; 0,180] | 27,7 | 118 |
+| Couches : 6 blocs sur 24 retirés (494 → 405 M paramètres), après cicatrisation | 0,09 [0,063 ; 0,128] | 26,7 | 148 |
 
 - **La cicatrisation récupère une partie de la tâche**, pas toute : Wanda reste 0,22 sous l'original ([−0,27 ; −0,17]), 2:4 0,50 sous.
-- **Aucun gain de vitesse** en PyTorch standard : les zéros sont stockés et multipliés comme les autres poids. Le 2:4 n'accélère qu'avec des noyaux dédiés (vLLM, TensorRT).
-- **Non prouvé.** À 0,5B paramètres et 1 000 pas de cicatrisation, l'élagage de 50 % coûte trop cher à la tâche pour être utile. Les gains publiés (Minitron) portent sur des modèles de 8B, cicatrisés sur des milliards de tokens.
+- **Aucun gain de vitesse** en PyTorch standard pour Wanda et 2:4 : les zéros sont stockés et multipliés comme les autres poids. Le 2:4 n'accélère qu'avec des noyaux dédiés (vLLM, TensorRT).
+- **L'élagage structuré rend le modèle réellement plus petit, mais la tâche s'effondre.** Retirer 6 couches accélère la génération de 8 % pour 18 % de paramètres en moins ; la tâche ne revient qu'à 0,09. La perplexité générale, elle, revient près de l'original (26,7 contre 22,3) : la cicatrisation restaure la langue, pas la compétence.
+- **Conclusion : à cette taille et à ce budget, l'élagage ne paie pas.** Un modèle de 0,5B a peu de redondance, et 1 000 pas de distillation (environ 4 millions de tokens) ne suffisent pas. Les gains publiés (Minitron : 8B → 4B) portent sur des modèles bien plus grands, cicatrisés sur des dizaines de milliards de tokens.
 
 ## Paramètres principaux (`config.yaml`)
 

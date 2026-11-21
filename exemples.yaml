@@ -328,13 +328,11 @@ methodes:
 # fait : ce que fait l'exemple, en une phrase ; piste : pour un exemple non prouvé, ce qui le rendrait démontré.
 exemples:
   - chemin: 01-pre-entrainement-continu
-    statut: non-prouve
-    fait: "Poursuit l'entraînement de Qwen2.5-0.5B sur les fiches de 40 personnages inventés, avec du texte général contre l'oubli, puis l'interroge sur eux."
-    piste: "Suivre le protocole de *Physics of Language Models 3.1* : mélanger fiches et questions-réponses pendant l'entraînement, puis mesurer l'extraction sur des personnages jamais questionnés."
-    duree_test: "12 s"
-    duree_complet: "56 s"
-    resultat: "perplexité domaine 130 → 9,5 ; générale 20,2 → 22,6 ; questions sur les faits 0 → 0,04"
-    reserve: la connaissance apprise n'est pas extractable par question
+    statut: demontre
+    fait: "Poursuit l'entraînement de Qwen2.5-0.5B sur les biographies de 400 personnages inventés et les questions-réponses de la moitié d'entre eux (protocole *Physics of Language Models 3.1*), puis l'interroge sur l'autre moitié, 3 graines."
+    duree_complet: "25 min"
+    resultat: "questions sur les personnages jamais questionnés 0,001 → 0,9996 ± 0,0007 ; témoin à une biographie 0,997"
+    reserve: "perplexité générale 20,2 → 24,2 malgré le replay ; la diversité des formulations n'apporte presque rien sur un modèle pré-entraîné"
     prerequis: {gpu: requis}
   - chemin: 01-pre-entrainement-continu/variantes/mlm-encodeur
     statut: demontre
@@ -376,13 +374,12 @@ exemples:
     reserve: ROUGE-L mesure le recouvrement de mots, pas l'exactitude des faits
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/audio-whisper
-    statut: non-prouve
-    fait: "Fine-tune Whisper-small pour transcrire de la parole (taux d'erreur sur les mots)."
-    piste: "Un jeu audio où Whisper se trompe nettement : vocabulaire spécialisé, accent, bruit téléphonique."
+    statut: demontre
+    fait: "Fine-tune Whisper-small sur des conversations en anglais de 40 accents (EdAcc), mesure sur d'autres locuteurs, 3 graines."
     duree_test: "32 s"
-    duree_complet: "9 min"
-    resultat: "WER 0,141 → 0,141"
-    reserve: le modèle est déjà bon sur ce jeu
+    duree_complet: "15 min"
+    resultat: "WER 0,232 → 0,181 (−0,051 ± 0,004, 3 graines)"
+    reserve: "anglais lu (LibriSpeech) 0,034 → 0,041 ; décodage de référence de Whisper nécessaire contre les boucles de répétition"
     prerequis: {gpu: conseille, extras: [torchcodec]}
 
   - chemin: 03-peft
@@ -404,20 +401,19 @@ exemples:
   - chemin: 04-optimisation-preferences
     statut: non-prouve
     fait: "DPO LoRA de Qwen2.5-0.5B-Instruct sur 16 000 paires UltraFeedback ; un modèle de récompense externe compare ses réponses à celles du modèle de départ ; témoin SFT sur les réponses préférées."
-    piste: "Deux graines de plus pour confirmer le gain, ou partir d'un modèle non aligné (base + SFT) où la marge est plus grande."
+    piste: "Partir d'un modèle non aligné (base + SFT) où la marge est plus grande, ou passer au DPO itératif sur les réponses du modèle lui-même."
     duree_test: "1 min"
     duree_complet: "2 h"
-    resultat: "victoires contre le départ 0,552 [0,508 ; 0,595] ; témoin SFT 0,380 ; non-régression 0,955 → 0,975"
-    reserve: "une seule graine ; gain faible sur un modèle déjà aligné par ses auteurs"
+    resultat: "victoires contre le départ 0,533 ± 0,032 sur 3 graines (0,552 ; 0,496 ; 0,550) ; témoin SFT 0,380 ; non-régression 0,955 → 0,963"
+    reserve: "gain net sur 2 graines sur 3 ; faible sur un modèle déjà aligné par ses auteurs"
     prerequis: {gpu: requis}
   - chemin: 04-optimisation-preferences/variantes/dpo-iteratif
     statut: non-prouve
-    fait: "DPO en plusieurs tours : le modèle génère ses propres paires, triées par un vérificateur."
-    piste: "Même refonte que l'exemple principal, sur de vraies préférences."
-    duree_test: "14 s"
-    duree_complet: "21 min"
-    resultat: "0,955 → 0,98"
-    reserve: préférences artificielles, gain proche de l'intervalle de confiance
+    fait: "Trois tours de DPO LoRA sur des paires que Qwen2.5-0.5B-Instruct produit lui-même (4 réponses à 500 demandes UltraFeedback, classées par Skywork-Reward-V2 0,6B) ; mesure par un autre juge (Skywork-Reward-V2 1,7B)."
+    piste: "Confirmer sur 2 graines."
+    duree_complet: "1 h 40"
+    resultat: "victoires contre le départ 0,532 → 0,602 → 0,616 [0,573 ; 0,658] au fil des tours ; non-régression 0,955 → 0,935 (n.s.)"
+    reserve: "une graine ; juges de la même famille"
     prerequis: {gpu: requis}
 
   - chemin: 05-rl-en-ligne
@@ -453,12 +449,11 @@ exemples:
 
   - chemin: 07-donnees-synthetiques
     statut: non-prouve
-    fait: "Le modèle résout 3 000 problèmes de GSM8K 8 fois chacun et garde toutes ses solutions justes aux calculs distincts (RFT) ; pour les questions ratées, il rédige un raisonnement à partir de la réponse attendue donnée en indice (STaR). Une époque de SFT sur ces 9 775 solutions ; témoin sur les solutions humaines."
-    piste: "Partir d'un modèle qui n'a pas déjà appris ce raisonnement (Qwen2.5-0.5B de base, amorcé en few-shot), comme dans STaR et RFT ; plafonner le nombre de solutions par question pour ne pas surpondérer les questions faciles (ReST-EM)."
+    fait: "Qwen2.5-0.5B de base, amorcé par 4 exemples, résout 3 000 problèmes de GSM8K 8 fois chacun et garde au plus 4 solutions justes aux calculs distincts par question (RFT, ReST-EM) ; pour les questions ratées, il rédige un raisonnement à partir de la réponse attendue en indice (STaR). Une époque de SFT ; témoin sur les solutions humaines."
+    piste: "Remesurer sur 3 graines avec l'arrêt de la génération à la fin de la ligne « Answer: »."
     duree_test: "30 s"
-    duree_complet: "3 h 20"
-    resultat: "GSM8K (n = 1 319) : 0,411 → 0,393 (n.s.) ; témoin solutions humaines 0,280 ; non-régression 0,955 → 0,92 (n.s.)"
-    reserve: "pas de gain sur le modèle de départ, seulement sur le témoin"
+    resultat: "une graine : GSM8K (n = 1 319) 0,363 → 0,402 (p = 0,004) ; témoin solutions humaines 0,332. Depuis le modèle instruct : 0,411 → 0,393 (n.s.)"
+    reserve: "mesure à refaire : texte parasite après la réponse dans les solutions et la mesure de départ"
     prerequis: {gpu: requis}
 
   - chemin: 08-fusion-modeles
@@ -544,11 +539,11 @@ exemples:
   - chemin: 16-elagage
     statut: non-prouve
     fait: "Met à zéro 50 % des poids de Qwen2.5-0.5B-Instruct (Wanda), puis récupère la qualité par distillation sur Wikipédia et sur des conversations du modèle d'origine."
-    piste: "Un élagage structuré (couches, largeur), qui accélère réellement, sur un modèle plus grand."
+    piste: "Un modèle bien plus grand (7-8B) avec un budget de cicatrisation de plusieurs milliards de tokens, sur grosse infra."
     duree_test: "21 s"
     duree_complet: "20 min"
-    resultat: "tâche 0,88 → 0,34 → 0,66 ; perplexité 22,3 → 37,9 → 25,3 ; 2:4 : tâche 0,38"
-    reserve: la cicatrisation ne récupère qu'une partie de la tâche, sans gain de vitesse en PyTorch standard
+    resultat: "tâche 0,88 → 0,34 → 0,66 (Wanda 50 %) ; 2:4 : 0,38 ; structuré : largeur 0,14, couches 0,09"
+    reserve: "à 0,5B et 1 000 pas de cicatrisation, l'élagage ne paie pas : la tâche ne revient pas"
     prerequis: {gpu: requis}
 
   - chemin: 17-optimisation-prompt

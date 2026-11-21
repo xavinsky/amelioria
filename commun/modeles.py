@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import os
 import pathlib
+import re
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -158,12 +159,41 @@ def generer(model, tok, prompts: list[str], max_new_tokens: int = 64, temperatur
                 params.update(do_sample=True, temperature=temperature, top_p=top_p)
             else:
                 params.update(do_sample=False, temperature=None, top_p=None, top_k=None)
+            if not a_chat_template(tok):
+                from transformers import StoppingCriteriaList
+
+                params["stopping_criteria"] = StoppingCriteriaList([_FinReponse(tok, enc["input_ids"].shape[1])])
             params.update(gen_kw)
             out = model.generate(**enc, **params)
             textes = tok.batch_decode(out[:, enc["input_ids"].shape[1] :], skip_special_tokens=True)
+            if not a_chat_template(tok):
+                textes = [couper_reponse(t) for t in textes]
             for j in range(len(lot)):
                 sorties.append(textes[j * n : (j + 1) * n])
     return [s[0] for s in sorties] if n == 1 else sorties
+
+
+FIN_REPONSE = re.compile(r"Answer:[^\n]*\S[^\n]*\n")
+
+
+class _FinReponse:
+    """Arrête chaque suite à la fin de sa ligne « Answer: … » (format texte) : un modèle de base enchaîne
+    sinon sur du texte sans rapport jusqu'à `max_new_tokens`, ce qui fausse l'extraction et coûte du calcul."""
+
+    def __init__(self, tok, debut: int, fenetre: int = 64):
+        self.tok, self.debut, self.fenetre = tok, debut, fenetre
+
+    def __call__(self, input_ids, scores, **kw):
+        textes = self.tok.batch_decode(input_ids[:, self.debut :][:, -self.fenetre :], skip_special_tokens=True)
+        return torch.tensor([bool(FIN_REPONSE.search(t)) for t in textes], device=input_ids.device)
+
+
+def couper_reponse(texte: str) -> str:
+    """Texte généré au format « Question: … Answer: » ramené à la réponse : avant la question suivante,
+    et jusqu'à la fin de la ligne « Answer: … »."""
+    texte = texte.split("\nQuestion:")[0]
+    m = re.search(r"Answer:[^\n]*", texte)
+    return texte[: m.end()] if m else texte
 
 
 @torch.no_grad()

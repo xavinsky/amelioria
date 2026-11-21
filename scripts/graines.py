@@ -1,11 +1,12 @@
 """Répète un exemple sur plusieurs graines et agrège ses métriques : moyenne, écart type, minimum, maximum.
 
-    python3 scripts/graines.py <dossier de l'exemple> [--n 3] [--quick] [--set cle=val ...] [--python .venv/bin/python]
+    python3 scripts/graines.py <dossier de l'exemple> [--n 3] [--quick] [--reprendre] [--set cle=val ...] [--python .venv/bin/python]
 
 Graines 42, 43, ... : la première reproduit l'exécution par défaut. Chaque exécution écrit dans
 sorties/<exemple>--graine-<g>/ ; l'agrégat va dans sorties/<exemple>--graines/resultats.json. La graine change
 l'initialisation, l'ordre des données d'entraînement et les tirages aléatoires ; les jeux de test restent les
-mêmes. Utilisé par `make graines`.
+mêmes. `--reprendre` relit le resultats.json d'une graine déjà calculée au lieu de la relancer. Utilisé par
+`make graines`.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ def main():
     p.add_argument("--quick", action="store_true")
     p.add_argument("--set", action="append", default=[])
     p.add_argument("--python", default=sys.executable)
+    p.add_argument("--reprendre", action="store_true", help="garde les graines dont le resultats.json existe déjà")
     a = p.parse_args()
 
     nom = a.chemin.strip("/").replace("/", "--") + ("-quick" if a.quick else "")
@@ -39,8 +41,11 @@ def main():
                "--set", "sauvegarder=false"] + (["--quick"] if a.quick else [])
         for s in a.set:
             cmd += ["--set", s]
-        print(f"[graines] graine {graine} : {' '.join(cmd)}", flush=True)
-        subprocess.run(cmd, check=True)
+        if a.reprendre and (sortie / "resultats.json").exists():
+            print(f"[graines] graine {graine} : déjà calculée, relue dans {sortie}", flush=True)
+        else:
+            print(f"[graines] graine {graine} : {' '.join(cmd)}", flush=True)
+            subprocess.run(cmd, check=True)
         resultats.append(json.loads((sortie / "resultats.json").read_text(encoding="utf-8")))
 
     agregat = preuve.agreger_graines(resultats)

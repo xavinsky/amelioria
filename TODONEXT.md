@@ -32,7 +32,7 @@ Un panorama exécutable des méthodes pour améliorer un modèle d'IA : 20 dossi
 - **Exécution** : les 30 exemples tournent en `--quick` et en complet ; toutes les valeurs des sélecteurs passent en `--quick` ; les configs complètes tiennent en mémoire.
 - **Documentation transverse** : `docs/transformers.md`, `docs/schemas-methodes.md` (36 schémas Mermaid validés), `docs/bibliotheques.md`, `docs/references.md` (182 papiers vérifiés sur arXiv), `docs/cahier-des-charges.md`.
 - **Passe complète finale** (code et configs actuels, `logs/complet_final.txt`, un journal par exemple dans `logs/complet/`) : 01 à 15 terminés sans erreur ; arrêtée pour libérer le GPU avant 15 variante GGUF, 16, 17, 18, 19 et 20.
-- **Catalogue** (`exemples.yaml`, `make liste`) : 5 catégories (données, signal, chirurgie, remodeler, sans toucher aux poids) ; 24 exemples démontrés, 6 non prouvés, versions `infra/` non testées.
+- **Catalogue** (`exemples.yaml`, `make liste`) : 5 catégories (données, signal, chirurgie, remodeler, sans toucher aux poids) ; 26 exemples démontrés, 4 non prouvés, versions `infra/` non testées.
 - **Commandes** : `Makefile` racine et un par dossier ; chaque `make test/run` vérifie d'abord les prérequis. Non encore exécuté de bout en bout sur un venv neuf.
 - **Cause principale des refontes** : la tâche fil rouge arithmétique est déjà résolue par Qwen2.5-0.5B-Instruct (0,955) et 1,5B-Instruct (0,995). Les exemples qui l'utilisent pour enseigner une compétence ne démontrent rien. Pour 13 et 14, l'effet n'est pas isolé faute de témoin.
 
@@ -72,11 +72,12 @@ Faits (résultats dans `exemples.yaml` et les README) :
 
 À faire, dans cet ordre :
 
-1. [ ] **SIGN07 données synthétiques** : sans gain sur Qwen2.5-0.5B-Instruct, en rejection sampling (0,387) comme en RFT + STaR (0,393). Reprendre sur Qwen2.5-0.5B de base amorcé en few-shot, avec un plafond de solutions par question (ReST-EM).
-2. [ ] **DATA01 connaissance interne** : entraînement mixte de *Physics of Language Models 3.1* (documents de tous les personnages + questions-réponses d'une moitié), extraction mesurée sur l'autre moitié.
-3. [ ] **SIGN04 préférences** : DPO sur UltraFeedback, victoires contre le départ 0,552 [0,508 ; 0,595] sur une graine ; témoin SFT 0,380. À confirmer sur 2 graines (~4 h), ou partir d'un modèle non aligné.
-4. [ ] **Variante DATA02 Whisper** : audio où Whisper se trompe (accent, bruit).
-5. [ ] **FORM16 élagage** : Wanda 50 % récupère la tâche à 0,66 sur 0,88 ; élagage structuré ou conclusion documentée.
+1. [ ] **SIGN07 données synthétiques** : sur Qwen2.5-0.5B de base amorcé, plafond ReST-EM : 0,363 → 0,402 (p = 0,004), témoin 0,332, sur une graine dont la génération continuait après « Answer: ». Arrêt corrigé ; 3 graines à lancer (`make graines EX=SIGN07 N=3 REPRENDRE=1`, ~6 h).
+2. [x] **DATA01 connaissance interne** : protocole *Physics of Language Models 3.1*, extraction sur les personnages jamais questionnés 0,001 → 0,9996 sur 3 graines.
+3. [ ] **SIGN04 préférences** : DPO sur UltraFeedback, victoires contre le départ 0,533 ± 0,032 sur 3 graines (net sur 2 graines sur 3) ; témoin SFT 0,380. Partir d'un modèle non aligné, ou s'appuyer sur le DPO itératif.
+   - Variante DPO itératif : 3 tours sur ses propres paires classées par Skywork 0,6B, victoires 0,616 [0,573 ; 0,658] (juge 1,7B) sur une graine. 2 graines à lancer (`make graines EX=SIGN04 VAR=dpo-iteratif N=3 REPRENDRE=1`, ~3 h 20).
+4. [x] **Variante DATA02 Whisper** : EdAcc, WER 0,232 → 0,181 sur 3 graines.
+5. [ ] **FORM16 élagage** : Wanda 0,66, 2:4 0,38, largeur 0,14, couches 0,09 sur 0,88 : ne paie pas à 0,5B. Plans possibles sur le poste (échelle 0,5B / 1,5B / 3B, 7B sans cicatrisation, 1,5B en cicatrisation complète) dans `estimations.md` ; à faire en dernier.
 6. [ ] **EDIT08 fusion multi-compétences** : fusionner le routage banking77 (DATA02) et le RL GSM8K (SIGN05), mesurer les deux tâches.
 7. [ ] **EDIT09, EDIT11** : jeux d'évaluation plus larges et intervalles de confiance.
 

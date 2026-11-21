@@ -116,6 +116,7 @@ python variantes/vision/run.py --quick
 python variantes/seq2seq/run.py --quick
 python variantes/seq2seq/run.py                              # Flan-T5-base, DialogSum, ~30 min
 python variantes/audio-whisper/run.py --quick
+python variantes/audio-whisper/run.py                         # whisper-small, accents d'EdAcc, ~15 min
 ```
 
 ## Ce que fait l'exemple
@@ -153,6 +154,23 @@ Gain sur les intentions, apparié sur les mêmes messages : +0,673 [+0,655 ; +0,
 Gain apparié sur les mêmes dialogues : +0,141 [+0,127 ; +0,156], p de permutation < 10⁻³. Sur un dialogue où une personne n'arrive pas à dormir à cause de ses notes, le modèle d'origine écrit « Person1 is worried about his grades. » (il se trompe de personne et s'arrête là). Après fine-tuning, il donne la cause, les conseils proposés et la réponse, dans la forme des références (`#Person2# …`).
 
 Réserve : ROUGE-L mesure le recouvrement de mots, pas l'exactitude des faits ; une relecture humaine ou un juge reste nécessaire avant un usage réel.
+
+### Variante Whisper : transcrire des accents variés
+
+**Le besoin** : transcrire des conversations en anglais avec des accents que le modèle reconnaît mal (Écosse, Inde, Nigeria, Jamaïque, Kenya...) : centre d'appels, réunions internationales.
+
+[`variantes/audio-whisper`](variantes/audio-whisper) fine-tune whisper-small (240 M paramètres) sur le split `validation` d'EdAcc (`edinburghcstr/edacc`, conversations de locuteurs de 40 accents) : environ 6 700 segments de 3 mots et 30 s au plus, une époque, environ 7 min. La mesure porte sur 1 000 segments du split `test`, d'autres locuteurs. Le taux d'erreur sur les mots (WER) est calculé sur le texte passé au normaliseur anglais de Whisper : majuscules, ponctuation, « eleven » contre « 11 » ne comptent pas comme des erreurs. Les références d'EdAcc, en majuscules, sont mises en minuscules pour l'entraînement.
+
+| | WER EdAcc (1 000 segments) | WER LibriSpeech test-clean (300, non-régression) |
+|---|---|---|
+| whisper-small, avant | 0,232 ± 0,010 | 0,034 |
+| Après fine-tuning | **0,181 ± 0,006** | 0,041 |
+
+Moyenne ± écart type sur 3 graines (`make graines EX=DATA02 VAR=audio-whisper N=3`) : −0,051 ± 0,004, soit 22 % d'erreurs en moins ; sur chaque graine, l'intervalle apparié exclut 0 (par exemple −0,055 [−0,064 ; −0,047]).
+
+Les références d'EdAcc gardent les hésitations et répétitions de l'oral (« LET LET ME »). En décodage glouton, le modèle fine-tuné en apprend à boucler sur une quinzaine de segments sur 1 000, ce qui efface le gain. L'exemple utilise donc le décodage de référence de Whisper (OpenAI), avant comme après : une transcription trop répétitive ou trop peu probable est refaite à température plus haute (section `decodage` de la config). Il n'y a plus aucune boucle.
+
+Réserves : la non-régression sur l'anglais lu se dégrade légèrement (+0,7 point de WER). EdAcc ne fournit que 9 h d'entraînement ; un vrai déploiement entraînerait sur l'audio du client lui-même.
 
 ## Paramètres principaux (`config.yaml`)
 
