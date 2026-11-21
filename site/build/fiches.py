@@ -124,7 +124,7 @@ class Generateur:
                        + f"Ce que le dossier {self.depot.lien_code(m['dossier'])} fournit pour cette méthode. "
                        "Principe et références : "
                        f"[{m['titre']}](#{ident}).\n\n"
-                       + self.sections(readme, ["Ce que fait l'exemple", "Composants de l'exemple"], m["dossier"])
+                       + self.sections(readme, ["Ce que fait l'exemple", "Variantes", "Composants de l'exemple"], m["dossier"])
                        + "\n\n" + self.depot.essayer(num, chemin) + "\n\n"
                        + self.sections(readme, EXEMPLE, m["dossier"]))
             base = {"subgroup": f"{self.depot.ident(num)} · {m['titre']}", "aka": extra.get("aka")}

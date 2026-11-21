@@ -140,6 +140,34 @@ Gain sur les intentions, apparié sur les mêmes messages : +0,673 [+0,655 ; +0,
 - **L'oubli est réel et se mesure.** Entraîné seulement à répondre par un mot, le modèle répond par un mot partout : il ne raisonne plus pas à pas et rate l'arithmétique (0,955 → 0,025). Mêler 15 % de demandes générales, avec les réponses du modèle d'origine, limite fortement cet oubli (0,765) au prix de 3 points sur les intentions. Il en reste une part : LoRA fait mieux sur ce point ([DATA03](../03-peft)).
 - **Pour une classification pure, un encodeur suffit** : ModernBERT-base, 3 fois plus petit, fait aussi bien en 85 s d'entraînement. Le LLM fine-tuné se justifie quand il doit aussi répondre, extraire ou rédiger.
 
+## Variantes
+
+### Variante encodeur : classer les intentions avec ModernBERT
+
+**Le besoin** : le même routage des messages bancaires, quand on n'a besoin que de l'étiquette, sans texte généré : un modèle petit, rapide et peu coûteux à servir.
+
+[`variantes/classification-encodeur`](variantes/classification-encodeur) ajoute une tête linéaire à 77 sorties sur ModernBERT-base (150 M paramètres) et entraîne le modèle entier sur les 10 003 messages d'entraînement de banking77, 5 époques. La mesure porte sur les mêmes 3 080 messages de test que l'exemple principal.
+
+| | Intentions (3 080 messages) | Entraînement |
+|---|---|---|
+| ModernBERT-base, tête aléatoire | 0,012 [0,009 ; 0,017] | |
+| Après fine-tuning | **0,937** [0,928 ; 0,945] | 85 s |
+
+Un encodeur 3 fois plus petit que Qwen2.5-0.5B atteint la même exactitude que le SFT du LLM, en 85 s au lieu de 23 min. C'est le bon choix quand la sortie est une étiquette ; le LLM se justifie quand il doit aussi répondre, extraire ou rédiger.
+
+### Variante vision : classer des photos avec un ViT
+
+**Le besoin** : trier des images en catégories propres à l'entreprise (pièces, défauts, produits, documents scannés) à partir de quelques milliers d'exemples étiquetés.
+
+[`variantes/vision`](variantes/vision) remplace la tête de ViT-base (pré-entraîné sur ImageNet-21k, 86 M paramètres) par une tête à 10 classes et entraîne tout le réseau sur 10 000 images de CIFAR-10, 2 époques. La mesure porte sur 1 000 images du split `test`.
+
+| | Exactitude (1 000 images) |
+|---|---|
+| ViT-base, tête aléatoire | 0,101 [0,084 ; 0,121] |
+| Après fine-tuning (84 s) | **0,972** [0,960 ; 0,981] |
+
+Le même script accepte DeiT, DINOv2, ConvNeXt ou Swin et tout jeu Hugging Face au format image + étiquette. Réserve : CIFAR-10 ressemble aux photos du pré-entraînement ; sur des images éloignées (radiographies, vues de microscope), il faut plus d'exemples et d'époques.
+
 ### Variante seq2seq : résumer des dialogues de service client
 
 **Le besoin** : produire le compte rendu d'une conversation (appel, discussion de support) dans le style maison : qui demande quoi, ce qui est proposé, ce qui est décidé. Le modèle d'origine résume trop court et perd les éléments utiles.

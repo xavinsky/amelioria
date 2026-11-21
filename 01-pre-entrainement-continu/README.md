@@ -138,6 +138,27 @@ L'écart après − avant est de +0,998 ± 0,001 (p de McNemar < 10⁻⁶ sur ch
 
 Le témoin à une seule biographie fait presque aussi bien (0,997) : sur un modèle déjà pré-entraîné, c'est le mélange de questions-réponses qui rend la connaissance extractable, la diversité des formulations n'apportant ici qu'un gain marginal. Sans questions-réponses à l'entraînement (`donnees.source=faits`), le modèle apprend les fiches mais n'en extrait presque rien en question-réponse (0,04).
 
+## Variantes
+
+### Variante encodeur : pré-entraînement continu par masquage
+
+[`variantes/mlm-encodeur`](variantes/mlm-encodeur) applique la même méthode à un encodeur : BERT, RoBERTa, DeBERTa, CamemBERT, ModernBERT.
+
+**À quoi ça sert.** Un encodeur ne génère pas de texte. Il transforme un texte en représentation, que l'on fine-tune ensuite pour une tâche : classification, routage de tickets, extraction d'entités, recherche sémantique. En entreprise, ces tâches tournent souvent sur des encodeurs de 100 à 400 millions de paramètres, plus rapides et moins chers qu'un LLM. Un encodeur a été pré-entraîné à deviner des mots masqués (MLM, *masked language modeling*), pas à prédire le mot suivant. Le pré-entraînement continu reprend donc cet objectif-là sur du texte brut du domaine (contrats, comptes rendus médicaux, tickets internes), avant le fine-tuning de la tâche. C'est l'objet de *Don't Stop Pretraining* (Gururangan et al., 2020).
+
+**Quand l'utiliser.** Beaucoup de texte du domaine sans étiquettes, peu d'exemples étiquetés pour la tâche finale, et un vocabulaire éloigné du web. Avec des milliers d'exemples étiquetés, le fine-tuning direct ([variante encodeur de DATA02](../02-fine-tuning-supervise/variantes/classification-encodeur)) suffit souvent.
+
+**Ce que fait le code.** `run.py` charge RoBERTa-base, génère les fiches de 60 personnages inventés (les mêmes faits que l'exemple principal), en garde trois sur quatre pour l'entraînement et une sur quatre pour la mesure. Le `Trainer` de transformers masque 15 % des tokens de chaque fiche (`DataCollatorForLanguageModeling`) et entraîne tous les poids à les retrouver, 20 époques, taux 5e-5. La perte de masquage sur les fiches mises de côté est mesurée avant et après ; le modèle est écrit dans `sorties/01-pre-entrainement-continu--variantes--mlm-encodeur/modele/`, prêt pour un fine-tuning.
+
+**Résultats** (RoBERTa-base, 17 s) : perte de masquage sur les fiches mises de côté 2,38 → 1,09.
+
+**Non démontré.** Cette perte montre seulement que le modèle a appris à compléter des fiches écrites sur le même modèle de phrases. Elle ne dit pas si l'encodeur fait mieux sa tâche finale. La démonstration passe par le protocole du papier sur banking77 : masquage continu sur les messages bancaires sans leurs étiquettes, puis fine-tuning de classification avec 10 exemples par intention, comparé au même fine-tuning sans masquage, sur les 3 080 messages de test et 3 graines.
+
+```bash
+python variantes/mlm-encodeur/run.py --quick           # DistilRoBERTa, 8 personnages
+python variantes/mlm-encodeur/run.py                   # RoBERTa-base, 60 personnages, ~20 s
+```
+
 ## Paramètres principaux (`config.yaml`)
 
 | Clé | Rôle |

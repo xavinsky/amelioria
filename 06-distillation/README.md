@@ -146,7 +146,22 @@ python variantes/encodeur-classification/run.py                 # RoBERTa-base S
 - **Qui rédige les solutions compte plus que leur justesse** : les solutions humaines de GSM8K sont justes mais très courtes (« Ben's iPhone is 2 * 1 year = 2 years old… »). L'élève qui les imite cesse de raisonner pas à pas et chute à 0,30. Les solutions de l'enseignant, détaillées dans le style des modèles Qwen, le font progresser : +15 points par rapport au témoin.
 - C'est la recette des petits modèles de raisonnement (DeepSeek-R1-Distill, Qwen2.5-Math) : faire rédiger un modèle fort, garder ce qui est vérifié juste, entraîner le petit dessus.
 
-La variante encodeur entraîne le même élève deux fois, sans enseignant (`alpha=0`) puis avec : l'écart entre les deux isole l'apport de la distillation.
+## Variantes
+
+### Variante encodeur : distiller un classifieur
+
+**Le besoin** : un classifieur de texte (sentiment, modération, routage) qui tourne sur CPU ou à fort débit, alors que le bon modèle est un gros encodeur. On a peu d'exemples étiquetés, mais beaucoup de textes sans étiquette.
+
+[`variantes/encodeur-classification`](variantes/encodeur-classification) distille RoBERTa-base fine-tuné sur SST-2 (125 M paramètres) vers BERT-mini (11 M), la recette DistilBERT / TinyBERT. L'élève apprend les probabilités de classes de l'enseignant (température 3) ; les deux modèles tokenisent chacun le texte, leurs tokenizers peuvent différer. L'élève voit 2 000 phrases étiquetées et 18 000 phrases sans étiquette annotées par l'enseignant. Témoin : le même élève entraîné sur les seules 2 000 phrases étiquetées, sans enseignant (`alpha=0`). La mesure porte sur les 872 phrases de validation de SST-2.
+
+| | Exactitude (872 phrases) | Paramètres |
+|---|---|---|
+| Enseignant RoBERTa-base | 0,940 [0,923 ; 0,954] | 125 M |
+| Élève, avant | 0,509 [0,476 ; 0,542] | 11 M |
+| Témoin sans enseignant | 0,758 [0,729 ; 0,785] | 11 M |
+| **Élève distillé** | **0,839** [0,814 ; 0,862] | 11 M |
+
+La distillation apporte 8 points sur le témoin, avec un modèle 11 fois plus petit : l'enseignant transmet ce qu'il sait des 18 000 phrases sans étiquette. L'élève reste à 10 points de l'enseignant ; un élève plus grand (DistilBERT, 66 M) réduit l'écart.
 
 ## Paramètres principaux (`config.yaml`)
 

@@ -335,12 +335,13 @@ exemples:
     reserve: "perplexité générale 20,2 → 24,2 malgré le replay ; la diversité des formulations n'apporte presque rien sur un modèle pré-entraîné"
     prerequis: {gpu: requis}
   - chemin: 01-pre-entrainement-continu/variantes/mlm-encodeur
-    statut: demontre
+    statut: non-prouve
     fait: "Poursuit le pré-entraînement par masquage de mots d'un encodeur RoBERTa sur un texte de domaine."
+    piste: "Protocole de *Don't Stop Pretraining* sur banking77 : masquage continu sur les messages sans étiquettes, puis classification avec 10 exemples par intention, contre le même fine-tuning sans masquage, 3 graines."
     duree_test: "8 s"
     duree_complet: "17 s"
     resultat: "perte MLM 2,38 → 1,09"
-    reserve: sans intervalle de confiance
+    reserve: "aucune tâche finale mesurée : la perte montre seulement que le modèle complète des fiches au même format"
     prerequis: {gpu: conseille}
 
   - chemin: 02-fine-tuning-supervise

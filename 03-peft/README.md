@@ -151,6 +151,8 @@ Gain sur les intentions, apparié sur les mêmes messages : +0,662 [+0,645 ; +0,
 - **L'adaptateur se désactive** : sans lui, le modèle est exactement celui d'origine (0,955). Un seul modèle de base peut servir plusieurs tâches, chacune avec son adaptateur de quelques dizaines de Mo.
 - **Le remélange reste nécessaire** : sans lui, même LoRA perd le raisonnement pas à pas (0,33), car il apprend à répondre par un mot.
 
+## Variantes
+
 ### Variante diffusion : apprendre un sujet à Stable Diffusion
 
 [`variantes/diffusion-lora`](variantes/diffusion-lora) apprend à Stable Diffusion 1.5 un chien précis, à partir de 5 photos (`diffusers/dog-example`), associé à l'identifiant rare « sks » (recette DreamBooth-LoRA : rang 8 sur l'attention de l'UNet, 500 pas). Les mesures sont celles du papier DreamBooth. Quatre prompts (« a photo of sks dog », « a sks dog on the beach », « … in the snow », « … wearing a red hat ») sont tirés chacun avec 8 graines, les mêmes avant et après : 32 images par état, comparées image par image.

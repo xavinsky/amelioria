@@ -152,6 +152,8 @@ python variantes/dpo-iteratif/run.py                        # 3 tours on-policy 
 - **Il faut assez de paires.** Avec 4 000 paires et un taux plus faible, pas de gain mesurable.
 - **Non démontré.** Le gain dépend de la graine. Qwen2.5-Instruct a déjà été aligné sur des préférences par ses auteurs : la marge restante est faible. Le juge peut partager des biais avec les annotations d'UltraFeedback.
 
+## Variantes
+
 ### Variante DPO itératif : le modèle fabrique ses propres paires
 
 [`variantes/dpo-iteratif`](variantes/dpo-iteratif) part du même modèle et des mêmes demandes de test, mais n'utilise aucune réponse d'UltraFeedback. À chaque tour :

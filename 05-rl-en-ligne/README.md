@@ -159,6 +159,23 @@ python run.py --set peft.activer=true --set entrainement.lr=1e-5 --set modele.no
 - **Il fait mieux que les deux autres façons d'apprendre de la même tâche** mesurées dans ce dépôt, sur le même modèle et les mêmes problèmes de test : la distillation d'un modèle 6 fois plus gros ([SIGN06](../06-distillation) : 0,451) et l'entraînement sur ses propres solutions justes ([SIGN07](../07-donnees-synthetiques) : 0,387). Le RL apprend aussi de ses échecs, que le rejection sampling écarte.
 - **Il reste modeste à ce budget** : 800 problèmes vus une fois. Les papiers (DeepSeekMath, DAPO) entraînent des milliers de pas, avec vLLM pour la génération.
 
+## Variantes
+
+### Variante modèle de récompense : apprendre à noter les réponses
+
+**Le besoin** : quand la qualité d'une réponse ne se vérifie pas par un programme (utilité, ton, respect d'une consigne), le RL a besoin d'un modèle qui la note. C'est la première étape du RLHF : on l'entraîne sur des paires « réponse préférée / réponse rejetée ».
+
+[`variantes/modele-recompense`](variantes/modele-recompense) ajoute une tête scalaire à Qwen2.5-0.5B-Instruct et l'entraîne avec la perte de Bradley-Terry : la note de la réponse préférée doit dépasser celle de la rejetée. Les 4 000 paires d'entraînement sont des problèmes d'arithmétique où la réponse préférée est juste et la rejetée fausse, une époque. La mesure porte sur 200 paires jamais vues : part des paires où le modèle note mieux la bonne réponse.
+
+| | Paires bien classées (200) |
+|---|---|
+| Tête aléatoire | 0,485 [0,417 ; 0,554] |
+| Après entraînement (87 s) | **0,98** [0,950 ; 0,992] |
+
+Le modèle obtenu se branche comme récompense de l'exemple principal (`--set recompense.source=modele --set recompense.modele=…`, voir « Utilisation »), sert au best-of-N ([EXEC20](../20-calcul-inference)) ou classe des paires on-policy ([DPO itératif](../04-optimisation-preferences)). `donnees.source=hf` l'entraîne sur un jeu de préférences humaines (UltraFeedback, Skywork-Reward-Preference).
+
+Réserve : distinguer une réponse juste d'une fausse est une tâche facile. Sur des préférences humaines, l'exactitude attendue est plus proche de 0,7 à 0,8, et un modèle de récompense se fait exploiter par la politique (réponses longues, flatterie) : il faut le surveiller pendant le RL.
+
 ## Paramètres principaux (`config.yaml`)
 
 | Clé | Rôle |

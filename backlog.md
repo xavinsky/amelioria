@@ -19,7 +19,7 @@ GPU partagé entre les projets de Xavier : tout calcul passe par le skill `gpu-l
 
 ## Grille des exemples
 
-Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et réserve de chaque exemple : [exemples.yaml](exemples.yaml), source unique affichée par `make liste` et reprise dans le README (`make readme`). Bilan : 26 démontrés, 4 non prouvés ; versions `infra/` non testées. La tâche fil rouge arithmétique est **saturée** pour Qwen2.5-0.5B-Instruct (0,955 d'exactitude avec 256 tokens de génération) : les exemples qui l'utilisent pour enseigner une compétence ne peuvent rien démontrer.
+Catégorie, statut (Démontré / Non prouvé / Non testé), résultat mesuré et réserve de chaque exemple : [exemples.yaml](exemples.yaml), source unique affichée par `make liste` et reprise dans le README (`make readme`). Bilan : 25 démontrés, 5 non prouvés ; versions `infra/` non testées. La tâche fil rouge arithmétique est **saturée** pour Qwen2.5-0.5B-Instruct (0,955 d'exactitude avec 256 tokens de génération) : les exemples qui l'utilisent pour enseigner une compétence ne peuvent rien démontrer.
 
 ## 1. Terminer la passe finale en cours
 
@@ -51,6 +51,7 @@ Relire les papiers de chaque méthode (`docs/references.md`) avant d'implémente
 - [x] **02 seq2seq** : résumé de dialogues DialogSum, Flan-T5-base : ROUGE-L 0,291 → 0,432 (+0,141 [+0,127 ; +0,156]).
 - [x] **02 Whisper** : EdAcc (40 accents), whisper-small : WER 0,232 → 0,181 sur 3 graines ; LibriSpeech 0,034 → 0,041.
 - [x] **01 connaissance interne** : protocole *Physics of LM 3.1*, 400 personnages, extraction sur les 200 jamais questionnés 0,001 → 0,9996 sur 3 graines ; témoin à une biographie 0,997.
+- [ ] **01 variante encodeur** : la perte de masquage (2,38 → 1,09) ne mesure aucune tâche finale. Protocole banking77 : masquage continu sur les messages sans étiquettes, classification avec 10 exemples par intention, témoin sans masquage, 3 graines.
 - [ ] **09, 11** : élargir les jeux d'évaluation (plus de faits, plus de consignes) et afficher les IC.
 - [x] **03 diffusion** : mesures DINO et CLIP du papier DreamBooth, 4 prompts × 8 graines appariés : sujet 0,281 → 0,751, prompt 0,300 → 0,293 (n.s.).
 - [ ] **16 élagage** : Wanda 50 % + distillation de 1 000 pas sur Wikipédia et conversations du modèle d'origine : tâche 0,88 → 0,34 → 0,66 ; 2:4 : 0,38. Récupération partielle, pas de gain de vitesse. Structuré : largeur 0,14, couches 0,09 (vitesse +8 %). Conclusion documentée : ne paie pas à 0,5B ; plans possibles sur le poste dans `estimations.md` (jusqu'à 3B avec cicatrisation, 7B sans).

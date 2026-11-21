@@ -11,6 +11,7 @@ Ordre de travail : du plus court en code au plus long.
 | 3 | DATA01 connaissance interne | Démontré : extraction sur les personnages jamais questionnés 0,001 → 0,9996 sur 3 graines | fait | fait | — |
 | 4 | DATA02 Whisper | Démontré sur EdAcc : WER 0,232 → 0,181 sur 3 graines | fait | fait | — |
 | 5 | SIGN07 données synthétiques | Modèle de base amorcé, plafond ReST-EM : gain net sur une graine (0,363 → 0,402, témoin 0,332). 3 graines à lancer avec l'arrêt à la fin de la ligne « Answer: » | fait | ~6 à 9 h (3 graines) | Moyen |
+| 5 bis | DATA01 variante encodeur | Protocole *Don't Stop Pretraining* sur banking77 : masquage continu de RoBERTa-base sur les messages sans étiquettes, classification avec 10 exemples par intention, témoin sans masquage, 3 graines | ~45 min, + 20 min de doc | ~30 min | Moyen : corpus du domaine petit (~150 000 tokens) ; repli : 5 exemples par intention ou plus de texte bancaire |
 | 6 | FORM16 élagage | Fait à 0,5B : Wanda 0,66, 2:4 0,38, largeur 0,14, couches 0,09 (sur 0,88), ne paie pas à cette taille. Plans possibles sur le poste : voir « FORM16 : plans possibles » ci-dessous. À faire en dernier, plan à choisir | 2 à 3 h | 7 à 10 h | Moyen |
 
 Total restant : calculs prêts à relancer (SIGN07 graines, DPO itératif graines), environ 9 h 30 ; FORM16 à part. Les calculs longs se lancent en file la nuit (scripts d'attente, voir `TODONEXT.md`).

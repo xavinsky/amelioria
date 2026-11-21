@@ -120,6 +120,24 @@ python variantes/gguf-llamacpp/run.py --quick              # nécessite llama.cp
 
 Dépendances selon la méthode : `bitsandbytes` (bnb), `torchao` (torchao, qat), `llmcompressor` (gptq, awq). llm-compressor impose sa propre version de torch et de transformers : il s'installe dans un venv séparé (`python3 -m venv .venv-llmcompressor && .venv-llmcompressor/bin/pip install llmcompressor datasets pyyaml`). Voir [`requirements-extras.txt`](../requirements-extras.txt).
 
+## Variantes
+
+### Variante GGUF : servir le modèle avec llama.cpp ou Ollama
+
+**Le besoin** : faire tourner un modèle sur un poste, un serveur sans GPU ou en périphérie, avec les outils les plus répandus (llama.cpp, Ollama, LM Studio), et choisir le niveau de quantification en connaissant ce qu'il coûte.
+
+[`variantes/gguf-llamacpp`](variantes/gguf-llamacpp) convertit Qwen2.5-1.5B-Instruct en GGUF 16 bits, calcule une matrice d'importance (imatrix) sur 400 textes de calibration, quantifie en Q8_0, Q5_K_M, Q4_K_M et IQ3_M, mesure la taille et la perplexité de chaque fichier avec `llama-perplexity` (100 textes), puis écrit un Modelfile Ollama. Il faut un clone compilé de llama.cpp (`dossier_llamacpp`, voir `config.yaml`).
+
+| Format | Taille | Perplexité |
+|---|---|---|
+| f16 | 2 950 Mo | 13,91 |
+| Q8_0 | 1 570 Mo | 13,93 |
+| Q5_K_M | 1 073 Mo | 14,16 |
+| **Q4_K_M** | **940 Mo** | **14,47** |
+| IQ3_M | 741 Mo | 15,95 |
+
+Q8_0 divise la taille par 2 sans perte mesurable ; Q4_K_M la divise par 3 pour +4 % de perplexité, le compromis habituel ; en dessous de 4 bits, la perte devient nette (+15 % en IQ3_M). Réserve : la perplexité résume mal certaines pertes (raisonnement, suivi de consignes) ; avant de déployer un format, mesurer aussi la tâche visée.
+
 ## Paramètres principaux (`config.yaml`)
 
 | Clé | Rôle |
