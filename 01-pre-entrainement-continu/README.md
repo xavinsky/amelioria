@@ -148,15 +148,21 @@ Le témoin à une seule biographie fait presque aussi bien (0,997) : sur un mod�
 
 **Quand l'utiliser.** Beaucoup de texte du domaine sans étiquettes, peu d'exemples étiquetés pour la tâche finale, et un vocabulaire éloigné du web. Avec des milliers d'exemples étiquetés, le fine-tuning direct ([variante encodeur de DATA02](../02-fine-tuning-supervise/variantes/classification-encodeur)) suffit souvent.
 
-**Ce que fait le code.** `run.py` charge RoBERTa-base, génère les fiches de 60 personnages inventés (les mêmes faits que l'exemple principal), en garde trois sur quatre pour l'entraînement et une sur quatre pour la mesure. Le `Trainer` de transformers masque 15 % des tokens de chaque fiche (`DataCollatorForLanguageModeling`) et entraîne tous les poids à les retrouver, 20 époques, taux 5e-5. La perte de masquage sur les fiches mises de côté est mesurée avant et après ; le modèle est écrit dans `sorties/01-pre-entrainement-continu--variantes--mlm-encodeur/modele/`, prêt pour un fine-tuning.
+**Ce que fait le code.** `run.py` suit le protocole de *Don't Stop Pretraining* sur banking77 (messages d'une banque, 77 intentions) :
 
-**Résultats** (RoBERTa-base, 17 s) : perte de masquage sur les fiches mises de côté 2,38 → 1,09.
+1. RoBERTa-base masque 15 % des mots des 10 003 messages d'entraînement, sans leurs étiquettes (`DataCollatorForLanguageModeling`), 20 époques, taux 5e-5. La perte de masquage est mesurée avant et après sur 5 % de messages mis de côté.
+2. Le modèle est fine-tuné à classer les 77 intentions avec 10 messages étiquetés par intention (770 au total).
+3. Le témoin est le même fine-tuning, avec les mêmes 770 messages, sur RoBERTa-base sans masquage préalable.
+4. Les deux modèles sont mesurés sur les 3 080 messages de test, jamais vus au masquage, et comparés sur les mêmes messages. La graine change les 10 messages tirés par intention, le masquage et la tête de classification.
 
-**Non démontré.** Cette perte montre seulement que le modèle a appris à compléter des fiches écrites sur le même modèle de phrases. Elle ne dit pas si l'encodeur fait mieux sa tâche finale. La démonstration passe par le protocole du papier sur banking77 : masquage continu sur les messages bancaires sans leurs étiquettes, puis fine-tuning de classification avec 10 exemples par intention, comparé au même fine-tuning sans masquage, sur les 3 080 messages de test et 3 graines.
+Les fiches de personnages inventés de l'exemple principal restent disponibles (`--set donnees.source=fiches`) : le code mesure alors la seule perte de masquage.
+
+**Résultats.** Non mesurés à ce stade : l'écart entre avec et sans masquage n'est pas encore établi, la variante est « non prouvée » dans le catalogue.
 
 ```bash
-python variantes/mlm-encodeur/run.py --quick           # DistilRoBERTa, 8 personnages
-python variantes/mlm-encodeur/run.py                   # RoBERTa-base, 60 personnages, ~20 s
+python variantes/mlm-encodeur/run.py --quick           # DistilRoBERTa, 400 messages, 2 par intention
+python variantes/mlm-encodeur/run.py                   # RoBERTa-base, banking77 complet
+make graines EX=DATA01 VAR=mlm-encodeur N=3            # 3 graines
 ```
 
 ## Paramètres principaux (`config.yaml`)

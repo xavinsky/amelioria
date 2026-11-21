@@ -1,6 +1,6 @@
 # Améliorer un modèle d'IA sans le réentraîner de zéro
 
-Panorama exécutable des méthodes d'amélioration d'un modèle existant, un dossier par méthode.
+Panorama exécutable des méthodes d'amélioration d'un modèle existant : 20 dossiers, chacun avec un exemple local, des variantes et une version grosse infra. Chaque exemple doit traiter **un besoin réellement utile en entreprise**, avec **le bon concept**, une **implémentation limpide**, et un **résultat prouvé sans ambiguïté** : intervalle de confiance, plusieurs graines, témoin, non-régression. Pas de démonstration fabriquée ni de réglage ad hoc pour obtenir le chiffre voulu. Si le résultat n'apparaît pas, l'approche ou l'implémentation est mauvaise : relire les papiers de la méthode et se réorienter. Code, configs et docs décrivent l'état actuel, jamais leur historique.
 
 ## GPU local
 

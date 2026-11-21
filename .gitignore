@@ -7,3 +7,5 @@ logs/
 qdrant_data/
 *.gguf
 wandb/
+travail/
+CLAUDE.local.md

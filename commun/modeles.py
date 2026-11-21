@@ -11,6 +11,7 @@ import contextlib
 import os
 import pathlib
 import re
+import time
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -145,11 +146,16 @@ def padding_gauche(tok):
 
 @torch.no_grad()
 def generer(model, tok, prompts: list[str], max_new_tokens: int = 64, temperature: float = 0.0,
-            n: int = 1, top_p: float = 1.0, batch: int = 16, **gen_kw):
-    """Génère pour une liste de prompts texte. Renvoie list[str] (n=1) ou list[list[str]]."""
+            n: int = 1, top_p: float = 1.0, batch: int = 16, intervalle: float = 60.0, **gen_kw):
+    """Génère pour une liste de prompts texte. Renvoie list[str] (n=1) ou list[list[str]].
+
+    Au-delà de `intervalle` secondes d'une génération, affiche l'avancement : lots faits, temps écoulé et restant,
+    longueur moyenne générée par lot et nombre de lots allés jusqu'à `max_new_tokens` (signe qu'une suite du lot
+    ne s'arrête pas d'elle-même et que le lot entier coûte la longueur maximale)."""
     sans_autocast(model).eval()
     sorties: list[list[str]] = []
     dev = next(model.parameters()).device
+    n_lots, debut, dernier, longueurs = -(-len(prompts) // batch), time.monotonic(), time.monotonic(), []
     with padding_gauche(tok):
         for i in range(0, len(prompts), batch):
             lot = prompts[i : i + batch]
@@ -165,11 +171,18 @@ def generer(model, tok, prompts: list[str], max_new_tokens: int = 64, temperatur
                 params["stopping_criteria"] = StoppingCriteriaList([_FinReponse(tok, enc["input_ids"].shape[1])])
             params.update(gen_kw)
             out = model.generate(**enc, **params)
+            longueurs.append(out.shape[1] - enc["input_ids"].shape[1])
             textes = tok.batch_decode(out[:, enc["input_ids"].shape[1] :], skip_special_tokens=True)
             if not a_chat_template(tok):
                 textes = [couper_reponse(t) for t in textes]
             for j in range(len(lot)):
                 sorties.append(textes[j * n : (j + 1) * n])
+            fait, maintenant = len(longueurs), time.monotonic()
+            if maintenant - dernier >= intervalle or (fait == n_lots and maintenant - debut >= intervalle):
+                dernier, ecoule = maintenant, maintenant - debut
+                print(f"[generer] lot {fait}/{n_lots} | écoulé {ecoule / 60:.1f} min, reste ~{ecoule / fait * (n_lots - fait) / 60:.1f} min"
+                      f" | longueur moyenne {sum(longueurs) / fait:.0f} tokens, {sum(x >= max_new_tokens for x in longueurs)} lots au maximum",
+                      flush=True)
     return [s[0] for s in sorties] if n == 1 else sorties
 
 

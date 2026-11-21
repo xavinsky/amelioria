@@ -1,29 +1,50 @@
-# Pré-entraînement continu d'un encodeur (MLM) — poste local
+# Pré-entraînement continu d'un encodeur (MLM), puis classification — poste local
 modele:
   nom: FacebookAI/roberta-base     # bert-base-uncased, microsoft/deberta-v3-base, almanach/camembert-base...
 
 donnees:
-  n_entites: 60
+  source: banking77                # banking77 (masquage puis classification) | fiches (biographies fictives, perte de masquage seule)
+  nom: PolyAI/banking77
+  colonne_texte: text
+  colonne_label: label
+  n_mlm: 10003                     # messages d'entraînement servant au masquage, sans leurs étiquettes
+  n_par_classe: 10                 # messages étiquetés par intention pour la classification
+  n_test: 3080
+  n_entites: 60                    # source=fiches
   graine: 0
 
-entrainement:
+entrainement:                      # masquage
   longueur_max: 128
   proba_masque: 0.15
   epochs: 20
-  batch: 16
+  batch: 32
   lr: 5.0e-5
   warmup: 0.06
   weight_decay: 0.01
-  logging_steps: 20
+  logging_steps: 100
 
-sauvegarder: true
+classification:                    # identique avec et sans masquage préalable
+  epochs: 30
+  batch: 16
+  lr: 4.0e-5
+  warmup: 0.1
+  weight_decay: 0.01
+  logging_steps: 100
+
+sauvegarder: false
 
 quick:
   modele:
     nom: distilbert/distilroberta-base
   donnees:
+    n_mlm: 400
+    n_par_classe: 2
+    n_test: 128
     n_entites: 8
   entrainement:
     epochs: 1
-    batch: 8
+    batch: 16
+  classification:
+    epochs: 2
+    batch: 16
   sauvegarder: false

@@ -353,26 +353,31 @@ exemples:
     reserve: oubli partiel malgré le remélange
     prerequis: {gpu: requis}
   - chemin: 02-fine-tuning-supervise/variantes/classification-encodeur
-    statut: demontre
+    statut: non-prouve
     fait: "Entraîne ModernBERT-base à classer les mêmes messages bancaires en 77 intentions (banking77)."
     duree_test: "10 s"
     duree_complet: "2 min"
     resultat: "intentions 0,012 → 0,937 (n = 3 080), 85 s d'entraînement"
+    reserve: "le départ (0,012) est une tête aléatoire, pas un modèle réaliste ; aucune comparaison avec une base simple (régression logistique TF-IDF) ; une graine"
+    piste: "Comparer à une régression logistique TF-IDF sur les mêmes messages, 3 graines."
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/vision
-    statut: demontre
+    statut: non-prouve
     fait: "Entraîne un ViT à classer des photos en 10 catégories (CIFAR-10)."
     duree_test: "13 s"
     duree_complet: "84 s"
     resultat: "CIFAR-10 0,10 → 0,97"
+    reserve: "le départ (0,10) est une tête aléatoire ; aucune comparaison avec une sonde linéaire sur plongements figés ; CIFAR-10 est un cas d'école proche du pré-entraînement ; une graine"
+    piste: "Sonde linéaire sur plongements figés comme départ réaliste, 3 graines."
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/seq2seq
-    statut: demontre
+    statut: non-prouve
     fait: "Fine-tune Flan-T5-base (encodeur-décodeur) pour résumer des dialogues de service client (DialogSum)."
     duree_test: "10 s"
     duree_complet: "30 min"
     resultat: "ROUGE-L 0,291 → 0,432 (+0,141 [+0,127 ; +0,156], n = 500)"
-    reserve: ROUGE-L mesure le recouvrement de mots, pas l'exactitude des faits
+    reserve: "ROUGE-L mesure le recouvrement de mots, pas l'exactitude des faits ; aucun test de fidélité ; une graine"
+    piste: "Fidélité des résumés par un juge ou un modèle d'inférence textuelle, 3 graines."
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/audio-whisper
     statut: demontre
@@ -418,34 +423,41 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 05-rl-en-ligne
-    statut: demontre
+    statut: non-prouve
     fait: "RL (DAPO) sur 800 problèmes de GSM8K : le modèle est récompensé quand sa réponse finale est juste, sans solution rédigée."
     duree_test: "21 s"
     duree_complet: "1 h 05"
     resultat: "GSM8K (n = 1 319) : 0,411 → 0,465 (p = 0,0002) ; non-régression 0,955 → 0,955"
+    reserve: "une graine et aucun témoin (SFT à volume égal, récompense aléatoire) ; le départ à 0,411 est sous le chiffre publié pour ce modèle, peut-être par troncature à 512 tokens ou repli sur le dernier nombre du texte : le gain pourrait être un gain de format, pas de raisonnement"
+    piste: "3 graines, témoin SFT à volume égal, part des sorties avec « Answer: » avant et après, gains recalculés en extraction stricte."
     prerequis: {gpu: requis, api: true}
   - chemin: 05-rl-en-ligne/variantes/modele-recompense
-    statut: demontre
+    statut: non-prouve
     fait: "Entraîne un modèle de récompense à préférer la bonne réponse dans des paires."
     duree_test: "13 s"
     duree_complet: "87 s"
     resultat: "exactitude de préférence 0,485 → 0,98"
+    reserve: "paires synthétiques à gabarit fixe (même raisonnement, résultat décalé) : le modèle apprend à vérifier une addition ; aucun test sur de vraies préférences ; une graine"
+    piste: "Entraîner et mesurer sur de vraies préférences (UltraFeedback), paires jamais vues."
     prerequis: {gpu: requis}
 
   - chemin: 06-distillation
-    statut: demontre
+    statut: non-prouve
     fait: "Qwen2.5-3B-Instruct résout des problèmes de GSM8K ; Qwen2.5-0.5B-Instruct est entraîné sur ses solutions justes. Témoin : même entraînement sur les solutions humaines du jeu."
     duree_test: "16 s"
     duree_complet: "1 h 30"
     resultat: "GSM8K (n = 1 319) : élève 0,411 → 0,451 ; témoin solutions humaines 0,302 ; enseignant 0,760"
-    reserve: gain modeste, l'élève reste loin de l'enseignant
+    reserve: "gain de 4 points sur une graine, l'élève reste loin de l'enseignant ; le témoin « solutions humaines » (0,302) est sous le départ : il montre que le style très court dégrade, pas que la distillation apporte ; non-régression 0,955 → 0,915"
+    piste: "Témoin de même style (auto-distillation filtrée), 3 graines."
     prerequis: {gpu: requis}
   - chemin: 06-distillation/variantes/encodeur-classification
-    statut: demontre
+    statut: non-prouve
     fait: "Distille un classifieur de sentiment RoBERTa vers un BERT 10 fois plus petit."
     duree_test: "25 s"
     duree_complet: "78 s"
     resultat: "sans enseignant 0,758 ; distillé 0,839"
+    reserve: "l'élève distillé voit 18 000 textes de plus que le témoin : distillation et données de transfert sont confondues ; une graine"
+    piste: "Témoin pseudo-étiqueté (mêmes 20 000 textes, étiquettes dures de l'enseignant), 3 graines."
     prerequis: {gpu: conseille}
 
   - chemin: 07-donnees-synthetiques
@@ -458,56 +470,63 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 08-fusion-modeles
-    statut: demontre
+    statut: non-prouve
     fait: "Fusionne Qwen2.5-1.5B-Instruct dans sa base par DARE-TIES, sur CPU, sans données."
     duree_test: "21 s"
     duree_complet: "3 min"
     resultat: "GSM8K : base 0,07 ; Instruct 0,51 ; fusion DARE-TIES 0,55"
-    reserve: "démontre le mécanisme (n = 100) ; scénario multi-compétences à faire"
+    reserve: "un seul modèle est fusionné, donc rien à combiner ; le départ à 0,07 vient du chat template appliqué à un modèle de base, pas d'un échec réel ; 0,55 contre 0,51 sur n = 100 est dans le bruit ; ni graine ni témoin"
+    piste: "Fusionner deux compétences d'une même base Qwen2.5-0.5B (routage banking77 et RL GSM8K), mesurer chaque compétence avec ses sources et un témoin, 3 graines."
     prerequis: {gpu: conseille}
 
   - chemin: 09-edition-connaissances
-    statut: demontre
+    statut: non-prouve
     fait: "Modifie 4 faits réels dans les poids par ROME (la tour Eiffel « passe » à Rome...)."
     duree_test: "12 s"
     duree_complet: "48 s"
     resultat: "efficacité 0 → 1 ; généralisation 0 → 1 ; spécificité 1 → 1"
-    reserve: "n = 4 faits"
+    reserve: "n = 4 faits écrits à la main, mesurés par préférence de log-probabilité ; ni intervalle ni graine"
+    piste: "Au moins 100 faits (jeu CounterFact), efficacité et généralisation avec intervalles."
     prerequis: {gpu: requis}
 
   - chemin: 10-desapprentissage
-    statut: demontre
+    statut: non-prouve
     fait: "Fait oublier 4 personnages appris par NPO, en gardant les 36 autres."
     duree_test: "20 s"
     duree_complet: "59 s"
     resultat: "oubli 1,0 → 0,0 ; rétention 1,0 → 0,925 ; perplexité 25,8 → 26,6"
+    reserve: "après NPO les sorties sur les personnages oubliés sont du bruit : l'oubli ne se distingue pas d'un effondrement, et la mesure « la réponse contient la cible » est satisfaite par n'importe quel charabia ; la rétention est mesurée sur les questions utilisées dans la perte de rétention ; oubli sur 16 questions, une graine"
+    piste: "Questions de rétention tenues à l'écart, perplexité générale, test de reformulation pour vérifier que l'information est retirée, 3 graines."
     prerequis: {gpu: requis}
 
   - chemin: 11-pilotage-activations
-    statut: demontre
+    statut: non-prouve
     fait: "Rend les réponses plus positives en ajoutant une direction d'activations pendant la génération."
     duree_test: "12 s"
     duree_complet: "27 s"
     resultat: "taux de réponses positives 0,60 → 0,97"
-    reserve: "n = 30 par condition"
+    reserve: "seule la part de textes positifs est mesurée : à α = 2 le texte dérive hors sujet sans que le chiffre le montre ; les sujets du test sont ceux de la direction ; n = 30 par condition, une graine"
+    piste: "Mesurer la cohérence du texte (perplexité, juge), des sujets jamais vus, n = 100, 3 graines."
     prerequis: {gpu: requis}
 
   - chemin: 12-extension-contexte
-    statut: demontre
+    statut: non-prouve
     fait: "Fait passer SmolLM-360M de 2 048 à 8 192 tokens de contexte par YaRN et un court entraînement."
     duree_test: "15 s"
     duree_complet: "33 min"
     resultat: "perplexité à 8 192 tokens 422 → 19 ; clé retrouvée à 7 000 tokens 0,3 → 1,0"
-    reserve: "n = 10 clés"
+    reserve: "la mise à l'échelle RoPE seule, sans entraînement, retrouve déjà toutes les clés (1,0) : le gain vient d'elle et l'entraînement n'ajoute qu'un peu de perplexité (19,4 → 18,7) ; test facile (n = 10 clés, choix parmi 10) ; pas de mesure à contexte court"
+    piste: "Tâche de contexte long moins triviale, YaRN seul contre YaRN entraîné, perplexité à contexte court avant et après."
     prerequis: {gpu: requis}
 
   - chemin: 13-extension-vocabulaire
-    statut: demontre
+    statut: non-prouve
     fait: "Ajoute 1 000 mots bretons au tokenizer de Qwen2.5-0.5B, les initialise et les entraîne sur la Wikipédia en breton ; compare à un témoin sans nouveaux tokens, sur 3 graines."
     duree_test: "23 s"
     duree_complet: "13 min"
     resultat: "tokens du texte breton −15,8 % (2,48 → 2,94 caractères par token, 3 graines) ; bits par caractère 1,602 contre 1,572 pour le témoin"
-    reserve: "à entraînement égal, qualité 2 % sous le témoin"
+    reserve: "tokens −15,8 % mesuré sur 3 graines avec témoin, mais à entraînement égal les bits par caractère sont pires que le témoin sans nouveaux tokens (1,569 contre 1,543) : le gain est un coût d'inférence, pas une qualité"
+    piste: "Parité de qualité (bits par caractère au plus égaux au témoin) avec plus d'entraînement, ou annoncer le seul gain d'inférence."
     prerequis: {gpu: requis}
 
   - chemin: 14-croissance-architecture
@@ -548,34 +567,41 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 17-optimisation-prompt
-    statut: demontre
+    statut: non-prouve
     fait: "Compare des stratégies de prompt (consigne, consigne optimisée par OPRO, exemples au hasard, exemples les plus proches) pour router des messages bancaires vers 77 intentions, sans entraînement."
     duree_test: "18 s"
     duree_complet: "8 min"
     resultat: "intentions : zéro-shot 0,229 ; consigne OPRO 0,263 ; 8 exemples au hasard 0,312 ; 8 exemples les plus proches 0,816 (n = 3 080)"
-    reserve: "le vote des 8 exemples les plus proches, sans LLM, fait mieux (0,920)"
+    reserve: "l'optimisation de prompt (OPRO) n'apporte pas de gain net (+3,5 points, non significatif sur le dev, n = 200) ; ce qui gagne est le choix des exemples par proximité, et le vote des voisins sans LLM fait mieux (0,920)"
+    piste: "Dev et test plus grands (n ≥ 500), 3 graines, ou changer le résultat annoncé en sélection d'exemples."
     prerequis: {gpu: conseille, api: true}
 
   - chemin: 18-rag
-    statut: demontre
+    statut: non-prouve
     fait: "Répond à des questions sur 50 personnages inventés en cherchant les bons passages parmi 2 200."
     duree_test: "14 s"
     duree_complet: "54 s"
     resultat: "exactitude 0 → 1,0 ; rappel@3 = 1,0"
+    reserve: "corpus de personnages inventés à gabarit : 0 → 1,0 par construction, sans distracteurs proches ni question sans réponse ; 50 questions, une graine"
+    piste: "Passages voisins en distracteurs et questions sans réponse dans le corpus, 3 graines."
     prerequis: {gpu: conseille, api: true}
 
   - chemin: 19-outils-agents
-    statut: demontre
+    statut: non-prouve
     fait: "Donne au modèle une calculatrice et une base de fiches qu'il appelle pour répondre."
     duree_test: "10 s"
     duree_complet: "2 min"
     resultat: "0,35 → 0,95"
+    reserve: "n = 60, mélange de calculatrice (arithmétique où le modèle sans outil échoue par construction) et de base de fiches, non décomposé par outil ; une graine"
+    piste: "Résultat par outil, 3 graines."
     prerequis: {gpu: conseille, api: true}
 
   - chemin: 20-calcul-inference
-    statut: demontre
+    statut: non-prouve
     fait: "Génère 16 réponses par question GSM8K et garde la plus fréquente ou la mieux notée."
     duree_test: "9 s"
     duree_complet: "10 min"
     resultat: "glouton 0,65 ; vote sur 16 réponses 0,77 ; oracle 0,93"
+    reserve: "n = 100, comparaison non appariée, une graine d'échantillonnage ; les autres stratégies (0,66 ; 0,68 ; 0,70) ne se distinguent pas du glouton ; coût ×16 non mis en regard du gain"
+    piste: "n = 500, écart apparié, gain mis en regard du coût."
     prerequis: {gpu: conseille, api: true}
