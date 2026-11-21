@@ -4,7 +4,7 @@
 
 | Regroupe | Modifie | Local 12 Go | Test `--quick` |
 |---|---|---|---|
-| Non structuré : magnitude, Wanda (SparseGPT en infra) ; semi-structuré 2:4 ; structuré : suppression de couches (ShortGPT), réduction de largeur MLP (Minitron) ; cicatrisation LM ou distillation | Poids mis à zéro, ou architecture réduite | ✅ jusqu'à ~0,5B avec cicatrisation, ~7B sans | ✅ |
+| Non structuré : magnitude, Wanda (SparseGPT en infra) ; semi-structuré 2:4 ; structuré : suppression de couches (ShortGPT), réduction de largeur MLP (Minitron) ; cicatrisation (healing) LM ou distillation | Poids mis à zéro, ou architecture réduite | ✅ jusqu'à ~0,5B avec cicatrisation, ~7B sans | ✅ |
 
 ## Principe
 
@@ -23,7 +23,7 @@ La **cicatrisation** (`cicatrisation.mode`) est ce qui rend l'élagage agressif 
 - `lm` : pré-entraînement continu sur du texte général ;
 - `distillation` : le modèle élagué imite la distribution de sortie de l'original (recette Minitron de NVIDIA). Plus efficace que `lm` à nombre de tokens égal.
 
-Pour un modèle de conversation, la cicatrisation lit aussi des conversations : des demandes générales et les réponses que le modèle d'origine y a faites avant l'élagage. Le texte brut seul n'exerce pas ce qu'on veut récupérer : suivre une consigne et répondre dans le format appris.
+Pour un modèle de conversation, la cicatrisation lit aussi des conversations : des demandes (prompts) générales et les réponses que le modèle d'origine y a faites avant l'élagage. Le texte brut seul n'exerce pas ce qu'on veut récupérer : suivre une consigne et répondre dans le format appris.
 
 Pendant la cicatrisation d'un élagage non structuré, un masque booléen (1 octet par poids) est réappliqué après chaque pas d'optimisation (`GarderMasques`) : les zéros restent des zéros.
 
@@ -36,7 +36,7 @@ Chaque étape est mesurée (origine → élagué → cicatrisé) : paramètres, 
 | LLM LLaMA / Qwen / Mistral / SmolLM | Llama 3, Qwen2.5, Mistral 7B, SmolLM2 | ✅ cas principal | [`elagage.py`](elagage.py) : noms `q/k/v/o_proj`, `gate/up/down_proj` |
 | Autres LLM | GPT-2, Phi, Falcon | ⚠️ | Adapter `NOMS_LINEAIRES` et les attributs MLP |
 | MoE | Mixtral 8x7B, Qwen3-30B-A3B, DeepSeek-V3 | ✅ | Élaguer des experts entiers (fréquence de routage) : très efficace |
-| Encodeurs | BERT | ✅ très étudié | Élagage de têtes d'attention, movement pruning, `nn_pruning` |
+| Encodeurs | BERT | ✅ très étudié | Élagage de têtes (heads) d'attention, movement pruning, `nn_pruning` |
 | Vision | ResNet, ViT | ✅ | Élagage de filtres / canaux (torch-pruning), tokens (ToMe) |
 | Diffusion | Stable Diffusion, SDXL, Flux | ✅ | Suppression de blocs de l'UNet + distillation (BK-SDM, SSD-1B) |
 | Modèle fermé via API | GPT-4o, Claude, Gemini | ❌ | |
@@ -89,15 +89,15 @@ flowchart TD
 - **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en float32 dans la mémoire du GPU : c'est le modèle qui sera élagué.
 - **④ Mesure de l'origine.** `run.py` relève les paramètres (494 millions), la part de poids nuls dans les couches linéaires et le débit en génération (32 tokens après un préchauffage), puis appelle `commun/evaluation.py` pour la perplexité sur les 50 paragraphes et l'exactitude sur les 300 problèmes.
-- **⑤ Génération et forward sur le GPU.** La perplexité demande une passe avant par lot de 4 paragraphes. L'exactitude fait répondre le modèle par lots de 16, token par token, jusqu'à 256 tokens, puis compare le nombre final de chaque réponse au résultat attendu.
-- **Conversations.** Le modèle d'origine répond aux 1 765 demandes générales, par lots de 32, jusqu'à 512 tokens. Les réponses sont gardées dans `sorties/cache-remelange/`, cache partagé avec le remélange de DATA02 et DATA03 : les lancements suivants les relisent sans rien générer.
+- **⑤ Génération et forward sur le GPU.** La perplexité demande une passe avant (forward pass) par lot (batch) de 4 paragraphes. L'exactitude fait répondre le modèle par lots de 16, token par token, jusqu'à 256 tokens, puis compare le nombre final de chaque réponse au résultat attendu.
+- **Conversations.** Le modèle d'origine répond aux 1 765 demandes générales, par lots de 32, jusqu'à 512 tokens. Les réponses sont gardées dans `sorties/cache-remelange/`, cache partagé avec le remélange (replay) de DATA02 et DATA03 : les lancements suivants les relisent sans rien générer.
 - **⑥ Copie de l'enseignant.** `run.py` duplique le modèle d'origine dans la mémoire du GPU, en bf16 et figé : il servira de référence pendant la distillation.
 - **⑦ Élagage.** `run.py` appelle `elagage.py`, qui pose des points d'écoute sur les couches linéaires (`q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`) de chaque bloc.
 - **⑧ Calibration et mise à zéro sur le GPU.** Les 128 paragraphes de calibration, tronqués à 256 tokens, traversent le modèle sans rétropropagation ; les points d'écoute cumulent la norme ‖X_j‖₂ de chaque colonne d'entrée. Chaque poids reçoit le score `|W_ij| · ‖X_j‖₂`, et la moitié de plus faible score de chaque ligne est mise à zéro. Les masques booléens sont gardés pour la suite.
 - **⑨ Mesure du modèle élagué.** Mêmes mesures qu'en ④ : le nombre de paramètres ne change pas, la sparsité passe à 0,5.
 - **⑩ Génération et forward sur le GPU**, comme en ⑤.
-- **⑪ Cicatrisation.** `run.py` confie l'élève élagué et l'enseignant à un `Trainer` de transformers dont la perte est la divergence KL entre leurs distributions de sortie, token par token. Les 4 000 paragraphes et les 1 765 conversations sont mélangés, tokenisés, concaténés et découpés en blocs de 256 tokens. Après chaque pas, le rappel `GarderMasques` d'`elagage.py` réapplique les masques : les zéros restent des zéros.
-- **⑫ Forward et backward sur le GPU.** Chaque pas traite 16 blocs (lots de 2, accumulation sur 8) : passe avant de l'élève, passe avant de l'enseignant sans gradient, perte KL, passe arrière, mise à jour par AdamW 8 bits. 1 000 pas, soit environ 3,5 passages sur les données, taux d'apprentissage 2e-5 après 20 pas de chauffe, gradient checkpointing activé.
+- **⑪ Cicatrisation.** `run.py` confie l'élève élagué et l'enseignant à un `Trainer` de transformers dont la perte (loss) est la divergence KL entre leurs distributions de sortie, token par token. Les 4 000 paragraphes et les 1 765 conversations sont mélangés, tokenisés, concaténés et découpés en blocs de 256 tokens. Après chaque pas, le rappel `GarderMasques` d'`elagage.py` réapplique les masques : les zéros restent des zéros.
+- **⑫ Forward et backward sur le GPU.** Chaque pas traite 16 blocs (lots de 2, accumulation sur 8) : passe avant de l'élève, passe avant de l'enseignant sans gradient, perte KL, passe arrière (backward pass), mise à jour par AdamW 8 bits. 1 000 pas, soit environ 3,5 passages sur les données, taux d'apprentissage (learning rate) 2e-5 après 20 pas de chauffe, gradient checkpointing activé.
 - **⑬ Mesure après cicatrisation.** Mêmes mesures qu'en ④ sur le modèle cicatrisé.
 - **⑭ Génération et forward sur le GPU**, comme en ⑤.
 - **⑮ Écriture du modèle élagué et cicatrisé** et de son tokenizer dans `sorties/16-elagage/modele-wanda/`.
@@ -150,6 +150,12 @@ python run.py --set methode=largeur --set ratio_largeur=0.3 --set cicatrisation.
 - **Aucun gain de vitesse** en PyTorch standard pour Wanda et 2:4 : les zéros sont stockés et multipliés comme les autres poids. Le 2:4 n'accélère qu'avec des noyaux dédiés (vLLM, TensorRT).
 - **L'élagage structuré rend le modèle réellement plus petit, mais la tâche s'effondre.** Retirer 6 couches accélère la génération de 8 % pour 18 % de paramètres en moins ; la tâche ne revient qu'à 0,09. La perplexité générale, elle, revient près de l'original (26,7 contre 22,3) : la cicatrisation restaure la langue, pas la compétence.
 - **Conclusion : à cette taille et à ce budget, l'élagage ne paie pas.** Un modèle de 0,5B a peu de redondance, et 1 000 pas de distillation (environ 4 millions de tokens) ne suffisent pas. Les gains publiés (Minitron : 8B → 4B) portent sur des modèles bien plus grands, cicatrisés sur des dizaines de milliards de tokens.
+
+### Variante grand modèle : élaguer un 7B couche par couche
+
+**Le besoin** : vérifier à la taille où Wanda a été publié (7B) ce que l'élagage non structuré conserve, sans cicatrisation.
+
+[`variantes/grand-modele`](variantes/grand-modele) garde Qwen2.5-7B-Instruct (15 Go en bf16) en RAM et fait passer chaque bloc sur le GPU à son tour : les activations de calibration (128 blocs de 256 tokens) traversent les blocs déjà élagués. Wanda à 50 % et le motif 2:4 sont appliqués, puis la référence et les deux modèles élagués sont évalués en 8 bits sur la carte (GSM8K, 250 problèmes, et perplexité Wikipédia) : la quantification étant la même, l'écart isole l'élagage. Une seule exécution (`make graines EX=16 VAR=grand-modele N=1`).
 
 ## Paramètres principaux (`config.yaml`)
 

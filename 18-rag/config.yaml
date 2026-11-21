@@ -22,6 +22,8 @@ gabarit: |-
 donnees:
   n_entites: 50
   n_distracteurs: 2000              # paragraphes Wikipédia ajoutés au corpus
+  n_jumeaux: 50                     # personnages au nom presque identique et aux faits différents, ajoutés au corpus
+  n_sans_reponse: 25                # questions sur des personnages absents du corpus (la bonne réponse est un refus)
   graine: 0
 
 evaluation:
@@ -37,6 +39,8 @@ quick:
   donnees:
     n_entites: 5
     n_distracteurs: 20
+    n_jumeaux: 5
+    n_sans_reponse: 3
   evaluation:
     n: 8
     max_new_tokens: 16

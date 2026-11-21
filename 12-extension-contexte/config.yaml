@@ -26,6 +26,8 @@ entrainement:
 evaluation:
   longueurs: [1024, 2048, 4096, 7000]
   n_cles: 10
+  longueurs_dures: [2048, 4096, 7000]   # clé cachée et deux codes à combiner, sur du texte varié
+  n_dur: 30
   longueur_ppl: 8192
   n_ppl: 4
 
@@ -46,6 +48,8 @@ quick:
   evaluation:
     longueurs: [512, 2800]
     n_cles: 2
+    longueurs_dures: [512]
+    n_dur: 2
     longueur_ppl: 1024
     n_ppl: 1
   sauvegarder: false

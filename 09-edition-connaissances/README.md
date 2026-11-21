@@ -88,7 +88,7 @@ flowchart TD
 - **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en float32 dans la mémoire du GPU, où ils restent jusqu'à la fin, tous figés. L'édition porte sur le module `mlp.down_proj` de la couche 5 (`couche_relative: 0.2` × 28 couches, numérotées à partir de 0).
 - **④ Mesure avant.** `run.py` compare, pour chaque fait, la probabilité de l'ancien et du nouvel objet après le prompt (efficacité), après les paraphrases (généralisation), et celle de la bonne réponse face au nouvel objet sur les faits voisins (spécificité).
-- **⑤ Calcul sur le GPU.** Chaque comparaison est une passe avant qui donne la log-probabilité de la suite ; le prompt principal de chaque fait est aussi complété par 8 tokens en décodage glouton, pour lire la réponse du modèle.
+- **⑤ Calcul sur le GPU.** Chaque comparaison est une passe avant (forward pass) qui donne la log-probabilité de la suite ; le prompt principal de chaque fait est aussi complété par 8 tokens en décodage glouton, pour lire la réponse du modèle.
 - **⑥ Téléchargement de wikitext-2**, au premier lancement, par datasets.
 - **⑦ Lecture** de 200 paragraphes du split `train`.
 - **⑧ Covariance.** `run.py` appelle `edition.py`, qui accroche une fonction à l'entrée du module édité pour recueillir ses activations, les « clés ».

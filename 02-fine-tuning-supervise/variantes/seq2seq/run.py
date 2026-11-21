@@ -6,6 +6,9 @@ par le décodeur (traduction, résumé, reformulation, extraction...).
 Tâche par défaut : résumer des conversations (DialogSum), mesurée en ROUGE-L. Chaque conversation de test a
 plusieurs résumés de référence ; un résumé produit est noté sur la référence dont il est le plus proche. Avant et
 après sont comparés conversation par conversation (écart moyen apparié).
+
+Fidélité : un modèle d'inférence textuelle (`evaluation.fidelite`) estime la probabilité que la conversation implique
+le résumé ; le fine-tuning ne doit pas la dégrader (un résumé peut recopier les mots de la référence en inventant des faits).
 """
 
 import collections
@@ -55,6 +58,23 @@ def references_groupees(exemples):
 
 
 @torch.no_grad()
+def fidelite(nom_nli, dialogues, resumes, appareil):
+    """Probabilité que le dialogue implique le résumé, selon un modèle d'inférence textuelle (MNLI)."""
+    from transformers import AutoModelForSequenceClassification
+
+    tok = AutoTokenizer.from_pretrained(nom_nli)
+    nli = AutoModelForSequenceClassification.from_pretrained(nom_nli).to(appareil).eval()
+    implication = next(i for i, nom in nli.config.id2label.items() if nom.lower().startswith("entail"))
+    res = []
+    for i in range(0, len(resumes), 16):
+        enc = tok(dialogues[i : i + 16], resumes[i : i + 16], return_tensors="pt", padding=True, truncation="only_first",
+                  max_length=512).to(appareil)
+        res += nli(**enc).logits.softmax(-1)[:, implication].tolist()
+    del nli
+    return res
+
+
+@torch.no_grad()
 def mesurer(model, tok, exemples, cfg):
     model.eval()
     ev, sorties = cfg.evaluation, []
@@ -67,9 +87,13 @@ def mesurer(model, tok, exemples, cfg):
     exemple = {"question": exemples[0]["question"][:300], "sortie": sorties[0], "attendu": exemples[0]["references"][0]}
     if ev.mode == "rouge_l":
         scores = [max(rouge_l(s, r) for r in ex["references"]) for s, ex in zip(sorties, exemples)]
-        return {"rouge_l": round(sum(scores) / len(scores), 4), "n": len(scores),
-                "mots_par_resume": round(sum(len(mots(s)) for s in sorties) / len(sorties), 1),
-                "exemple": exemple, "par_exemple": scores}
+        res = {"rouge_l": round(sum(scores) / len(scores), 4), "n": len(scores),
+               "mots_par_resume": round(sum(len(mots(s)) for s in sorties) / len(sorties), 1),
+               "exemple": exemple, "par_exemple": scores}
+        if ev.get("fidelite"):
+            res["par_exemple_fidelite"] = fidelite(ev.fidelite, [ex["question"] for ex in exemples], sorties, model.device)
+            res["fidelite"] = round(sum(res["par_exemple_fidelite"]) / len(sorties), 4)
+        return res
     ok = [any(evaluation.correct(s, c, ev.mode) for c in ex["cibles"]) for s, ex in zip(sorties, exemples)]
     return {**preuve.taux(ok), "exemple": exemple}
 
@@ -102,6 +126,8 @@ def main():
         tok.save_pretrained(f"{cfg.sortie}/modele")
     ecart = ({"rouge_l_apres_moins_avant": preuve.ecart_moyen_apparie(avant.pop("par_exemple"), apres.pop("par_exemple"))}
              if "par_exemple" in avant else {})
+    if "par_exemple_fidelite" in avant:
+        ecart["fidelite_apres_moins_avant"] = preuve.ecart_moyen_apparie(avant.pop("par_exemple_fidelite"), apres.pop("par_exemple_fidelite"))
     rapport.enregistrer(cfg, avant=avant, apres=apres, **ecart, entrainement=dict(mesures))
 
 

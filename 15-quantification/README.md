@@ -16,7 +16,7 @@ Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m15) (ce que la
 |---|---|---|---|
 | **PTQ à la volée** | `bnb_nf4`, `bnb_int8`, `torchao_int8wo`, `torchao_int4wo`, `torchao_fp8` | Arrondi par groupes de poids, avec une échelle par groupe. NF4 utilise des niveaux adaptés à une distribution normale | Secondes, pas de données |
 | **PTQ calibrée** | `gptq`, `awq` | Quelques centaines d'exemples servent à mesurer les activations. GPTQ corrige les erreurs d'arrondi colonne par colonne (inverse de la hessienne) ; AWQ protège les canaux importants par une mise à l'échelle | Minutes à heures, 256 à 512 exemples |
-| **QAT** | `qat` | Pendant un court fine-tuning, les poids passent par une *fausse* quantification : le modèle apprend à tolérer l'arrondi, puis conversion réelle | Un fine-tuning. Récupère une bonne partie de la perte de la PTQ en 4 bits et moins |
+| **QAT** | `qat` | Pendant un court fine-tuning, les poids passent par une *fausse* quantification : le modèle apprend à tolérer l'arrondi, puis conversion réelle | Un fine-tuning. Récupère une bonne partie de la perte (loss) de la PTQ en 4 bits et moins |
 | **GGUF** | [`variantes/gguf-llamacpp`](variantes/gguf-llamacpp) | k-quants à blocs et super-blocs, matrice d'importance (imatrix) calculée sur un texte | Minutes sur CPU |
 
 Mesures (référence bf16 puis modèle quantifié) : mémoire du modèle, tokens/s en génération, perplexité wikitext, exactitude sur la tâche.
@@ -83,7 +83,7 @@ flowchart TD
 - **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Le modèle de référence est copié en bf16 dans la mémoire du GPU.
 - **④ Mesure de la référence.** `run.py` relève la mémoire occupée par le modèle sur le GPU, puis le débit en génération : 64 tokens produits sur une consigne fixe, après un court préchauffage. Il appelle ensuite `commun/evaluation.py` pour la perplexité sur les 50 paragraphes et l'exactitude sur les 100 problèmes.
-- **⑤ Génération et forward sur le GPU.** La perplexité demande une passe avant par lot de 4 paragraphes. L'exactitude fait répondre le modèle par lots de 16, token par token, jusqu'à 256 tokens, puis compare le nombre final de chaque réponse au résultat attendu.
+- **⑤ Génération et forward sur le GPU.** La perplexité demande une passe avant (forward pass) par lot (batch) de 4 paragraphes. L'exactitude fait répondre le modèle par lots de 16, token par token, jusqu'à 256 tokens, puis compare le nombre final de chaque réponse au résultat attendu.
 - **⑥ Relecture.** Le modèle de référence est supprimé et la mémoire du GPU vidée ; les poids d'origine sont relus dans le cache.
 - **⑦ Chargement quantifié.** `run.py` appelle `from_pretrained` avec une configuration bitsandbytes : NF4, double quantification des échelles, calcul en bf16.
 - **⑧ Quantification à la volée.** Au moment de leur copie sur le GPU, les poids des couches linéaires sont arrondis par bitsandbytes sur 16 niveaux NF4, par blocs ayant chacun leur échelle. Les embeddings restent en bf16. Aucune donnée de calibration n'est utilisée.

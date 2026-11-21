@@ -8,7 +8,7 @@ decision:
     La mémoire:
       m: 15
       choix:
-        perte trop forte: {fin: "8 bits, ou méthode\ncalibrée (GPTQ, AWQ)"}
+        perte (loss) trop forte: {fin: "8 bits, ou méthode\ncalibrée (GPTQ, AWQ)"}
     La taille du modèle:
       q: "Un modèle plus petit\nde la même famille ?"
       choix:

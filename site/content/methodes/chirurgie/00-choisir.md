@@ -2,7 +2,7 @@
 title: "EDIT : choisir entre les méthodes"
 nav: Choisir dans EDIT
 id: choisir-edit
-description: "Fusion de modèles, édition de connaissances, désapprentissage ou pilotage par activations : comment choisir une intervention ciblée sur un modèle d'IA."
+description: "Fusion de modèles, édition de connaissances, désapprentissage ou pilotage (steering) par activations : comment choisir une intervention ciblée sur un modèle d'IA."
 comparatif: chirurgie
 decision:
   q: "Que faut-il\nchanger ?"

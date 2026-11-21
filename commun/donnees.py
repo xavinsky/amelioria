@@ -66,6 +66,12 @@ def extraire_nombre(texte: str) -> str | None:
     return nombres[-1].replace(",", "") if nombres else None
 
 
+def extraire_nombre_strict(texte: str) -> str | None:
+    """Nombre de la ligne « Answer: N » seulement, sans repli sur le dernier nombre du texte."""
+    m = re.search(r"Answer:\s*\$?(-?[\d,]+(?:\.\d+)?)", texte)
+    return m.group(1).replace(",", "") if m else None
+
+
 # --------------------------------------------------------------------------- base de faits fictifs
 
 _SYLLABES = ["ka", "vel", "tor", "qui", "zan", "mor", "lis", "dra", "fen", "gol", "rix", "sol", "bru", "nae", "thal", "ob", "wen", "cy", "pra", "lum"]
@@ -143,6 +149,23 @@ EDITIONS = [
      "paraphrases": ["The original author of the Python programming language is", "Python, the popular programming language, was designed by"],
      "voisins": [("The Java programming language was created by", " James"), ("The C programming language was created by", " Dennis")]},
 ]
+
+
+def editions_counterfact(n: int, graine: int = 0) -> list[dict]:
+    """Faits du jeu CounterFact (azhx/counterfact) au format de EDITIONS : une réécriture par fait (vrai objet -> faux objet),
+    des paraphrases du prompt et des faits voisins dont la réponse ne doit pas changer."""
+    from datasets import load_dataset
+
+    ds = load_dataset("azhx/counterfact", split="train")
+    res = []
+    for i in random.Random(graine).sample(range(len(ds)), n):
+        r = ds[i]
+        rw = r["requested_rewrite"]
+        vrai = " " + rw["target_true"]["str"]
+        res.append({"sujet": rw["subject"], "prompt": rw["prompt"].format(rw["subject"]), "ancienne": vrai,
+                    "nouvelle": " " + rw["target_new"]["str"], "paraphrases": list(r["paraphrase_prompts"]),
+                    "voisins": [(p, vrai) for p in r["neighborhood_prompts"]]})
+    return res
 
 
 # --------------------------------------------------------------------------- datasets Hugging Face

@@ -81,7 +81,7 @@ flowchart LR
     donnees --> fwd --> perte --> bwd --> opt --> fwd
 ```
 
-Le même objectif sert au pré-entraînement (texte brut), au pré-entraînement continu (DATA01) et au fine-tuning supervisé (02, perte sur la réponse seulement). Les autres méthodes changent **la perte** (préférences 04, RL 05, distillation 06, désapprentissage 10), **les données** (SIGN07), **les poids entraînés** (DATA03, FORM13, FORM14) ou se passent d'entraînement.
+Le même objectif sert au pré-entraînement (texte brut), au pré-entraînement continu (DATA01) et au fine-tuning supervisé (02, perte (loss) sur la réponse seulement). Les autres méthodes changent **la perte** (préférences 04, RL 05, distillation 06, désapprentissage 10), **les données** (SIGN07), **les poids entraînés** (DATA03, FORM13, FORM14) ou se passent d'entraînement.
 
 Mémoire d'un entraînement complet avec AdamW en précision mixte, par paramètre :
 

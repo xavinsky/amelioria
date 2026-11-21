@@ -740,7 +740,7 @@ td.col-resultat{background:var(--result-tint); color:var(--sec4-dark); width:30%
 
 /* ---------- AmeliorIA : statut des exemples (marqueurs [!DEMONTRE], [!NONPROUVE], [!NONTESTE]) ---------- */
 .md li.untested, .md tr.untested td{color:var(--muted);}
-.status-badge.proven, .status-badge.unproven, .status-badge.untested{
+.status-badge.proven, .status-badge.unproven, .status-badge.ready, .status-badge.untested{
   display:inline-block;
   font-family:var(--font-mono);
   font-size:10.5px;
@@ -753,6 +753,7 @@ td.col-resultat{background:var(--result-tint); color:var(--sec4-dark); width:30%
 }
 .status-badge.proven{background:var(--sec2);}
 .status-badge.unproven{background:var(--sec4);}
+.status-badge.ready{background:var(--sec1);}
 .status-badge.untested{background:var(--muted);}
 
 /* ---------- AmeliorIA : catégories de méthodes (arbre de décision, légende) ---------- */

@@ -6,7 +6,8 @@ modele:
 donnees:
   source: faits                     # faits (personnages générés) | tofu (locuslab/TOFU, avec un modèle déjà fine-tuné dessus)
   n_entites: 40
-  part_oubli: 0.1                   # TOFU : forget01 / forget05 / forget10
+  part_oubli: 0.25                  # 10 personnages, 40 questions ; TOFU : forget01 / forget05 / forget10
+  part_tenu: 0.25                   # personnages jamais vus par la perte : mesure de rétention hors perte
   graine: 0
 
 implantation:                       # phase 0 : le modèle apprend d'abord les personnages (SFT)
@@ -23,9 +24,11 @@ desapprentissage:
   beta: 0.1                         # npo
   retenu: true                      # npo : ajouter la perte de rétention (NPO+RT)
   poids_retenu: 1.0
+  seuil_oubli: 0.05                 # arrêt dès que l'exactitude sur l'oubli passe sous ce seuil
+  eval_tous: 10
 
 entrainement:
-  max_steps: 60
+  max_steps: 120
   batch: 8
   gradient_checkpointing: true
   lr: 1.0e-5
@@ -33,7 +36,7 @@ entrainement:
 
 evaluation:
   max_new_tokens: 24
-  n_retenu: 80
+  n_retenu: 120
   n_textes_generaux: 40
 
 sauvegarder: true
@@ -42,7 +45,7 @@ quick:
   modele:
     nom: HuggingFaceTB/SmolLM2-135M-Instruct
   donnees:
-    n_entites: 10
+    n_entites: 12
   implantation:
     epochs: 1
     batch: 8

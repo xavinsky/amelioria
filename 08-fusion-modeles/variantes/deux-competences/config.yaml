@@ -1,0 +1,61 @@
+# Fusion de deux compétences — poste local (GPU 12 Go pour les entraînements ; la fusion se fait sur CPU/RAM)
+base:
+  nom: Qwen/Qwen2.5-0.5B-Instruct
+
+competences:
+  - nom: routage                       # messages de clients bancaires -> l'une de 77 intentions
+    donnees: {source: banking77, n_train: 3000, n_test: 1000, graine: 0}
+    entrainement: {max_length: 640, epochs: 1, batch: 4, accumulation: 4, gradient_checkpointing: true, lr: 1.0e-5,
+                   warmup: 0.03, scheduler: cosine, logging_steps: 50}
+    evaluation:
+      mode: etiquette
+      n: 1000
+      max_new_tokens: 16
+      batch: 32
+      systeme: |-
+        You route the messages of a bank's customers. Reply with exactly one intent label from this list, and nothing else.
+        Intents: {intentions}
+  - nom: raisonnement                  # problèmes de mathématiques rédigés, réponse finale en « Answer: N »
+    donnees: {source: gsm8k, n_train: 3000, n_test: 400, graine: 0}
+    entrainement: {max_length: 768, epochs: 2, batch: 4, accumulation: 4, gradient_checkpointing: true, lr: 1.0e-5,
+                   warmup: 0.03, scheduler: cosine, logging_steps: 50}
+    evaluation:
+      mode: nombre
+      n: 400
+      max_new_tokens: 384
+      batch: 64
+      systeme: "Solve the problem step by step, then end with a line of the form 'Answer: <number>'."
+
+# Réglages des papiers, fixés avant la mesure : linéaire (moyenne), arithmétique des tâches (somme des deux vecteurs),
+# TIES (20 % des coordonnées par vecteur, signes concordants), DARE-TIES (abandon aléatoire, mise à l'échelle).
+fusions:
+  - {methode: lineaire}
+  - {methode: arithmetique_taches, poids: 1.0}
+  - {methode: ties, densite: 0.2, poids: 1.0}
+  - {methode: dare_ties, densite: 0.3, poids: 1.0}
+
+evaluation:
+  n_textes_generaux: 50
+
+quick:
+  base: {nom: HuggingFaceTB/SmolLM2-135M-Instruct}
+  competences:
+    - nom: routage
+      donnees: {source: banking77, n_train: 32, n_test: 8, graine: 0}
+      entrainement: {max_length: 640, epochs: 1, batch: 8, accumulation: 1, logging_steps: 10}
+      evaluation:
+        mode: etiquette
+        n: 8
+        max_new_tokens: 16
+        batch: 8
+        systeme: "Reply with exactly one intent label from this list, and nothing else. Intents: {intentions}"
+    - nom: raisonnement
+      donnees: {source: gsm8k, n_train: 32, n_test: 8, graine: 0}
+      entrainement: {max_length: 512, epochs: 1, batch: 8, accumulation: 1, logging_steps: 10}
+      evaluation:
+        mode: nombre
+        n: 8
+        max_new_tokens: 48
+        batch: 8
+        systeme: "Solve the problem step by step, then end with a line of the form 'Answer: <number>'."
+  evaluation: {n_textes_generaux: 4}

@@ -33,13 +33,13 @@ make run  EX=FORM15                  # exemple complet (GPU ~12 Go), résultats 
 | `API`, `MODELE` | Modèle servi par une API compatible OpenAI (EXEC17 à EXEC20) | `API=http://localhost:11434/v1 MODELE=qwen3:8b` |
 | `LANCEUR` | Préfixe de lancement | `LANCEUR="nice -n 10"` |
 
-Dans un dossier de méthode, les mêmes cibles marchent sans `EX` : `cd 03-peft && make test VAR=diffusion-lora`. Autres cibles : `make install-gptq` (venv séparé pour GPTQ/AWQ), `make install-llamacpp` (variante GGUF), `make smoke` (tous les tests rapides), `make complet` (tous les exemples complets), `make graines` (répéter un exemple sur `N` graines : moyenne ± écart type), `make selecteurs` (chaque valeur des sélecteurs), `make help`.
+Dans un dossier de méthode, les mêmes cibles marchent sans `EX` : `cd 03-peft && make test VAR=diffusion-lora`. Autres cibles : `make install-gptq` (venv séparé pour GPTQ/AWQ), `make install-llamacpp` (variante GGUF), `make smoke` (tous les tests rapides), `make complet` (tous les exemples complets), `make graines` (répéter un exemple sur `N` graines/seeds : moyenne ± écart type), `make selecteurs` (chaque valeur des sélecteurs), `make help`.
 
 ## Les méthodes
 
 <!-- methodes:debut (généré par make readme depuis exemples.yaml) -->
 
-Statut de chaque exemple : 🟢 Démontré (gain mesuré et net) · 🟡 Non prouvé (s'exécute, gain pas encore démontré) · ⚪ Non testé (versions `infra/`, jamais exécutées). Résultats et réserves : `make liste`.
+Statut de chaque exemple : 🟢 Démontré (gain mesuré et net) · 🟡 Non prouvé (s'exécute, gain pas encore démontré) · 🔵 Prêt à tester (code de la démonstration écrit, calcul à lancer) · ⚪ Non testé (versions `infra/`, jamais exécutées). Résultats et réserves : `make liste`.
 
 Colonne « Local 12 Go » : ✅ faisable sur un GPU grand public ; ⚠️ seulement sur de petits modèles ; ☁️ les vrais cas d'usage demandent une grosse infra (exemple fourni dans `infra/`).
 
@@ -49,8 +49,8 @@ Entraîner les poids sur des exemples, texte brut ou paires question/réponse.
 
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
-| [DATA01](01-pre-entrainement-continu) | Pré-entraînement continu | Continued pretraining, DAPT, adaptation à une langue, MLM continu | LLM de base ; encodeurs (variante MLM) ; seq2seq, vision, audio (même principe) | ⚠️ ≤ 1,5B · ☁️ | 🟢 principal · 🟡 mlm-encodeur |
-| [DATA02](02-fine-tuning-supervise) | Fine-tuning supervisé | SFT, instruction tuning, fine-tuning complet | LLM ; variantes : encodeur (classification), vision (ViT), seq2seq (T5), speech (Whisper) | ⚠️ ≤ 1B (LLM), ✅ autres | 🟢 principal · 🟡 classification-encodeur · 🟡 vision · 🟡 seq2seq · 🟢 audio-whisper |
+| [DATA01](01-pre-entrainement-continu) | Pré-entraînement continu | Continued pretraining, DAPT, adaptation à une langue, MLM continu | LLM de base ; encodeurs (variante MLM) ; seq2seq, vision, audio (même principe) | ⚠️ ≤ 1,5B · ☁️ | 🟢 principal · 🟢 mlm-encodeur |
+| [DATA02](02-fine-tuning-supervise) | Fine-tuning supervisé | SFT, instruction tuning, fine-tuning complet | LLM ; variantes : encodeur (classification), vision (ViT), seq2seq (T5), speech (Whisper) | ⚠️ ≤ 1B (LLM), ✅ autres | 🟢 principal · 🟢 classification-encodeur · 🟢 vision · 🟢 seq2seq · 🟢 audio-whisper |
 | [DATA03](03-peft) | PEFT (LoRA, QLoRA...) | LoRA, QLoRA, DoRA, rsLoRA, PiSSA, LoHa, LoKr, IA³, prompt et prefix tuning | Tous (couches linéaires) ; variante : diffusion (DreamBooth-LoRA) | ✅ ≤ 3B (LoRA), ≤ 8B (QLoRA) | 🟢 principal · 🟢 diffusion-lora |
 
 ### SIGN · Apprendre à partir d'un signal
@@ -59,9 +59,9 @@ Apprendre d'un jugement, d'une récompense, d'un enseignant ou de ses propres so
 
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
-| [SIGN04](04-optimisation-preferences) | Optimisation des préférences | DPO, IPO, rDPO, SLiC, APO, NCA, BCO, SPPO, ORPO, SimPO, CPO, KTO ; variante DPO itératif | LLM (après SFT), VLM, diffusion (Diffusion-DPO) | ⚠️ ≤ 0,5B complet, ≤ 3B LoRA | 🟡 principal · 🟡 dpo-iteratif |
-| [SIGN05](05-rl-en-ligne) | RL en ligne | RLHF, RLAIF, RLVR ; GRPO, Dr.GRPO, DAPO, GSPO, CISPO, RLOO ; PPO en infra ; variante modèle de récompense | LLM, VLM, agents ; diffusion (DDPO) | ⚠️ ≤ 1,5B · ☁️ | 🟡 principal · 🟡 modele-recompense |
-| [SIGN06](06-distillation) | Distillation | Logits (KD), séquences, on-policy (GKD) ; variante classifieur encodeur | LLM (même tokenizer pour logits), encodeurs, vision, diffusion | ✅ petits couples · ☁️ 70B → 8B | 🟡 principal · 🟡 encodeur-classification |
+| [SIGN04](04-optimisation-preferences) | Optimisation des préférences | DPO, IPO, rDPO, SLiC, APO, NCA, BCO, SPPO, ORPO, SimPO, CPO, KTO ; variante DPO itératif | LLM (après SFT), VLM, diffusion (Diffusion-DPO) | ⚠️ ≤ 0,5B complet, ≤ 3B LoRA | 🟡 principal · 🔵 dpo-iteratif |
+| [SIGN05](05-rl-en-ligne) | RL en ligne | RLHF, RLAIF, RLVR ; GRPO, Dr.GRPO, DAPO, GSPO, CISPO, RLOO ; PPO en infra ; variante modèle de récompense | LLM, VLM, agents ; diffusion (DDPO) | ⚠️ ≤ 1,5B · ☁️ | 🟡 principal · 🔵 modele-recompense |
+| [SIGN06](06-distillation) | Distillation | Logits (KD), séquences, on-policy (GKD) ; variante classifieur encodeur | LLM (même tokenizer pour logits), encodeurs, vision, diffusion | ✅ petits couples · ☁️ 70B → 8B | 🟡 principal · 🔵 encodeur-classification |
 | [SIGN07](07-donnees-synthetiques) | Données synthétiques | Rejection sampling (RFT/STaR), Self-Instruct, critique-révision (Constitutional AI) | LLM ; données pour classifieurs, VLM, diffusion | ✅ ≤ 1B | 🟡 principal |
 
 ### EDIT · Chirurgie du modèle
@@ -70,10 +70,10 @@ Combiner des modèles, corriger, effacer ou orienter un savoir ou un comportemen
 
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
-| [EDIT08](08-fusion-modeles) | Fusion de modèles | Model soups, SLERP, task arithmetic, TIES, DARE ; mergekit, fusion évolutionnaire | Fine-tunes d'une même base : LLM, LoRA, CLIP/ViT, diffusion | ✅ CPU/RAM | 🟡 principal |
-| [EDIT09](09-edition-connaissances) | Édition de connaissances | ROME, FT-L ; MEMIT, AlphaEdit en infra | LLM décodeurs ; diffusion (UCE, TIME) | ✅ ≤ 3B | 🟡 principal |
-| [EDIT10](10-desapprentissage) | Désapprentissage | Gradient ascent, gradient difference, NPO, IDK ; TOFU, open-unlearning | LLM ; classifieurs ; diffusion (ESD) | ✅ ≤ 1B | 🟡 principal |
-| [EDIT11](11-pilotage-activations) | Pilotage par activations | Steering vectors (ActAdd, CAA), abliteration | LLM décodeurs (tout flux résiduel) ; diffusion (concept sliders) | ✅ ≤ 7B | 🟡 principal |
+| [EDIT08](08-fusion-modeles) | Fusion de modèles | Model soups, SLERP, task arithmetic, TIES, DARE ; mergekit, fusion évolutionnaire | Fine-tunes d'une même base : LLM, LoRA, CLIP/ViT, diffusion | ✅ CPU/RAM | 🟡 principal · 🔵 deux-competences |
+| [EDIT09](09-edition-connaissances) | Édition de connaissances | ROME, FT-L ; MEMIT, AlphaEdit en infra | LLM décodeurs ; diffusion (UCE, TIME) | ✅ ≤ 3B | 🔵 principal |
+| [EDIT10](10-desapprentissage) | Désapprentissage | Gradient ascent, gradient difference, NPO, IDK ; TOFU, open-unlearning | LLM ; classifieurs ; diffusion (ESD) | ✅ ≤ 1B | 🔵 principal |
+| [EDIT11](11-pilotage-activations) | Pilotage par activations | Steering vectors (ActAdd, CAA), abliteration | LLM décodeurs (tout flux résiduel) ; diffusion (concept sliders) | ✅ ≤ 7B | 🔵 principal |
 
 ### FORM · Remodeler : étendre ou compresser
 
@@ -81,11 +81,11 @@ Changer la forme du modèle (fenêtre de contexte, vocabulaire, couches, précis
 
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
-| [FORM12](12-extension-contexte) | Extension de contexte | Position Interpolation, NTK dynamique, YaRN, ABF | LLM à RoPE ; VLM (M-RoPE) ; encodeurs RoPE | ⚠️ petits modèles, 8k · ☁️ | 🟡 principal |
-| [FORM13](13-extension-vocabulaire) | Extension de vocabulaire | Added tokens, fusion BPE, init par moyenne, entraînement en 2 phases | LLM, encodeurs, seq2seq, tokens spéciaux VLM | ✅ ≤ 1B | 🟡 principal |
+| [FORM12](12-extension-contexte) | Extension de contexte | Position Interpolation, NTK dynamique, YaRN, ABF | LLM à RoPE ; VLM (M-RoPE) ; encodeurs RoPE | ⚠️ petits modèles, 8k · ☁️ | 🔵 principal |
+| [FORM13](13-extension-vocabulaire) | Extension de vocabulaire | Added tokens, fusion BPE, init par moyenne, entraînement en 2 phases | LLM, encodeurs, seq2seq, tokens spéciaux VLM | ✅ ≤ 1B | 🔵 principal |
 | [FORM14](14-croissance-architecture) | Croissance d'architecture | Depth up-scaling (SOLAR), block expansion (LLaMA Pro), upcycling MoE | LLM famille LLaMA/Mistral ; encodeurs, ViT | ⚠️ transformation ✅, cicatrisation ☁️ | 🟢 principal |
 | [FORM15](15-quantification) | Quantification | bitsandbytes, torchao, GPTQ, AWQ, QAT ; variante GGUF llama.cpp | Tous : LLM, MoE, encodeurs, VLM, diffusion, Whisper | ✅ | 🟢 principal · 🟢 gguf-llamacpp |
-| [FORM16](16-elagage) | Élagage | Magnitude, Wanda, 2:4, suppression de couches, réduction de largeur + cicatrisation | LLM ; encodeurs ; CNN/ViT ; diffusion | ⚠️ ≤ 0,5B avec cicatrisation · ☁️ | 🟡 principal |
+| [FORM16](16-elagage) | Élagage | Magnitude, Wanda, 2:4, suppression de couches, réduction de largeur + cicatrisation | LLM ; encodeurs ; CNN/ViT ; diffusion | ⚠️ ≤ 0,5B avec cicatrisation · ☁️ | 🟡 principal · 🔵 grand-modele |
 
 ### EXEC · À l'exécution, sans toucher aux poids
 
@@ -93,10 +93,10 @@ Améliorer le résultat autour du modèle ; fonctionne aussi avec un modèle fer
 
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
-| [EXEC17](17-optimisation-prompt) | Optimisation du prompt | Instruction, CoT, few-shot (aléatoire / par similarité), OPRO ; DSPy en infra | Tout LLM local ou API ; VLM ; diffusion (réécriture de prompts) | ✅ | 🟡 principal |
-| [EXEC18](18-rag) | RAG | BM25, dense, hybride RRF, reranker ; Qdrant + TEI + vLLM en infra | Tout LLM local ou API | ✅ | 🟡 principal |
-| [EXEC19](19-outils-agents) | Outils et agents | Function calling, boucle agentique | LLM entraînés aux outils (≥ 3B), API | ✅ | 🟡 principal |
-| [EXEC20](20-calcul-inference) | Calcul à l'inférence | Self-consistency, best-of-N (RM, vraisemblance), self-refine, pass@N | Tout LLM ; code ; diffusion (best-of-N) | ✅ | 🟡 principal |
+| [EXEC17](17-optimisation-prompt) | Optimisation du prompt | Instruction, CoT, few-shot (aléatoire / par similarité), OPRO ; DSPy en infra | Tout LLM local ou API ; VLM ; diffusion (réécriture de prompts) | ✅ | 🔵 principal |
+| [EXEC18](18-rag) | RAG | BM25, dense, hybride RRF, reranker ; Qdrant + TEI + vLLM en infra | Tout LLM local ou API | ✅ | 🟢 principal |
+| [EXEC19](19-outils-agents) | Outils et agents | Function calling, boucle agentique | LLM entraînés aux outils (≥ 3B), API | ✅ | 🟢 principal |
+| [EXEC20](20-calcul-inference) | Calcul à l'inférence | Self-consistency, best-of-N (RM, vraisemblance), self-refine, pass@N | Tout LLM ; code ; diffusion (best-of-N) | ✅ | 🔵 principal |
 
 <!-- methodes:fin -->
 

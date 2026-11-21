@@ -84,20 +84,20 @@ flowchart TD
 - **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-0.5B (environ 1 Go) et le jeu `openai/gsm8k` sont téléchargés depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en float32 dans la mémoire du GPU. Le même modèle sert de générateur et d'élève (`generateur.nom: null`). Sans chat template, les prompts ont la forme « Question: … Answer: ».
-- **④ Mesure de départ (tour 0).** `run.py` appelle `commun/evaluation.py`, qui pose les 1 319 problèmes de test, précédés de l'amorce, puis 200 problèmes d'arithmétique de non-régression, par lots de 32.
+- **④ Mesure de départ (tour 0).** `run.py` appelle `commun/evaluation.py`, qui pose les 1 319 problèmes de test, précédés de l'amorce, puis 200 problèmes d'arithmétique de non-régression, par lots (batches) de 32.
 - **⑤ Génération sur le GPU.** Le modèle raisonne jusqu'à 512 tokens, en décodage glouton. Chaque suite s'arrête à la fin de sa ligne « Answer: … » : un modèle de base enchaînerait sinon sur du texte sans rapport. Le nombre final est comparé au résultat attendu.
 - **⑥ Échantillonnage.** `run.py` demande 8 solutions par question pour les 3 000 questions, avec l'amorce, par lots de 8 questions.
 - **⑦ Génération sur le GPU**, cette fois par tirage aléatoire à la température 0,8 : les 8 solutions d'une même question diffèrent.
 - **⑧ Filtrage, rationalisation et écriture.** Pour chaque question, `run.py` garde les solutions dont le nombre final est juste et dont la suite de calculs diffère (RFT), au plus 4 par question pour ne pas surpondérer les questions faciles (ReST-EM). Les questions ratées repartent au GPU avec la réponse attendue en indice ; le modèle en rédige 4 raisonnements, et un raisonnement juste qui ne cite pas l'indice est gardé, associé à la question seule (STaR). Le corpus est écrit dans `donnees-tour-1.jsonl`.
-- **⑨ Entraînement.** `run.py` confie le modèle et le corpus au SFTTrainer de TRL : fine-tuning complet, perte calculée sur la réponse seulement.
-- **⑩ Forward et backward sur le GPU.** Lots de 4, accumulés 4 fois (16 exemples par pas), 1 époque, taux d'apprentissage 1e-5.
+- **⑨ Entraînement.** `run.py` confie le modèle et le corpus au SFTTrainer de TRL : fine-tuning complet, perte (loss) calculée sur la réponse seulement.
+- **⑩ Forward et backward sur le GPU.** Lots de 4, accumulés 4 fois (16 exemples par pas), 1 époque, taux d'apprentissage (learning rate) 1e-5.
 - **⑪ Remesure**, sur les mêmes problèmes, avec le même décodage qu'en ⑤, sans l'amorce : le modèle entraîné a appris le format.
-- **⑫ Témoin.** Le modèle d'origine est rechargé et entraîné de la même façon sur les mêmes questions, avec une solution écrite par les auteurs de GSM8K pour chacune, puis mesuré.
+- **⑫ Témoin (baseline).** Le modèle d'origine est rechargé et entraîné de la même façon sur les mêmes questions, avec une solution écrite par les auteurs de GSM8K pour chacune, puis mesuré.
 - **⑬ Écriture du modèle et du rapport** : `sorties/07-donnees-synthetiques/modele/`, puis `resultats.json`, avec le même tableau affiché dans le terminal.
 
 Avec `tours: 2` ou plus, les étapes ⑥ à ⑪ se répètent sur de nouvelles questions, en échantillonnant avec le modèle du tour précédent : c'est l'auto-amélioration itérée (STaR, ReST-EM).
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑦, ⑫), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées ; à l'échantillonnage (⑦), chaque lot de 32 questions donne 256 suites produites en parallèle ; c'est l'essentiel de la durée. En entraînement (⑩), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis leur mise à jour par l'optimiseur AdamW, dont l'état couvre tous les poids ; le gradient checkpointing recalcule les activations pendant la passe arrière au lieu de les garder. Le filtrage (⑧) se fait sur CPU, en Python. 
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑦, ⑫), il y a une passe avant (forward pass) par token produit, accélérée par un cache des clés et des valeurs déjà calculées ; à l'échantillonnage (⑦), chaque lot de 32 questions donne 256 suites produites en parallèle ; c'est l'essentiel de la durée. En entraînement (⑩), chaque pas fait une passe avant, une passe arrière (backward pass) qui calcule les gradients de tous les poids, puis leur mise à jour par l'optimiseur AdamW, dont l'état couvre tous les poids ; le gradient checkpointing recalcule les activations pendant la passe arrière au lieu de les garder. Le filtrage (⑧) se fait sur CPU, en Python. 
 
 **Ce qui est écrit.**
 
@@ -107,7 +107,7 @@ Avec `tours: 2` ou plus, les étapes ⑥ à ⑪ se répètent sur de nouvelles q
 | `modele/model.safetensors` | Tous les poids du modèle après le dernier tour (1,98 Go, en float32) |
 | `modele/config.json`, `generation_config.json` | Architecture Qwen2 et réglages de génération, pour recharger le modèle avec `AutoModelForCausalLM.from_pretrained` |
 | `modele/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer et le format de conversation, copiés pour que le dossier se suffise à lui-même |
-| `tour-1/`, `temoin/` | Dossiers de travail du trainer, vides : aucun point de contrôle intermédiaire n'est sauvegardé |
+| `tour-1/`, `temoin/` | Dossiers de travail du trainer, vides : aucun point de contrôle (checkpoint) intermédiaire n'est sauvegardé |
 | `resultats.json` | Pour le tour 0, le tour 1 et le témoin : exactitude sur GSM8K et sur la non-régression, avec intervalle à 95 % et réponse de chaque question ; part des questions résolues à l'échantillonnage, solutions et rationalisations gardées ; comparaison appariée `synthetique_contre_temoin` |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
@@ -141,7 +141,7 @@ Le jeu généré est sauvegardé dans `sorties/.../donnees-tour-N.jsonl`, réuti
 
 **Non démontré.** Ses propres solutions valent nettement mieux que les solutions humaines, trop laconiques, mais ne font pas progresser le modèle, qu'on en garde une ou toutes par question. Le modèle de départ est un modèle instruct déjà entraîné à ce raisonnement : 78 % des questions sont résolues en 8 tirages, et réapprendre ses propres solutions justes ne déplace pas son décodage glouton. Le RL en ligne ([SIGN05](../05-rl-en-ligne)), qui pénalise aussi les solutions fausses, le fait progresser (0,411 → 0,465). STaR et RFT partent de modèles de base amorcés en few-shot ; c'est le cadre de la configuration par défaut.
 
-**Résultats depuis Qwen2.5-0.5B de base** (configuration par défaut, une graine) :
+**Résultats depuis Qwen2.5-0.5B de base** (configuration par défaut, une graine/seed) :
 
 | | GSM8K | Non-régression (arithmétique) |
 |---|---|---|

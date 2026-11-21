@@ -24,7 +24,7 @@ import yaml
 RACINE = pathlib.Path(__file__).resolve().parents[1]
 MEMOIRE_REFERENCE_GIO = 11.5
 COULEUR = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
-TEINTES = {"demontre": "32", "non-prouve": "33", "non-teste": "90", "erreur": "31", "titre": "1;34", "gris": "90"}
+TEINTES = {"demontre": "32", "non-prouve": "33", "pret-a-tester": "36", "non-teste": "90", "erreur": "31", "titre": "1;34", "gris": "90"}
 SOCLE = ["torch", "transformers", "trl", "peft", "accelerate", "datasets", "sentence_transformers", "yaml"]
 
 
@@ -76,6 +76,7 @@ def liste(cat: dict):
     statuts = cat["statuts"]
     print(f"Statuts : {teinte('● ' + statuts['demontre'], 'demontre')} : gain mesuré et net · "
           f"{teinte('● ' + statuts['non-prouve'], 'non-prouve')} : s'exécute, gain pas encore démontré · "
+          f"{teinte('● ' + statuts['pret-a-tester'], 'pret-a-tester')} : code écrit pour la démonstration, calcul à lancer · "
           f"{teinte('● ' + statuts['non-teste'], 'non-teste')} : jamais exécuté (versions infra/)")
     print(f"Mesures : configuration complète sur {cat['materiel_reference']}.\n")
     for c in cat["categories"]:
@@ -96,7 +97,7 @@ def liste(cat: dict):
         print()
 
 
-PASTILLES = {"demontre": "🟢", "non-prouve": "🟡", "non-teste": "⚪"}
+PASTILLES = {"demontre": "🟢", "non-prouve": "🟡", "pret-a-tester": "🔵", "non-teste": "⚪"}
 DEBUT, FIN = "<!-- methodes:debut (généré par make readme depuis exemples.yaml) -->", "<!-- methodes:fin -->"
 
 
@@ -105,7 +106,7 @@ def section_readme(cat: dict) -> str:
     s = cat["statuts"]
     lignes = [DEBUT, "",
               f"Statut de chaque exemple : 🟢 {s['demontre']} (gain mesuré et net) · 🟡 {s['non-prouve']} (s'exécute, "
-              f"gain pas encore démontré) · ⚪ {s['non-teste']} (versions `infra/`, jamais exécutées). Résultats et "
+              f"gain pas encore démontré) · 🔵 {s['pret-a-tester']} (code de la démonstration écrit, calcul à lancer) · ⚪ {s['non-teste']} (versions `infra/`, jamais exécutées). Résultats et "
               "réserves : `make liste`.",
               "",
               "Colonne « Local 12 Go » : ✅ faisable sur un GPU grand public ; ⚠️ seulement sur de petits modèles ; "

@@ -84,15 +84,15 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=DATA03` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode PEFT, données, réglages). Données, remélange et évaluation sont exactement ceux du fine-tuning complet ([DATA02](../02-fine-tuning-supervise)) : router les messages de clients d'une banque vers l'une de 77 intentions (banking77), avec la liste des intentions en message système.
+`make run EX=DATA03` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, méthode PEFT, données, réglages). Données, remélange (replay) et évaluation sont exactement ceux du fine-tuning complet ([DATA02](../02-fine-tuning-supervise)) : router les messages de clients d'une banque vers l'une de 77 intentions (banking77), avec la liste des intentions en message système.
 
-- **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-0.5B-Instruct (environ 1 Go), le jeu banking77 et les demandes générales d'Alpaca sont téléchargés depuis le Hugging Face Hub, par HTTPS.
+- **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-0.5B-Instruct (environ 1 Go), le jeu banking77 et les demandes (prompts) générales d'Alpaca sont téléchargés depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en bf16 dans la mémoire du GPU, où ils restent jusqu'à la fin. En QLoRA (`SET="peft.methode=qlora"`), ils y sont stockés en 4 bits par bitsandbytes.
-- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui pose au modèle les 3 080 messages de test, par lots de 32, puis les 200 problèmes d'arithmétique de non-régression.
+- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui pose au modèle les 3 080 messages de test, par lots (batches) de 32, puis les 200 problèmes d'arithmétique de non-régression.
 - **⑤ Génération sur le GPU.** Au plus 16 tokens par message, dont la première ligne doit être l'intention attendue ; jusqu'à 256 tokens de raisonnement par problème d'arithmétique.
 - **⑥ Entraînement.** Le modèle répond d'abord aux demandes générales du remélange (ou les relit dans `sorties/cache-remelange/`), puis `run.py` confie modèle, exemples et configuration LoRA au SFTTrainer de TRL. PEFT ajoute deux petites matrices de rang 16 à chaque couche linéaire et gèle tout le reste : 8,8 millions de paramètres entraînés sur 503 millions (1,7 %).
-- **⑦ Forward et backward sur le GPU.** Chaque pas traite 16 exemples (lots de 8, accumulés 2 fois) : passe avant, perte sur la réponse seulement, passe arrière, mise à jour des seules matrices LoRA. 2 époques, taux d'apprentissage 2e-4.
+- **⑦ Forward et backward sur le GPU.** Chaque pas traite 16 exemples (lots de 8, accumulés 2 fois) : passe avant (forward pass), perte (loss) sur la réponse seulement, passe arrière (backward pass), mise à jour des seules matrices LoRA. 2 époques, taux d'apprentissage (learning rate) 2e-4.
 - **⑧ Écriture de l'adaptateur** dans `sorties/03-peft/adaptateur-lora/`.
 - **⑨ Mesure après**, sur les mêmes messages et problèmes, adaptateur actif, puis la non-régression une seconde fois, adaptateur désactivé.
 - **⑩ Génération sur le GPU**, avec le même décodage qu'en ⑤.
@@ -155,7 +155,7 @@ Gain sur les intentions, apparié sur les mêmes messages : +0,662 [+0,645 ; +0,
 
 ### Variante diffusion : apprendre un sujet à Stable Diffusion
 
-[`variantes/diffusion-lora`](variantes/diffusion-lora) apprend à Stable Diffusion 1.5 un chien précis, à partir de 5 photos (`diffusers/dog-example`), associé à l'identifiant rare « sks » (recette DreamBooth-LoRA : rang 8 sur l'attention de l'UNet, 500 pas). Les mesures sont celles du papier DreamBooth. Quatre prompts (« a photo of sks dog », « a sks dog on the beach », « … in the snow », « … wearing a red hat ») sont tirés chacun avec 8 graines, les mêmes avant et après : 32 images par état, comparées image par image.
+[`variantes/diffusion-lora`](variantes/diffusion-lora) apprend à Stable Diffusion 1.5 un chien précis, à partir de 5 photos (`diffusers/dog-example`), associé à l'identifiant rare « sks » (recette DreamBooth-LoRA : rang 8 sur l'attention de l'UNet, 500 pas). Les mesures sont celles du papier DreamBooth. Quatre prompts (« a photo of sks dog », « a sks dog on the beach », « … in the snow », « … wearing a red hat ») sont tirés chacun avec 8 graines (seeds), les mêmes avant et après : 32 images par état, comparées image par image.
 
 - **Fidélité au sujet** : similarité DINO (ViT-S/16) moyenne entre l'image générée et les 5 photos.
 - **Fidélité au prompt** : similarité CLIP (ViT-B/32) entre l'image et le prompt sans l'identifiant (« a dog on the beach »). Elle vérifie que le modèle place encore le sujet dans la scène demandée au lieu de recopier les photos.

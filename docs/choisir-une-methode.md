@@ -13,7 +13,7 @@
 | Plusieurs spécialisations dans un seul modèle | Fusion ([EDIT08](../08-fusion-modeles)) | Adaptateurs LoRA multiples servis ensemble ([DATA03](../03-peft)) |
 | Corriger quelques faits précis | Édition ([EDIT09](../09-edition-connaissances)) | RAG ([EXEC18](../18-rag)) |
 | Retirer des connaissances | Désapprentissage ([EDIT10](../10-desapprentissage)) | Filtre en entrée et en sortie ; réentraîner sans les données |
-| Ajuster un trait (sentiment, formalité) sans données | Pilotage d'activations ([EDIT11](../11-pilotage-activations)) | DPO sur paires contrastées ([SIGN04](../04-optimisation-preferences)) |
+| Ajuster un trait (sentiment, formalité) sans données | Pilotage (steering) d'activations ([EDIT11](../11-pilotage-activations)) | DPO sur paires contrastées ([SIGN04](../04-optimisation-preferences)) |
 | Textes plus longs que la fenêtre | RAG ([EXEC18](../18-rag)) | Extension de contexte ([FORM12](../12-extension-contexte)) |
 | Langue ou domaine mal tokenisés | Extension de vocabulaire ([FORM13](../13-extension-vocabulaire)) + pré-entraînement continu | — |
 | Plus de capacité sans pré-entraînement complet | Croissance d'architecture ([FORM14](../14-croissance-architecture)) | — |

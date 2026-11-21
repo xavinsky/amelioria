@@ -3,6 +3,10 @@
 Un LLM + une tête scalaire, entraîné avec la perte de Bradley-Terry : score(préférée) > score(rejetée).
 Le modèle obtenu sert ensuite de récompense dans run.py (`recompense.source=modele`), pour du best-of-N
 (dossier 20) ou pour classer des paires on-policy (DPO itératif, dossier 04).
+
+Préférences : par défaut de vraies préférences (UltraFeedback binarisé) ; mesure sur des paires du split de test, jamais
+vues. Un modèle de récompense publié (`evaluation.reference`) est mesuré sur les mêmes paires comme point de repère.
+`donnees.source=arith` utilise des paires synthétiques (bonne réponse contre résultat décalé).
 """
 
 import pathlib
@@ -38,6 +42,15 @@ def exactitude(model, tok, paires):
     return preuve.taux(ok, "exactitude_preferences")
 
 
+def reference_externe(j, paires):
+    """Exactitude de préférence d'un modèle de récompense publié sur les mêmes paires."""
+    contenu = lambda c: c[-1]["content"] if isinstance(c, list) else c  # noqa: E731
+    prompts = [p["chosen"][0]["content"] if isinstance(p["chosen"], list) else p["prompt"] for p in paires]
+    notes = preferences.noter(j, prompts, {"chosen": [contenu(p["chosen"]) for p in paires],
+                                           "rejected": [contenu(p["rejected"]) for p in paires]})
+    return preuve.taux([a > b for a, b in zip(notes["chosen"], notes["rejected"])], "exactitude_preferences")
+
+
 def main():
     cfg = config.charger(__file__)
     tok = modeles.charger_tokenizer(cfg.modele.nom)
@@ -63,7 +76,12 @@ def main():
     if cfg.get("sauvegarder", True):
         trainer.save_model(f"{cfg.sortie}/modele")
         tok.save_pretrained(f"{cfg.sortie}/modele")
-    rapport.enregistrer(cfg, avant=avant, apres=apres)
+    sections = {}
+    if cfg.evaluation.get("reference"):
+        ref = reference_externe(cfg.evaluation.reference, test)
+        sections["reference_publiee"] = ref
+        sections["apres_moins_reference"] = preuve.difference_appariee(ref["succes"], apres["succes"])
+    rapport.enregistrer(cfg, avant=avant, apres=apres, **sections)
 
 
 if __name__ == "__main__":

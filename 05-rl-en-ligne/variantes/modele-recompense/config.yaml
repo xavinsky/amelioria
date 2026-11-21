@@ -10,8 +10,11 @@ peft:
   modules: all-linear
 
 donnees:
-  source: arith                     # arith | hf (ex. trl-lib/ultrafeedback_binarized, Skywork/Skywork-Reward-Preference-80K-v0.2)
-  niveau: 2
+  source: hf                        # hf (vraies préférences) | arith (paires synthétiques : bonne réponse contre résultat décalé)
+  nom: trl-lib/ultrafeedback_binarized   # ou Skywork/Skywork-Reward-Preference-80K-v0.2
+  split_train: train
+  split_test: test
+  niveau: 2                         # source=arith
   n_train: 4000
   graine: 0
 
@@ -25,7 +28,11 @@ entrainement:
   logging_steps: 20
 
 evaluation:
-  n_paires: 200
+  n_paires: 500
+  reference:                        # modèle de récompense publié, mesuré sur les mêmes paires (point de repère)
+    nom: Skywork/Skywork-Reward-V2-Qwen3-0.6B
+    max_length: 1024
+    batch: 8
 
 sauvegarder: true
 

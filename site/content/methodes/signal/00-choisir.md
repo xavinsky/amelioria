@@ -20,7 +20,7 @@ Ici, on n'a pas les bonnes réponses écrites à l'avance. On a **un signal** qu
 
 ## Des préférences : optimisation des préférences (DPO)
 
-Pour une même demande, une réponse préférée et une réponse rejetée : choix d'annotateurs, 👍/👎 des utilisateurs, avis d'un modèle juge. L'[optimisation des préférences](#optimisation-preferences) apprend directement de ces paires, sans modèle de récompense ni génération pendant l'entraînement. C'est la méthode la plus simple et la plus stable pour régler un ton, une concision, une prudence. Elle s'applique en général après un fine-tuning supervisé.
+Pour une même demande, une réponse préférée (chosen) et une réponse rejetée (rejected) : choix d'annotateurs, 👍/👎 des utilisateurs, avis d'un modèle juge. L'[optimisation des préférences](#optimisation-preferences) apprend directement de ces paires, sans modèle de récompense ni génération pendant l'entraînement. C'est la méthode la plus simple et la plus stable pour régler un ton, une concision, une prudence. Elle s'applique en général après un fine-tuning supervisé.
 
 ## Un vérificateur : données synthétiques, puis RL
 

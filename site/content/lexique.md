@@ -58,6 +58,10 @@ Encodeur-décodeur de Meta pré-entraîné à reconstruire un texte abîmé ; bo
 
 Jeu de 13 083 messages réels de clients d'une banque, chacun annoté avec l'une de 77 intentions (carte non reçue, paiement débité deux fois...) ; référence de la détection d'intentions. Voir [Fine-tuning supervisé](#fine-tuning-supervise).
 
+## Baseline, témoin
+
+Modèle ou réglage de comparaison, mesuré dans les mêmes conditions que la méthode testée, pour savoir si le gain vient bien de la méthode. Le dépôt écrit « témoin » (baseline).
+
 ## Batch
 
 Lot d'exemples traités ensemble à chaque pas d'entraînement ou de génération. L'accumulation de gradients simule un lot plus grand que la mémoire ne le permet. Voir [Fine-tuning supervisé](#fine-tuning-supervise).
@@ -122,7 +126,15 @@ Faire écrire au modèle son raisonnement pas à pas avant la réponse finale, c
 
 Format qui transforme une conversation (messages système, utilisateur, assistant) en texte attendu par un modèle instruct. Un modèle affiné doit garder le même. Voir [Fine-tuning supervisé](#fine-tuning-supervise).
 
-## Cicatrisation
+## Checkpoint, point de contrôle
+
+Sauvegarde périodique de l'état d'un entraînement (poids, optimiseur) pour le reprendre après une interruption. À ne pas confondre avec le *gradient checkpointing*, qui économise de la mémoire pendant le calcul.
+
+## Chosen, rejected
+
+Dans une paire de préférences, la réponse préférée (*chosen*) et la réponse rejetée (*rejected*). L'optimisation des préférences (DPO et variantes) augmente l'écart de probabilité entre les deux.
+
+## Cicatrisation (healing)
 
 Court entraînement qui répare un modèle après une modification brutale (élagage, ajout de couches), souvent par distillation depuis le modèle d'origine. Voir [Élagage](#elagage).
 
@@ -237,6 +249,22 @@ Apprendre un sujet précis (une personne, un objet) à un modèle de diffusion �
 ## DSPy
 
 Bibliothèque qui écrit et optimise automatiquement les prompts et exemples d'un programme à base de LLM (optimiseur MIPROv2). Voir [Optimisation du prompt](#optimisation-prompt).
+
+## Head, tête
+
+Couche ajoutée au-dessus d'un modèle pour une tâche : tête de classification (une sortie par classe), tête scalaire (une note, pour un modèle de récompense). Les « têtes d'attention » sont autre chose : les sous-ensembles parallèles d'une couche d'attention.
+
+## Loss, perte
+
+Nombre que l'entraînement cherche à faire baisser : l'écart entre ce que le modèle prédit et ce qu'on attend (entropie croisée pour le texte, perte de préférence pour le DPO, perte de masquage pour un encodeur).
+
+## Prompt, demande
+
+Texte envoyé à un modèle pour obtenir une réponse. Le dépôt écrit « demande » (*prompt*) pour une question posée au modèle, par exemple les demandes de test.
+
+## Win rate, taux de victoire
+
+Part des demandes pour lesquelles un modèle obtient une meilleure note que l'autre, comparée sur les mêmes demandes ; 0,5 veut dire égalité.
 
 ## Édition de connaissances
 
@@ -366,7 +394,7 @@ Désapprentissage le plus direct : remonter la perte sur les données à oublier
 
 Ne garde qu'une partie des activations pendant la passe avant et recalcule les autres pendant la passe arrière : beaucoup moins de mémoire, un peu plus de temps de calcul. Voir [Fine-tuning supervisé](#fine-tuning-supervise).
 
-## Graine
+## Graine (seed)
 
 Nombre qui fixe le hasard d'une exécution (initialisation, ordre des données, tirages). Répéter un entraînement sur plusieurs graines montre si un résultat est stable ou dû à la chance. Voir [Statut des exemples](#statut-des-exemples).
 
@@ -634,7 +662,7 @@ Mesure de la surprise d'un modèle face à un texte : plus elle est basse, mieux
 
 Petits modèles de Microsoft entraînés surtout sur des données synthétiques et soigneusement filtrées. Voir [Extension de contexte](#extension-contexte).
 
-## Pilotage par activations
+## Pilotage par activations (activation steering)
 
 Ajouter une direction aux activations internes pendant la génération pour orienter un trait (ton, sentiment) sans toucher aux poids. Voir [Pilotage par activations](#pilotage-activations).
 
@@ -870,7 +898,7 @@ Variante de ViT qui calcule l'attention par fenêtres locales décalées, pour t
 
 Encodeurs-décodeurs de Google qui traitent toute tâche comme « texte vers texte ». FLAN-T5 est affiné sur des instructions, mT5 est multilingue. Voir [Fine-tuning supervisé](#fine-tuning-supervise).
 
-## Taux d'apprentissage
+## Taux d'apprentissage (learning rate)
 
 Taille du pas de mise à jour des poids à chaque itération. Trop haut, l'entraînement diverge ; trop bas, il stagne. Il monte souvent progressivement au début (warmup). Voir [Fine-tuning supervisé](#fine-tuning-supervise).
 

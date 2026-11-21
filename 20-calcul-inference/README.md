@@ -86,11 +86,11 @@ flowchart TD
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** `commun/generateur.py` charge le modèle avec transformers et copie ses poids en bf16 dans la mémoire du GPU. En mode API, cette étape n'a pas lieu.
 - **④ Référence gloutonne.** `run.py` pose les 100 problèmes, suivis de « Think step by step and end with 'Answer: <number>'. ».
-- **⑤ Génération sur le GPU.** Par lots de 16, en décodage glouton, jusqu'à 384 tokens : 100 générations.
+- **⑤ Génération sur le GPU.** Par lots (batches) de 16, en décodage glouton, jusqu'à 384 tokens : 100 générations.
 - **⑤' Génération par API.** Quand `modele.api_base` est renseigné, `chat()` envoie chaque conversation au serveur par HTTP POST sur `/v1/chat/completions` à la place de ⑤, ⑦ et ⑫ ; c'est le serveur qui génère. Si le serveur ignore le paramètre `n` (Ollama), les échantillons sont demandés par appels successifs.
 - **⑥ Échantillonnage.** Les mêmes problèmes sont reposés avec 16 réponses par question, à température 0,8.
 - **⑦ Génération sur le GPU** : 1 600 générations. Sur ces échantillons, `run.py` calcule sur le CPU le vote majoritaire (le nombre final le plus fréquent) pour N = 1, 2, 4, 8 et 16, et la borne oracle : au moins un des 16 échantillons est juste.
-- **⑧ Best-of-N par vraisemblance.** Pour chaque échantillon, une passe avant du LLM calcule la log-probabilité de la réponse sachant la question ; l'échantillon de meilleure log-probabilité moyenne par token est retenu. Cette stratégie demande les poids en local : elle est sautée en mode API.
+- **⑧ Best-of-N par vraisemblance.** Pour chaque échantillon, une passe avant (forward pass) du LLM calcule la log-probabilité de la réponse sachant la question ; l'échantillon de meilleure log-probabilité moyenne par token est retenu. Cette stratégie demande les poids en local : elle est sautée en mode API.
 - **⑨ Best-of-N par modèle de récompense.** `run.py` charge Skywork-Reward-V2-Qwen3-0.6B, qui donne un score à chaque couple question-réponse ; l'échantillon le mieux noté est retenu.
 - **⑩ Notation sur le GPU** : une passe avant du modèle de récompense par question, sur ses 16 échantillons, textes coupés à 1 024 tokens. Ce modèle tourne sur le GPU local, y compris en mode API.
 - **⑪ Auto-correction.** Chaque réponse gloutonne est renvoyée au modèle avec la consigne de vérifier chaque étape et de corriger l'erreur s'il y en a une, en 1 tour.

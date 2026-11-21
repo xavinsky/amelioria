@@ -1,6 +1,6 @@
 # 04 — Optimisation des préférences (DPO et famille)
 
-> Montrer au modèle des paires « réponse préférée / réponse rejetée » et le pousser vers la préférée, sans modèle de récompense ni boucle de RL.
+> Montrer au modèle des paires « réponse préférée (chosen) / réponse rejetée (rejected) » et le pousser vers la préférée, sans modèle de récompense ni boucle de RL.
 
 | Regroupe | Modifie | Local 12 Go | Test `--quick` |
 |---|---|---|---|
@@ -10,7 +10,7 @@
 
 Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m04) (ce que la méthode ajoute ou modifie dans le transformer).
 
-Le RLHF classique entraîne d'abord un modèle de récompense, puis optimise la politique avec PPO ([SIGN05](../05-rl-en-ligne)). **DPO** montre que le même objectif (maximiser la préférence sans trop s'éloigner du modèle de référence) se ramène à une simple perte de classification sur les paires :
+Le RLHF classique entraîne d'abord un modèle de récompense, puis optimise la politique avec PPO ([SIGN05](../05-rl-en-ligne)). **DPO** montre que le même objectif (maximiser la préférence sans trop s'éloigner du modèle de référence) se ramène à une simple perte (loss) de classification sur les paires :
 
 ```
 perte = -log σ( β · [ (log π(préférée) - log π_ref(préférée)) - (log π(rejetée) - log π_ref(rejetée)) ] )
@@ -88,22 +88,22 @@ flowchart TD
   class Cache,Out disque
 ```
 
-`make run EX=SIGN04` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, algorithme `dpo`, `beta`, LoRA, données, juge, témoin). Les paires viennent d'UltraFeedback binarisé (`trl-lib/ultrafeedback_binarized`) : des demandes variées (rédaction, code, conseils, raisonnement), chacune avec la réponse la mieux notée et une moins bien notée parmi celles de 17 modèles. 16 000 paires du split `train` servent à l'entraînement ; le split `test` fournit 300 paires pour mesurer les préférences et 500 demandes (de 2 000 caractères au plus) pour mesurer les réponses.
+`make run EX=SIGN04` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, algorithme `dpo`, `beta`, LoRA, données, juge, témoin (baseline)). Les paires viennent d'UltraFeedback binarisé (`trl-lib/ultrafeedback_binarized`) : des demandes (prompts) variées (rédaction, code, conseils, raisonnement), chacune avec la réponse la mieux notée et une moins bien notée parmi celles de 17 modèles. 16 000 paires du split `train` servent à l'entraînement ; le split `test` fournit 300 paires pour mesurer les préférences et 500 demandes (de 2 000 caractères au plus) pour mesurer les réponses.
 
 - **① Téléchargement.** Au premier lancement : les poids de Qwen2.5-0.5B-Instruct (environ 1 Go), UltraFeedback (environ 250 Mo) et le juge Skywork-Reward-V2-Qwen3-1.7B (3,4 Go), depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sans réseau.
 - **③ Copie sur le GPU.** Les poids du modèle sont copiés en fp32 dans la mémoire du GPU.
 - **④ Phase « avant ».** `run.py` mesure, sur le modèle de départ : la part des 300 paires de test où il donne une log-probabilité moyenne plus haute à la réponse préférée ; l'exactitude sur 200 problèmes d'arithmétique (non-régression : une tâche qu'il réussit et qui ne doit pas se dégrader) ; ses réponses aux 500 demandes de test.
-- **⑤ Génération sur le GPU.** Décodage glouton, jusqu'à 512 tokens par réponse, par lots de 32 : la même demande donne toujours la même réponse.
-- **⑥ Entraînement DPO.** `preferences.py` construit le DPOTrainer de TRL (perte `sigmoid`, `beta` = 0,1) avec LoRA de rang 16 sur toutes les couches linéaires. Chaque pas traite 16 paires (lots de 1, accumulation sur 16), tronquées à 1 024 tokens : passe avant sur la réponse préférée et la rejetée avec l'adaptateur, puis sans lui (le modèle de référence), perte DPO, passe arrière, mise à jour des seules matrices LoRA. Une époque, 1 000 pas, taux d'apprentissage 5e-5.
+- **⑤ Génération sur le GPU.** Décodage glouton, jusqu'à 512 tokens par réponse, par lots (batches) de 32 : la même demande donne toujours la même réponse.
+- **⑥ Entraînement DPO.** `preferences.py` construit le DPOTrainer de TRL (perte `sigmoid`, `beta` = 0,1) avec LoRA de rang 16 sur toutes les couches linéaires. Chaque pas traite 16 paires (lots de 1, accumulation sur 16), tronquées à 1 024 tokens : passe avant (forward pass) sur la réponse préférée et la rejetée avec l'adaptateur, puis sans lui (le modèle de référence), perte DPO, passe arrière (backward pass), mise à jour des seules matrices LoRA. Une époque, 1 000 pas, taux d'apprentissage (learning rate) 5e-5.
 - **⑦ Phase « après ».** Mêmes mesures qu'en ④ sur le modèle entraîné, puis écriture de l'adaptateur.
 - **⑧ Génération sur le GPU**, comme en ⑤.
 - **⑨ Témoin SFT.** Le modèle de départ est rechargé et entraîné en SFT, avec la même LoRA, sur la seule réponse préférée de chacune des mêmes paires (taux d'apprentissage 1e-4, celui d'un SFT LoRA). Il sépare deux effets : apprendre ce qui rend une réponse meilleure qu'une autre, ou imiter des réponses écrites par des modèles plus forts.
 - **⑩ Génération sur le GPU**, comme en ⑤, puis mêmes mesures qu'en ④.
-- **⑪ Notation par le juge.** Le modèle entraîné quitte le GPU ; le juge Skywork-Reward-V2 (modèle de récompense de 1,7 milliard de paramètres, en bf16) note chaque couple (demande, réponse) des trois jeux de réponses. Le taux de victoire est la part des demandes où la réponse du modèle entraîné a une meilleure note que celle du modèle de départ : 0,5 veut dire aussi bien.
+- **⑪ Notation par le juge.** Le modèle entraîné quitte le GPU ; le juge Skywork-Reward-V2 (modèle de récompense de 1,7 milliard de paramètres, en bf16) note chaque couple (demande, réponse) des trois jeux de réponses. Le taux de victoire (win rate) est la part des demandes où la réponse du modèle entraîné a une meilleure note que celle du modèle de départ : 0,5 veut dire aussi bien.
 - **⑫ Écriture** des 500 demandes avec les trois réponses et leurs notes dans `reponses.json`, et du rapport dans `resultats.json`, avec le même tableau dans le terminal.
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. DPO a besoin des log-probabilités d'un modèle de référence figé : avec LoRA, c'est le même modèle, adaptateur désactivé, donc aucune seconde copie des poids n'occupe la mémoire. Pic mesuré pendant le DPO : 6,2 Gio ; pendant le témoin SFT : 3,0 Gio. Chaque phase terminée est gardée dans `reprise/` : un calcul interrompu et relancé repart de la phase suivante, et l'entraînement en cours reprend de son dernier point de contrôle (`commun/reprise.py`).
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. DPO a besoin des log-probabilités d'un modèle de référence figé : avec LoRA, c'est le même modèle, adaptateur désactivé, donc aucune seconde copie des poids n'occupe la mémoire. Pic mesuré pendant le DPO : 6,2 Gio ; pendant le témoin SFT : 3,0 Gio. Chaque phase terminée est gardée dans `reprise/` : un calcul interrompu et relancé repart de la phase suivante, et l'entraînement en cours reprend de son dernier point de contrôle (checkpoint) (`commun/reprise.py`).
 
 **Ce qui est écrit.**
 
@@ -137,45 +137,21 @@ python variantes/dpo-iteratif/run.py                        # 3 tours on-policy 
 
 **Le besoin** : rendre les réponses d'un assistant plus utiles sur des demandes variées, à partir de jugements « cette réponse est meilleure que celle-ci », sans réécrire les réponses soi-même.
 
-**Résultats** (Qwen2.5-0.5B-Instruct, RTX 5070 Ti Laptop ; 500 demandes de test ; graine 42 sauf mention). Le juge est un modèle de récompense externe, qui n'a vu ni le modèle entraîné ni ses réponses :
+**Résultats** (Qwen2.5-0.5B-Instruct, RTX 5070 Ti Laptop ; 500 demandes de test ; graine/seed 42 sauf mention). Le juge est un modèle de récompense externe, qui n'a vu ni le modèle entraîné ni ses réponses :
 
-| | Victoires contre le départ | Note moyenne du juge | Mots par réponse | Non-régression (arithmétique) | Entraînement |
-|---|---|---|---|---|---|
-| Qwen2.5-0.5B-Instruct, départ | | −0,07 | 193 | 0,955 | |
-| DPO, 16 000 paires | **0,552** [0,508 ; 0,595] | +0,33 | 203 | 0,975 | 65 min, 6,2 Gio |
-| Témoin SFT sur les réponses préférées | 0,380 [0,339 ; 0,423] | −1,08 | 178 | 0,860 | 34 min, 3,0 Gio |
-| DPO, 4 000 paires, taux 2e-5 | 0,506 [0,462 ; 0,550] | +0,12 | 203 | 0,955 | 16 min |
-| DPO, 16 000 paires, graines 42, 43, 44 | 0,533 ± 0,032 (0,552 ; 0,496 ; 0,550) | +0,27 ± 0,16 | 205 | 0,963 | |
-
-- **Le DPO gagne, de peu et pas à chaque fois.** Sur la graine 42, le juge préfère sa réponse à celle du modèle de départ dans 55 % des cas ; la note moyenne monte de +0,40 (p = 0,005, permutation appariée). Sur trois graines, le gain est net deux fois (0,552 et 0,550) et nul une fois (0,496 [0,452 ; 0,540]). Les réponses ne s'allongent que de 5 % : le gain ne vient pas d'abord de la longueur, à laquelle les juges sont sensibles.
-- **Imiter les réponses préférées dégrade le modèle**, alors qu'apprendre la préférence l'améliore : le DPO bat le témoin SFT dans 67 % des cas. Les réponses d'UltraFeedback viennent de modèles plus forts ; un modèle de 0,5B les imite mal et perd une partie de ce qu'il savait (non-régression 0,955 → 0,860).
-- **Il faut assez de paires.** Avec 4 000 paires et un taux plus faible, pas de gain mesurable.
-- **Non démontré.** Le gain dépend de la graine. Qwen2.5-Instruct a déjà été aligné sur des préférences par ses auteurs : la marge restante est faible. Le juge peut partager des biais avec les annotations d'UltraFeedback.
-
-## Variantes
-
-### Variante DPO itératif : le modèle fabrique ses propres paires
-
-[`variantes/dpo-iteratif`](variantes/dpo-iteratif) part du même modèle et des mêmes demandes de test, mais n'utilise aucune réponse d'UltraFeedback. À chaque tour :
-
-- le modèle répond 4 fois (température 0,8) à 500 demandes neuves du split d'entraînement ;
-- un petit modèle de récompense, Skywork-Reward-V2-Qwen3-0.6B, note les 4 réponses : la mieux notée devient la réponse préférée, la moins bien notée la réponse rejetée ;
-- un tour de DPO LoRA (2 époques) est fusionné dans le modèle, qui devient le point de départ et la référence du tour suivant.
-
-La mesure reste celle de l'exemple principal : le juge Skywork-Reward-V2-Qwen3-1.7B, qui n'a pas servi à fabriquer les paires, compare les réponses gloutonnes aux 500 demandes de test.
-
-| | Victoires contre le départ | Note moyenne du juge | Mots par réponse | Non-régression (arithmétique) |
+| | Victoires contre le départ, moyenne ± écart type (graines 42, 43, 44) | Note moyenne du juge | Mots par réponse | Non-régression (arithmétique), moyenne (minimum) |
 |---|---|---|---|---|
-| Départ | | −0,07 | 193 | 0,955 |
-| Tour 1 (489 paires) | 0,532 [0,488 ; 0,575] | +0,54 | 176 | 0,965 |
-| Tour 2 (494 paires) | 0,602 [0,558 ; 0,644] | +1,03 | 177 | 0,970 |
-| Tour 3 (494 paires) | **0,616** [0,573 ; 0,658] | +0,92 | 184 | 0,935 |
+| Départ |  | -0,07 | 193 | 0,955 (min 0,955) |
+| Tour 1 | 0,531 ± 0,013 (0,532 ; 0,518 ; 0,544) | +0,54 | 166 | 0,953 (min 0,935) |
+| Tour 2 | 0,607 ± 0,008 (0,602 ; 0,616 ; 0,602) | +0,88 | 174 | 0,952 (min 0,94) |
+| Tour 3 | **0,625 ± 0,009 (0,616 ; 0,634 ; 0,624)** | +0,96 | 175 | 0,835 (min 0,61) |
 
-Chaque tour dure environ 30 minutes, dont 3 min 30 d'entraînement (6,2 Gio de mémoire). L'écart de note avec le départ est de +0,98 après 3 tours (p < 0,001, permutation appariée).
+Chaque tour dure environ 30 minutes, dont 3 min 30 d'entraînement (6,2 Gio de mémoire). L'écart de note avec le départ est de +1,03 ± 0,05 après 3 tours, et l'intervalle de chaque graine exclut 0 (p < 0,001, permutation appariée).
 
-- **Moins de 1 500 paires produites par le modèle valent mieux que 16 000 paires figées** : 0,616 contre 0,552. Les paires restent dans la distribution du modèle, et chaque tour repart du modèle amélioré.
-- **Le gain ne vient pas de la longueur** : les réponses raccourcissent un peu (193 → 184 mots).
-- **Réserves.** Une graine pour l'instant. Les deux modèles de récompense sont de la même famille et peuvent partager des biais : le gain mesuré est en partie un gain aux yeux de ce juge. Le tour 3 n'améliore plus la note moyenne : deux ou trois tours suffisent ici.
+- **Moins de 1 500 paires produites par le modèle valent mieux que 16 000 paires figées** : 0,625 contre 0,533 pour le DPO de l'exemple principal, sur les mêmes demandes de test et avec le même juge. Les paires restent dans la distribution du modèle, et chaque tour repart du modèle amélioré.
+- **Le gain se reproduit sur les trois graines** : l'intervalle de victoires exclut 0,5 à chaque tour 2 et 3 sur chaque graine (0,616, 0,634, 0,624 au tour 3).
+- **Le gain ne vient pas de la longueur** : les réponses raccourcissent un peu (193 → 175 mots).
+- **Réserves.** Au tour 3, la non-régression arithmétique s'effondre sur la graine 44 (0,955 → 0,61, −0,345 [−0,415 ; −0,275]), alors qu'aux tours 1 et 2 elle reste stable sur les trois graines (0,935 à 0,97). Il n'y a pas de témoin à calcul égal. Les deux modèles de récompense sont de la même famille et peuvent partager des biais : le gain mesuré est en partie un gain aux yeux de ce juge. Le tour 3 n'améliore presque plus la note moyenne : deux tours suffisent ici.
 
 ## Paramètres principaux (`config.yaml`)
 

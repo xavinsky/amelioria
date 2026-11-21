@@ -10,7 +10,7 @@
 
 Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m02) (ce que la méthode ajoute ou modifie dans le transformer).
 
-On minimise la perte d'entropie croisée entre la sortie du modèle et la sortie attendue. Pour un LLM, la perte n'est calculée que sur les tokens de la réponse (`completion_only_loss`) : le modèle apprend à répondre, pas à recopier la question.
+On minimise la perte (loss) d'entropie croisée entre la sortie du modèle et la sortie attendue. Pour un LLM, la perte n'est calculée que sur les tokens de la réponse (`completion_only_loss`) : le modèle apprend à répondre, pas à recopier la question.
 
 Le fine-tuning *complet* met à jour tous les poids. C'est la version la plus expressive, mais aussi la plus coûteuse en mémoire. Avec AdamW en précision mixte, il faut compter ~16 octets par paramètre : poids fp32, gradients, deux moments, plus les activations. Pour faire la même chose avec 10 fois moins de mémoire, voir LoRA et QLoRA ([DATA03](../03-peft)). La recette de données est identique.
 
@@ -76,14 +76,14 @@ flowchart TD
 
 `make run EX=DATA02` vérifie les prérequis (modules, GPU), puis lance `run.py` dans l'environnement `.venv`. Le script lit `config.yaml` (modèle, données, réglages). Les données sont celles de banking77 : des messages réels de clients d'une banque (« I still haven't received my new card »), chacun annoté avec l'une de 77 intentions (`card_arrival`, `card_delivery_estimate`, `lost_or_stolen_card`...). Le modèle reçoit en message système la liste des 77 intentions et doit répondre par une seule d'entre elles.
 
-- **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-0.5B-Instruct (environ 1 Go), le jeu banking77 et les demandes générales d'Alpaca sont téléchargés depuis le Hugging Face Hub, par HTTPS.
+- **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-0.5B-Instruct (environ 1 Go), le jeu banking77 et les demandes (prompts) générales d'Alpaca sont téléchargés depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en fp32 dans la mémoire du GPU (`dtype: float32`), où ils restent jusqu'à la fin : ce sont les poids maîtres de l'entraînement, le calcul se fait en bf16.
-- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui pose au modèle les 3 080 messages de test, par lots de 32, puis 200 problèmes d'arithmétique, la tâche de non-régression.
+- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui pose au modèle les 3 080 messages de test, par lots (batches) de 32, puis 200 problèmes d'arithmétique, la tâche de non-régression.
 - **⑤ Génération sur le GPU.** Pour un message, le modèle produit au plus 16 tokens ; la première ligne, normalisée, doit être l'intention attendue. Pour l'arithmétique, il raisonne jusqu'à 256 tokens et l'on compare le nombre final.
-- **⑥ Remélange.** Avant l'entraînement, le modèle répond à environ 3 500 demandes générales d'Alpaca ; on garde les 1 765 premières réponses complètes (15 % des exemples d'entraînement). Elles sont gardées en cache dans `sorties/cache-remelange/` pour les lancements suivants.
+- **⑥ Remélange (replay).** Avant l'entraînement, le modèle répond à environ 3 500 demandes générales d'Alpaca ; on garde les 1 765 premières réponses complètes (15 % des exemples d'entraînement). Elles sont gardées en cache dans `sorties/cache-remelange/` pour les lancements suivants.
 - **⑦ Entraînement.** `run.py` met les 10 003 messages et les 1 765 réponses générales au format du chat template et les confie au SFTTrainer de TRL. Rien n'est gelé : les 494 millions de paramètres du modèle sont entraînés.
-- **⑧ Forward et backward sur le GPU.** Chaque pas traite 16 exemples (lots de 4, accumulés 4 fois) : passe avant, perte sur la réponse seulement, passe arrière avec recalcul des activations (gradient checkpointing), mise à jour de tous les poids. 2 époques, taux d'apprentissage 1e-5.
+- **⑧ Forward et backward sur le GPU.** Chaque pas traite 16 exemples (lots de 4, accumulés 4 fois) : passe avant (forward pass), perte sur la réponse seulement, passe arrière (backward pass) avec recalcul des activations (gradient checkpointing), mise à jour de tous les poids. 2 époques, taux d'apprentissage (learning rate) 1e-5.
 - **⑨ Mesure après.** Les mêmes 3 080 messages et les mêmes 200 problèmes, avec le même décodage.
 - **⑩ Écriture du modèle** complet dans `sorties/02-fine-tuning-supervise/modele/`.
 - **⑪ Écriture du rapport** dans `sorties/02-fine-tuning-supervise/resultats.json`, avec le même tableau affiché dans le terminal.
@@ -146,27 +146,39 @@ Gain sur les intentions, apparié sur les mêmes messages : +0,673 [+0,655 ; +0,
 
 **Le besoin** : le même routage des messages bancaires, quand on n'a besoin que de l'étiquette, sans texte généré : un modèle petit, rapide et peu coûteux à servir.
 
-[`variantes/classification-encodeur`](variantes/classification-encodeur) ajoute une tête linéaire à 77 sorties sur ModernBERT-base (150 M paramètres) et entraîne le modèle entier sur les 10 003 messages d'entraînement de banking77, 5 époques. La mesure porte sur les mêmes 3 080 messages de test que l'exemple principal.
+[`variantes/classification-encodeur`](variantes/classification-encodeur) ajoute une tête linéaire à 77 sorties sur ModernBERT-base (150 M paramètres) et entraîne le modèle entier sur les 10 003 messages d'entraînement de banking77, 5 époques. La mesure porte sur les mêmes 3 080 messages de test que l'exemple principal. Le point de comparaison réaliste est une régression logistique sur les TF-IDF (mots et paires de mots) des mêmes messages.
 
-| | Intentions (3 080 messages) | Entraînement |
-|---|---|---|
-| ModernBERT-base, tête aléatoire | 0,012 [0,009 ; 0,017] | |
-| Après fine-tuning | **0,937** [0,928 ; 0,945] | 85 s |
+| | Intentions (3 080 messages, 3 graines) |
+|---|---|
+| ModernBERT-base, tête aléatoire | 0,015 |
+| Régression logistique TF-IDF | 0,894 |
+| **Après fine-tuning** (85 s) | **0,937 ± 0,001** |
 
-Un encodeur 3 fois plus petit que Qwen2.5-0.5B atteint la même exactitude que le SFT du LLM, en 85 s au lieu de 23 min. C'est le bon choix quand la sortie est une étiquette ; le LLM se justifie quand il doit aussi répondre, extraire ou rédiger.
+Le fine-tuning dépasse la régression logistique de +0,043 (+0,043 ; +0,044 ; +0,042, net sur chaque graine). Un encodeur 3 fois plus petit que Qwen2.5-0.5B atteint la même exactitude que le SFT du LLM, en 85 s au lieu de 23 min. C'est le bon choix quand la sortie est une étiquette ; le LLM se justifie quand il doit aussi répondre, extraire ou rédiger.
 
 ### Variante vision : classer des photos avec un ViT
 
 **Le besoin** : trier des images en catégories propres à l'entreprise (pièces, défauts, produits, documents scannés) à partir de quelques milliers d'exemples étiquetés.
 
-[`variantes/vision`](variantes/vision) remplace la tête de ViT-base (pré-entraîné sur ImageNet-21k, 86 M paramètres) par une tête à 10 classes et entraîne tout le réseau sur 10 000 images de CIFAR-10, 2 époques. La mesure porte sur 1 000 images du split `test`.
+[`variantes/vision`](variantes/vision) remplace la tête de ViT-base (pré-entraîné sur ImageNet-21k, 86 M paramètres) par une tête à 10 classes et entraîne tout le réseau sur 10 000 images de CIFAR-10, 2 époques. La mesure porte sur 1 000 images du split `test`. Le point de comparaison réaliste est une régression logistique sur les plongements (embeddings) figés du même ViT.
 
-| | Exactitude (1 000 images) |
+| | Exactitude (1 000 images, 3 graines) |
 |---|---|
-| ViT-base, tête aléatoire | 0,101 [0,084 ; 0,121] |
-| Après fine-tuning (84 s) | **0,972** [0,960 ; 0,981] |
+| ViT-base, tête aléatoire | 0,101 |
+| Régression logistique sur plongements figés | 0,963 ± 0,012 |
+| Après fine-tuning (84 s) | 0,972 ± 0,003 |
 
-Le même script accepte DeiT, DINOv2, ConvNeXt ou Swin et tout jeu Hugging Face au format image + étiquette. Réserve : CIFAR-10 ressemble aux photos du pré-entraînement ; sur des images éloignées (radiographies, vues de microscope), il faut plus d'exemples et d'époques.
+Sur CIFAR-10, proche des images du pré-entraînement, le fine-tuning ne dépasse la sonde linéaire que de +0,009 ± 0,012 (net sur une graine sur trois) : les plongements figés suffisent presque.
+
+Sur un jeu éloigné du pré-entraînement, images satellite EuroSAT (`tanganke/eurosat`, 10 types de terrain, 2 700 images de test, `make graines` avec `--set donnees.nom=tanganke/eurosat --set donnees.colonne_image=image --set donnees.n_test=2700`) :
+
+| | Exactitude (2 700 images, 3 graines) |
+|---|---|
+| ViT-base, tête aléatoire | 0,099 |
+| Régression logistique sur plongements figés | 0,946 ± 0,001 |
+| Après fine-tuning | **0,987 ± 0,001** |
+
+Écart apparié +0,041 (de +0,040 à +0,042 selon la graine), p de McNemar < 10⁻³ sur chacune : le fine-tuning dépasse nettement la sonde quand le jeu s'éloigne du pré-entraînement. Le même script accepte DeiT, DINOv2, ConvNeXt ou Swin et tout jeu Hugging Face au format image + étiquette.
 
 ### Variante seq2seq : résumer des dialogues de service client
 
@@ -174,14 +186,16 @@ Le même script accepte DeiT, DINOv2, ConvNeXt ou Swin et tout jeu Hugging Face 
 
 [`variantes/seq2seq`](variantes/seq2seq) fine-tune Flan-T5-base (250 M paramètres, encodeur-décodeur) sur DialogSum (`knkarthick/dialogsum`) : 12 460 dialogues avec un résumé rédigé par un annotateur, 2 époques. Mesure : ROUGE-L, recouvrement en mots avec le résumé de référence (plus longue sous-suite commune, F1). Le jeu de test donne plusieurs références par dialogue : on garde la meilleure.
 
-| | ROUGE-L (500 dialogues de test) | Mots par résumé |
-|---|---|---|
-| Flan-T5-base, avant | 0,291 | 14,5 |
-| Après fine-tuning (22 min, 4,3 Gio) | **0,432** | 23,3 |
+Une seconde mesure porte sur la fidélité : un modèle d'inférence textuelle (`cross-encoder/nli-deberta-v3-base`) estime la probabilité que le dialogue implique le résumé, moyennée sur les 500 dialogues.
 
-Gain apparié sur les mêmes dialogues : +0,141 [+0,127 ; +0,156], p de permutation < 10⁻³. Sur un dialogue où une personne n'arrive pas à dormir à cause de ses notes, le modèle d'origine écrit « Person1 is worried about his grades. » (il se trompe de personne et s'arrête là). Après fine-tuning, il donne la cause, les conseils proposés et la réponse, dans la forme des références (`#Person2# …`).
+| | ROUGE-L (500 dialogues de test) | Fidélité | Mots par résumé |
+|---|---|---|---|
+| Flan-T5-base, avant | 0,291 | 0,601 | 14,5 |
+| Après fine-tuning (21 min, 4,3 Gio) | **0,432 ± 0,002** | **0,738 ± 0,019** | 23,6 |
 
-Réserve : ROUGE-L mesure le recouvrement de mots, pas l'exactitude des faits ; une relecture humaine ou un juge reste nécessaire avant un usage réel.
+Moyenne ± écart type sur 3 graines (seeds). Gains appariés sur les mêmes dialogues : ROUGE-L +0,141 (par exemple +0,142 [+0,127 ; +0,157]), fidélité +0,137 (de +0,120 à +0,157 selon la graine, par exemple +0,157 [+0,114 ; +0,200]) ; sur chaque graine l'intervalle exclut 0, p de permutation < 10⁻³. Sur un dialogue où une personne n'arrive pas à dormir à cause de ses notes, le modèle d'origine écrit « Person1 is worried about his grades. » (il se trompe de personne et s'arrête là). Après fine-tuning, il donne la cause, les conseils proposés et la réponse, dans la forme des références (`#Person2# …`).
+
+Réserve : la fidélité est une estimation par un modèle d'inférence textuelle, pas une relecture humaine, qui reste nécessaire avant un usage réel.
 
 ### Variante Whisper : transcrire des accents variés
 
@@ -194,7 +208,7 @@ Réserve : ROUGE-L mesure le recouvrement de mots, pas l'exactitude des faits ; 
 | whisper-small, avant | 0,232 ± 0,010 | 0,034 |
 | Après fine-tuning | **0,181 ± 0,006** | 0,041 |
 
-Moyenne ± écart type sur 3 graines (`make graines EX=DATA02 VAR=audio-whisper N=3`) : −0,051 ± 0,004, soit 22 % d'erreurs en moins ; sur chaque graine, l'intervalle apparié exclut 0 (par exemple −0,055 [−0,064 ; −0,047]).
+Moyenne ± écart type sur 3 graines (seeds) (`make graines EX=DATA02 VAR=audio-whisper N=3`) : −0,051 ± 0,004, soit 22 % d'erreurs en moins ; sur chaque graine, l'intervalle apparié exclut 0 (par exemple −0,055 [−0,064 ; −0,047]).
 
 Les références d'EdAcc gardent les hésitations et répétitions de l'oral (« LET LET ME »). En décodage glouton, le modèle fine-tuné en apprend à boucler sur une quinzaine de segments sur 1 000, ce qui efface le gain. L'exemple utilise donc le décodage de référence de Whisper (OpenAI), avant comme après : une transcription trop répétitive ou trop peu probable est refaite à température plus haute (section `decodage` de la config). Il n'y a plus aucune boucle.
 

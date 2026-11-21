@@ -31,7 +31,7 @@ donnees:
 evaluation:
   mode: etiquette
   dev_depuis_train: true            # validation prise dans l'entraînement : tout le jeu de test sert à la confirmation
-  n_dev: 200
+  n_dev: 500
   n_test: 3080
   max_new_tokens: 16
   batch: 32

@@ -18,6 +18,7 @@ materiel_reference: RTX 5070 Ti Laptop (12 Go, 11,5 Gio utilisables), 30 Go de R
 statuts:
   demontre: Démontré
   non-prouve: Non prouvé
+  pret-a-tester: Prêt à tester
   non-teste: Non testé
 
 # Coût typique d'une méthode, en ordre de grandeur, pour un modèle de 7 à 8 milliards de paramètres
@@ -335,15 +336,13 @@ exemples:
     reserve: "perplexité générale 20,2 → 24,2 malgré le replay ; la diversité des formulations n'apporte presque rien sur un modèle pré-entraîné"
     prerequis: {gpu: requis}
   - chemin: 01-pre-entrainement-continu/variantes/mlm-encodeur
-    statut: non-prouve
-    fait: "Poursuit le pré-entraînement par masquage de mots d'un encodeur RoBERTa sur un texte de domaine."
-    piste: "Protocole de *Don't Stop Pretraining* sur banking77 : masquage continu sur les messages sans étiquettes, puis classification avec 10 exemples par intention, contre le même fine-tuning sans masquage, 3 graines."
-    duree_test: "8 s"
-    duree_complet: "17 s"
-    resultat: "perte MLM 2,38 → 1,09"
-    reserve: "aucune tâche finale mesurée : la perte montre seulement que le modèle complète des fiches au même format"
+    statut: demontre
+    fait: "Poursuit le pré-entraînement par masquage de RoBERTa-base sur 10 003 messages bancaires sans étiquettes, puis le fine-tune à classer 77 intentions avec 5 messages étiquetés par intention, contre le même fine-tuning sans masquage, 3 graines."
+    duree_test: "30 s"
+    duree_complet: "10 min"
+    resultat: "5 messages étiquetés par intention, 3 080 messages de test : 0,754 ± 0,020 sans masquage, 0,797 ± 0,014 avec ; écart apparié +0,043 (de +0,038 à +0,052), intervalle à 95 % qui exclut 0 sur chaque graine. À 10 par intention : +0,016 ± 0,011, net sur 2 graines sur 3"
+    reserve: "l'avantage se voit quand les étiquettes sont rares (5 par intention) ; à 10 par intention il est plus faible et non net sur une graine"
     prerequis: {gpu: conseille}
-
   - chemin: 02-fine-tuning-supervise
     statut: demontre
     fait: "Fine-tuning complet de Qwen2.5-0.5B-Instruct pour router des messages de clients bancaires vers 77 intentions (banking77), avec remélange contre l'oubli."
@@ -353,31 +352,28 @@ exemples:
     reserve: oubli partiel malgré le remélange
     prerequis: {gpu: requis}
   - chemin: 02-fine-tuning-supervise/variantes/classification-encodeur
-    statut: non-prouve
+    statut: demontre
     fait: "Entraîne ModernBERT-base à classer les mêmes messages bancaires en 77 intentions (banking77)."
     duree_test: "10 s"
     duree_complet: "2 min"
-    resultat: "intentions 0,012 → 0,937 (n = 3 080), 85 s d'entraînement"
-    reserve: "le départ (0,012) est une tête aléatoire, pas un modèle réaliste ; aucune comparaison avec une base simple (régression logistique TF-IDF) ; une graine"
-    piste: "Comparer à une régression logistique TF-IDF sur les mêmes messages, 3 graines."
+    resultat: "intentions 0,015 → 0,937 ± 0,001 (n = 3 080) ; régression logistique TF-IDF 0,894 : +0,043, net sur 3 graines ; 85 s d'entraînement"
+    reserve: "le fine-tuning ne dépasse la base TF-IDF que de 4 points"
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/vision
-    statut: non-prouve
-    fait: "Entraîne un ViT à classer des photos en 10 catégories (CIFAR-10)."
+    statut: demontre
+    fait: "Entraîne un ViT à classer des images satellite en 10 types de terrain (EuroSAT), jeu éloigné du pré-entraînement ; CIFAR-10 en contraste, 3 graines."
     duree_test: "13 s"
     duree_complet: "84 s"
-    resultat: "CIFAR-10 0,10 → 0,97"
-    reserve: "le départ (0,10) est une tête aléatoire ; aucune comparaison avec une sonde linéaire sur plongements figés ; CIFAR-10 est un cas d'école proche du pré-entraînement ; une graine"
-    piste: "Sonde linéaire sur plongements figés comme départ réaliste, 3 graines."
+    resultat: "EuroSAT (n = 2 700) : sonde linéaire sur plongements figés 0,946 ± 0,001 ; fine-tuning 0,987 ± 0,001 (+0,041, p de McNemar < 10⁻³ sur chaque graine). CIFAR-10 : 0,963 contre 0,972, non net"
+    reserve: "sur un jeu proche du pré-entraînement (CIFAR-10) le fine-tuning ne dépasse pas nettement la sonde linéaire ; l'avantage se voit sur un jeu éloigné"
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/seq2seq
-    statut: non-prouve
-    fait: "Fine-tune Flan-T5-base (encodeur-décodeur) pour résumer des dialogues de service client (DialogSum)."
+    statut: demontre
+    fait: "Fine-tune Flan-T5-base (encodeur-décodeur) pour résumer des dialogues de service client (DialogSum), 3 graines."
     duree_test: "10 s"
-    duree_complet: "30 min"
-    resultat: "ROUGE-L 0,291 → 0,432 (+0,141 [+0,127 ; +0,156], n = 500)"
-    reserve: "ROUGE-L mesure le recouvrement de mots, pas l'exactitude des faits ; aucun test de fidélité ; une graine"
-    piste: "Fidélité des résumés par un juge ou un modèle d'inférence textuelle, 3 graines."
+    duree_complet: "22 min"
+    resultat: "ROUGE-L 0,291 → 0,432 ± 0,002 ; fidélité (probabilité d'implication par un modèle d'inférence textuelle) 0,601 → 0,738 ± 0,019 ; gains appariés sur 500 dialogues dont l'intervalle exclut 0 sur chaque graine"
+    reserve: "la fidélité est estimée par un modèle d'inférence textuelle (cross-encoder/nli-deberta-v3-base), pas par une relecture humaine ; les résumés sont plus longs après fine-tuning (14,5 → 23,6 mots)"
     prerequis: {gpu: conseille}
   - chemin: 02-fine-tuning-supervise/variantes/audio-whisper
     statut: demontre
@@ -414,12 +410,12 @@ exemples:
     reserve: "gain net sur 2 graines sur 3 ; faible sur un modèle déjà aligné par ses auteurs"
     prerequis: {gpu: requis}
   - chemin: 04-optimisation-preferences/variantes/dpo-iteratif
-    statut: non-prouve
+    statut: pret-a-tester
     fait: "Trois tours de DPO LoRA sur des paires que Qwen2.5-0.5B-Instruct produit lui-même (4 réponses à 500 demandes UltraFeedback, classées par Skywork-Reward-V2 0,6B) ; mesure par un autre juge (Skywork-Reward-V2 1,7B)."
-    piste: "Confirmer sur 2 graines."
+    piste: "Refaire sur 3 nouvelles graines à 2 tours, nombre de tours fixé avant la mesure ; comparer au DPO hors-ligne (0,533) à demandes de test et juge identiques."
     duree_complet: "1 h 40"
-    resultat: "victoires contre le départ 0,532 → 0,602 → 0,616 [0,573 ; 0,658] au fil des tours ; non-régression 0,955 → 0,935 (n.s.)"
-    reserve: "une graine ; juges de la même famille"
+    resultat: "victoires contre le départ après 3 tours : 0,625 ± 0,009 sur 3 graines (0,616 ; 0,634 ; 0,624), intervalle de chaque graine au-dessus de 0,5 ; après 2 tours : 0,607 ± 0,008"
+    reserve: "au tour 3 la non-régression arithmétique s'effondre sur une graine sur trois (0,955 → 0,61), stable aux tours 1 et 2 ; pas de témoin à calcul égal ; juges de la même famille"
     prerequis: {gpu: requis}
 
   - chemin: 05-rl-en-ligne
@@ -432,7 +428,7 @@ exemples:
     piste: "3 graines, témoin SFT à volume égal, part des sorties avec « Answer: » avant et après, gains recalculés en extraction stricte."
     prerequis: {gpu: requis, api: true}
   - chemin: 05-rl-en-ligne/variantes/modele-recompense
-    statut: non-prouve
+    statut: pret-a-tester
     fait: "Entraîne un modèle de récompense à préférer la bonne réponse dans des paires."
     duree_test: "13 s"
     duree_complet: "87 s"
@@ -451,7 +447,7 @@ exemples:
     piste: "Témoin de même style (auto-distillation filtrée), 3 graines."
     prerequis: {gpu: requis}
   - chemin: 06-distillation/variantes/encodeur-classification
-    statut: non-prouve
+    statut: pret-a-tester
     fait: "Distille un classifieur de sentiment RoBERTa vers un BERT 10 fois plus petit."
     duree_test: "25 s"
     duree_complet: "78 s"
@@ -478,9 +474,16 @@ exemples:
     reserve: "un seul modèle est fusionné, donc rien à combiner ; le départ à 0,07 vient du chat template appliqué à un modèle de base, pas d'un échec réel ; 0,55 contre 0,51 sur n = 100 est dans le bruit ; ni graine ni témoin"
     piste: "Fusionner deux compétences d'une même base Qwen2.5-0.5B (routage banking77 et RL GSM8K), mesurer chaque compétence avec ses sources et un témoin, 3 graines."
     prerequis: {gpu: conseille}
+  - chemin: 08-fusion-modeles/variantes/deux-competences
+    statut: pret-a-tester
+    fait: "Fusionne deux spécialistes de Qwen2.5-0.5B-Instruct (routage de messages bancaires, raisonnement GSM8K) par fusion linéaire, arithmétique des tâches, TIES et DARE-TIES."
+    resultat: "pas encore exécuté"
+    reserve: "aucune mesure sur 3 graines"
+    piste: "Mesurer chaque compétence pour la base, chaque spécialiste et chaque fusion sur les mêmes questions, 3 graines."
+    prerequis: {gpu: requis}
 
   - chemin: 09-edition-connaissances
-    statut: non-prouve
+    statut: pret-a-tester
     fait: "Modifie 4 faits réels dans les poids par ROME (la tour Eiffel « passe » à Rome...)."
     duree_test: "12 s"
     duree_complet: "48 s"
@@ -490,7 +493,7 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 10-desapprentissage
-    statut: non-prouve
+    statut: pret-a-tester
     fait: "Fait oublier 4 personnages appris par NPO, en gardant les 36 autres."
     duree_test: "20 s"
     duree_complet: "59 s"
@@ -500,7 +503,7 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 11-pilotage-activations
-    statut: non-prouve
+    statut: pret-a-tester
     fait: "Rend les réponses plus positives en ajoutant une direction d'activations pendant la génération."
     duree_test: "12 s"
     duree_complet: "27 s"
@@ -510,7 +513,7 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 12-extension-contexte
-    statut: non-prouve
+    statut: pret-a-tester
     fait: "Fait passer SmolLM-360M de 2 048 à 8 192 tokens de contexte par YaRN et un court entraînement."
     duree_test: "15 s"
     duree_complet: "33 min"
@@ -520,7 +523,7 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 13-extension-vocabulaire
-    statut: non-prouve
+    statut: pret-a-tester
     fait: "Ajoute 1 000 mots bretons au tokenizer de Qwen2.5-0.5B, les initialise et les entraîne sur la Wikipédia en breton ; compare à un témoin sans nouveaux tokens, sur 3 graines."
     duree_test: "23 s"
     duree_complet: "13 min"
@@ -565,9 +568,16 @@ exemples:
     resultat: "tâche 0,88 → 0,34 → 0,66 (Wanda 50 %) ; 2:4 : 0,38 ; structuré : largeur 0,14, couches 0,09"
     reserve: "à 0,5B et 1 000 pas de cicatrisation, l'élagage ne paie pas : la tâche ne revient pas"
     prerequis: {gpu: requis}
+  - chemin: 16-elagage/variantes/grand-modele
+    statut: pret-a-tester
+    fait: "Élague Qwen2.5-7B-Instruct par Wanda et 2:4, couche par couche (modèle en RAM), et l'évalue en 8 bits sur GSM8K et en perplexité."
+    resultat: "pas encore exécuté"
+    reserve: "une seule exécution prévue, sans graines supplémentaires"
+    piste: "Comparer référence, Wanda et 2:4, tous évalués en 8 bits."
+    prerequis: {gpu: requis}
 
   - chemin: 17-optimisation-prompt
-    statut: non-prouve
+    statut: pret-a-tester
     fait: "Compare des stratégies de prompt (consigne, consigne optimisée par OPRO, exemples au hasard, exemples les plus proches) pour router des messages bancaires vers 77 intentions, sans entraînement."
     duree_test: "18 s"
     duree_complet: "8 min"
@@ -577,27 +587,25 @@ exemples:
     prerequis: {gpu: conseille, api: true}
 
   - chemin: 18-rag
-    statut: non-prouve
-    fait: "Répond à des questions sur 50 personnages inventés en cherchant les bons passages parmi 2 200."
+    statut: demontre
+    fait: "Répond à des questions sur 50 personnages inventés en cherchant les bons passages parmi 2 100, dont 50 personnages au nom presque identique et 2 000 paragraphes sans rapport."
     duree_test: "14 s"
     duree_complet: "54 s"
-    resultat: "exactitude 0 → 1,0 ; rappel@3 = 1,0"
-    reserve: "corpus de personnages inventés à gabarit : 0 → 1,0 par construction, sans distracteurs proches ni question sans réponse ; 50 questions, une graine"
-    piste: "Passages voisins en distracteurs et questions sans réponse dans le corpus, 3 graines."
+    resultat: "exactitude sans RAG 0,002, passages au hasard 0,007, RAG 0,982 ± 0,014 sur 3 graines ; rappel@3 = 1,0 ; confusion avec le personnage au nom voisin 1,3 %"
+    reserve: "refus sur les questions sans réponse : 59 % avec RAG, autant qu'avec des passages au hasard (57 %) ; corpus de personnages inventés"
     prerequis: {gpu: conseille, api: true}
 
   - chemin: 19-outils-agents
-    statut: non-prouve
-    fait: "Donne au modèle une calculatrice et une base de fiches qu'il appelle pour répondre."
+    statut: demontre
+    fait: "Donne au modèle une calculatrice et une base de fiches qu'il appelle pour répondre ; mesure par type de question, avec et sans outils, sur 250 questions."
     duree_test: "10 s"
     duree_complet: "2 min"
-    resultat: "0,35 → 0,95"
-    reserve: "n = 60, mélange de calculatrice (arithmétique où le modèle sans outil échoue par construction) et de base de fiches, non décomposé par outil ; une graine"
-    piste: "Résultat par outil, 3 graines."
+    resultat: "calcul 0,57 → 1,00 ; fiche 0,00 → 0,93 ; calcul trivial 1,00 → 1,00 ; écart net par outil sur 3 graines"
+    reserve: "le modèle appelle un outil pour toutes les questions, même triviales (la consigne y invite) ; sans outil la fiche est inconnue par construction"
     prerequis: {gpu: conseille, api: true}
 
   - chemin: 20-calcul-inference
-    statut: non-prouve
+    statut: pret-a-tester
     fait: "Génère 16 réponses par question GSM8K et garde la plus fréquente ou la mieux notée."
     duree_test: "9 s"
     duree_complet: "10 min"

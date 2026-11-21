@@ -26,7 +26,7 @@ from pathlib import Path
 import yaml
 
 DEPOT = Path(__file__).resolve().parents[2]
-MARQUEURS = {"demontre": "[!DEMONTRE]", "non-prouve": "[!NONPROUVE]", "non-teste": "[!NONTESTE]"}
+MARQUEURS = {"demontre": "[!DEMONTRE]", "non-prouve": "[!NONPROUVE]", "pret-a-tester": "[!PRETATESTER]", "non-teste": "[!NONTESTE]"}
 # Largeur moyenne d'un caractère dans une case de l'arbre : nom de méthode (serif gras 11,5 px),
 # critère (serif 10,5 px)
 CHAR_FEUILLE, CHAR_CRITERE = 6.4, 5.6
@@ -247,7 +247,7 @@ class Catalogue:
                 "| Exemple | Ce qu'il fait | Résultat mesuré |\n|---|---|---|\n" + "\n".join(demontres)
                 + f"\n\n## En local : à démontrer ({len(a_faire)})\n\n"
                 "Ces exemples s'exécutent sur le GPU local, mais leur résultat ne prouve pas encore le gain de la "
-                "méthode. La dernière colonne dit ce qui doit changer.\n\n"
+                "méthode (statut « prêt à tester » : le code de la démonstration est écrit, le calcul reste à lancer). La dernière colonne dit ce qui doit changer.\n\n"
                 "| Exemple | Ce qu'il fait | Résultat mesuré | Piste d'amélioration |\n|---|---|---|---|\n"
                 + "\n".join(a_faire)
                 + f"\n\n## Sur cloud : en attente d'une infra cloud ({len(cloud)})\n\n"
@@ -260,14 +260,14 @@ class Catalogue:
         """Chiffres du dépôt pour les pages qui les citent (`{{cle}}` dans le texte, front matter `compteurs: true`)."""
         n = {k: sum(e["statut"] == k for e in self.exemples) for k in MARQUEURS}
         return {"methodes": len(self.methodes), "categories": len(self.categories), "exemples": len(self.exemples),
-                "demontres": n["demontre"], "non_prouves": n["non-prouve"],
+                "demontres": n["demontre"], "non_prouves": n["non-prouve"] + n["pret-a-tester"], "prets_a_tester": n["pret-a-tester"],
                 "infra": sum((DEPOT / m["dossier"] / "infra").is_dir() for m in self.methodes.values())}
 
     def bilan(self):
         """Phrase de bilan : nombre d'exemples par statut."""
         n = {k: sum(e["statut"] == k for e in self.exemples) for k in MARQUEURS}
         return (f"Bilan : {len(self.exemples)} exemples locaux, dont {n['demontre']} démontrés et "
-                f"{n['non-prouve']} non prouvés ; versions grosse infra non testées.")
+                f"{n['non-prouve'] + n['pret-a-tester']} non prouvés (dont {n['pret-a-tester']} prêts à tester) ; versions grosse infra non testées.")
 
     def verifier_menu(self, groupes):
         """Les groupes de l'onglet Méthodes sont les catégories du catalogue, dans le même ordre ; leur

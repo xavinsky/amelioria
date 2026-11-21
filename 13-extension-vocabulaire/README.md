@@ -19,7 +19,7 @@ Un tokenizer entraîné sur du web anglais découpe mal un nom propre inventé, 
 Étapes de [`run.py`](run.py) :
 
 1. **Choisir les tokens** : mots fréquents dans le corpus qui coûtent plusieurs tokens, classés par nombre de tokens économisés. Ou une liste explicite.
-2. **Agrandir** : `resize_token_embeddings`. **Initialiser** chaque nouvel embedding à la *moyenne des embeddings de ses anciens sous-tokens*. Le modèle « comprend » ainsi déjà à peu près le nouveau token avant tout entraînement : la perte de départ est bien plus basse qu'avec une initialisation aléatoire (`vocabulaire.init=aleatoire` pour comparer).
+2. **Agrandir** : `resize_token_embeddings`. **Initialiser** chaque nouvel embedding à la *moyenne des embeddings de ses anciens sous-tokens*. Le modèle « comprend » ainsi déjà à peu près le nouveau token avant tout entraînement : la perte (loss) de départ est bien plus basse qu'avec une initialisation aléatoire (`vocabulaire.init=aleatoire` pour comparer).
 3. **Phase 1** : n'entraîner que les embeddings d'entrée et de sortie, à lr élevé. Le reste du réseau, gelé, n'est pas perturbé par des vecteurs encore mal placés.
 4. **Phase 2** : entraînement complet à lr faible. En pratique, c'est un pré-entraînement continu ([DATA01](../01-pre-entrainement-continu)).
 
@@ -96,11 +96,11 @@ flowchart TD
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en fp32 dans la mémoire du GPU.
 - **④ Choix des tokens.** `run.py` compte les mots des articles d'entraînement présents au moins 5 fois, demande au tokenizer d'origine en combien de morceaux il découpe chacun, et garde les 1 000 mots qui font gagner le plus de tokens : mots courants (« gant », « eus », « hag », « evit ») et mots plus longs (« Ganedigezhioù », « Stadoù-Unanet »).
-- **⑤ Mesure avant.** Deux mesures sur les 600 articles de test, comparables entre tokenizers : le nombre total de tokens, et les bits par caractère (la perte du modèle rapportée au nombre de caractères, pas de tokens). Chaque texte demande une passe avant.
+- **⑤ Mesure avant.** Deux mesures sur les 600 articles de test, comparables entre tokenizers : le nombre total de tokens, et les bits par caractère (la perte du modèle rapportée au nombre de caractères, pas de tokens). Chaque texte demande une passe avant (forward pass).
 - **⑥ Ajout au tokenizer.** Les 1 000 mots sont ajoutés avec `add_tokens`, chacun précédé de son espace, comme les mots du vocabulaire BPE d'origine.
 - **⑦ Agrandissement des embeddings.** La matrice d'embeddings de Qwen2.5-0.5B, partagée entre l'entrée et la sortie, compte 151 936 lignes pour 151 665 tokens : 1 000 nouveaux tokens dépassent ses lignes de réserve, et `resize_token_embeddings` la porte à 152 665 lignes. Chaque nouveau token reçoit la moyenne des embeddings des sous-tokens qui le découpaient avec le tokenizer d'origine.
 - **⑧ Mesure après ajout**, avant tout entraînement.
-- **⑨ Phase 1, embeddings seuls.** Le reste du modèle est gelé. Les articles d'entraînement sont concaténés et découpés en blocs de 512 tokens (1 442 blocs), confiés au Trainer de transformers : 1 époque, lots de 2, accumulation 8, taux d'apprentissage 1e-3.
+- **⑨ Phase 1, embeddings seuls.** Le reste du modèle est gelé. Les articles d'entraînement sont concaténés et découpés en blocs de 512 tokens (1 442 blocs), confiés au Trainer de transformers : 1 époque, lots (batches) de 2, accumulation 8, taux d'apprentissage (learning rate) 1e-3.
 - **⑩ Forward et backward sur le GPU**, avec mise à jour de la seule matrice d'embeddings.
 - **⑪ Mesure après phase 1.**
 - **⑫ Phase 2, modèle complet.** Tous les poids sont dégelés : 1 époque, lots de 1, accumulation 16, taux 2e-5, gradient checkpointing.
@@ -109,9 +109,9 @@ flowchart TD
 - **⑮ Écriture du modèle** et du tokenizer agrandi dans `sorties/13-extension-vocabulaire/modele/`.
 - **⑯ Écriture du rapport** dans `sorties/13-extension-vocabulaire/resultats.json`, avec le même tableau affiché dans le terminal.
 
-**Témoin.** Avant ⑯, le modèle étendu quitte le GPU et Qwen2.5-0.5B d'origine y est rechargé, avec son tokenizer inchangé. Il suit les deux mêmes phases (⑨ à ⑬), sur les mêmes articles et le même nombre d'époques (le même texte fait 1 724 blocs avec l'ancien tokenizer), puis il est mesuré comme en ⑭. L'écart avec `apres_phase2` isole ce qu'apportent les nouveaux tokens, l'entraînement étant le même. `temoin: false` le désactive.
+**Témoin (baseline).** Avant ⑯, le modèle étendu quitte le GPU et Qwen2.5-0.5B d'origine y est rechargé, avec son tokenizer inchangé. Il suit les deux mêmes phases (⑨ à ⑬), sur les mêmes articles et le même nombre d'époques (le même texte fait 1 724 blocs avec l'ancien tokenizer), puis il est mesuré comme en ⑭. L'écart avec `apres_phase2` isole ce qu'apportent les nouveaux tokens, l'entraînement étant le même. `temoin: false` le désactive.
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Les mesures (⑤, ⑧, ⑪, ⑭) ne font qu'une passe avant par texte, sans génération. L'agrandissement (⑦) alloue une nouvelle matrice d'embeddings sur le GPU et y recopie les anciennes lignes. En entraînement (⑩, ⑬), chaque pas fait une passe avant, une passe arrière qui calcule les gradients, puis la mise à jour par AdamW : en phase 1, gradients et état de l'optimiseur n'existent que pour la matrice d'embeddings ; en phase 2, pour tout le modèle. Les poids restent en fp32, les calculs d'entraînement se font en bf16.
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Les mesures (⑤, ⑧, ⑪, ⑭) ne font qu'une passe avant par texte, sans génération. L'agrandissement (⑦) alloue une nouvelle matrice d'embeddings sur le GPU et y recopie les anciennes lignes. En entraînement (⑩, ⑬), chaque pas fait une passe avant, une passe arrière (backward pass) qui calcule les gradients, puis la mise à jour par AdamW : en phase 1, gradients et état de l'optimiseur n'existent que pour la matrice d'embeddings ; en phase 2, pour tout le modèle. Les poids restent en fp32, les calculs d'entraînement se font en bf16.
 
 **Ce qui est écrit.**
 
@@ -121,7 +121,7 @@ flowchart TD
 | `modele/tokenizer.json`, `tokenizer_config.json`, `chat_template.jinja` | Le tokenizer agrandi des 1 000 nouveaux tokens : il doit accompagner le modèle, l'ancien tokenizer ne correspond plus à ses embeddings |
 | `modele/config.json`, `generation_config.json` | L'architecture, avec `vocab_size: 152665`, et les réglages de génération |
 | `modele/training_args.bin` | Les réglages d'entraînement de la phase 2 |
-| `phase1/`, `phase2/`, `temoin-phase1/`, `temoin-phase2/` | Dossiers de travail du Trainer, vides : aucun point de contrôle n'est sauvegardé |
+| `phase1/`, `phase2/`, `temoin-phase1/`, `temoin-phase2/` | Dossiers de travail du Trainer, vides : aucun point de contrôle (checkpoint) n'est sauvegardé |
 | `resultats.json` | Pour `avant`, `apres_init`, `apres_phase1`, `apres_phase2` et `temoin` : `tokens_corpus_test`, `caracteres_par_token` et `bits_par_caractere` ; la liste `nouveaux_tokens` des 1 000 mots ajoutés |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
@@ -141,7 +141,7 @@ make graines EX=FORM13 N=3                                     # trois graines :
 
 **Le besoin** : servir un modèle dans une langue ou un domaine que son tokenizer découpe mal. Chaque mot coûte alors plusieurs tokens : la génération est plus lente, le contexte se remplit plus vite et chaque appel coûte plus cher. Ici, le breton : 2,5 caractères par token avec le tokenizer de Qwen.
 
-**Résultats** (Qwen2.5-0.5B, RTX 5070 Ti Laptop ; 600 articles jamais vus ; 3 graines, `make graines EX=FORM13 N=3`) :
+**Résultats** (Qwen2.5-0.5B, RTX 5070 Ti Laptop ; 600 articles jamais vus ; 3 graines/seeds, `make graines EX=FORM13 N=3`) :
 
 | | Tokens des articles de test | Caractères par token | Bits par caractère |
 |---|---|---|---|

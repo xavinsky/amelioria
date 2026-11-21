@@ -99,12 +99,12 @@ flowchart TD
 - **① Téléchargement.** Au premier lancement, les poids de Qwen2.5-0.5B-Instruct (environ 1 Go) et le jeu `openai/gsm8k` sont téléchargés depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en fp32 dans la mémoire du GPU (`dtype: float32`), où ils restent jusqu'à la fin.
-- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui pose les 1 319 problèmes de test, puis 200 problèmes d'arithmétique de non-régression, par lots de 32.
+- **④ Mesure avant.** `run.py` appelle `commun/evaluation.py`, qui pose les 1 319 problèmes de test, puis 200 problèmes d'arithmétique de non-régression, par lots (batches) de 32.
 - **⑤ Génération sur le GPU.** Pour chaque lot, le modèle raisonne token par token, jusqu'à 512 tokens, en décodage glouton. L'évaluation extrait ensuite le nombre final de chaque réponse et le compare au résultat attendu : c'est l'exactitude de départ.
-- **⑥ Entraînement.** `run.py` confie le modèle, les prompts et les fonctions de récompense au GRPOTrainer de TRL, réglé pour DAPO (perte `dapo`, `epsilon_high` = 0,28, `beta` = 0, réponses tronquées ignorées). Rien n'est gelé : tous les poids du modèle sont entraînés.
+- **⑥ Entraînement.** `run.py` confie le modèle, les prompts et les fonctions de récompense au GRPOTrainer de TRL, réglé pour DAPO (perte (loss) `dapo`, `epsilon_high` = 0,28, `beta` = 0, réponses tronquées ignorées). Rien n'est gelé : tous les poids du modèle sont entraînés.
 - **⑦ Génération sur le GPU.** À chaque pas, le modèle lui-même produit 8 réponses par problème, par échantillonnage à température 1,0, jusqu'à 512 tokens chacune (environ 300 en moyenne).
 - **⑧ Notation.** TRL passe les réponses à `recompenses.py` : 1 si le nombre final est juste, 0 sinon (`bonus_format: true` ajoute 0,2 quand la réponse se termine par `Answer: N`, utile sur l'arithmétique). Ce calcul se fait en Python, sans GPU. Avec `SET="recompense.source=juge recompense.api_base=http://localhost:11434/v1"`, la note vient d'un LLM juge interrogé par HTTP sur une API compatible OpenAI (flèche pointillée).
-- **⑨ Forward et backward sur le GPU.** Chaque réponse reçoit un avantage : l'écart de sa récompense à la moyenne de son groupe de 8, divisé par l'écart type du groupe. Chaque pas traite 64 réponses, soit 8 problèmes (lots de 2, 32 accumulations) : passe avant pour les log-probabilités des tokens générés, perte DAPO, passe arrière, mise à jour de tous les poids par AdamW 8 bits. 100 pas, taux d'apprentissage 1e-6, gradient checkpointing actif.
+- **⑨ Forward et backward sur le GPU.** Chaque réponse reçoit un avantage : l'écart de sa récompense à la moyenne de son groupe de 8, divisé par l'écart type du groupe. Chaque pas traite 64 réponses, soit 8 problèmes (lots de 2, 32 accumulations) : passe avant (forward pass) pour les log-probabilités des tokens générés, perte DAPO, passe arrière (backward pass), mise à jour de tous les poids par AdamW 8 bits. 100 pas, taux d'apprentissage (learning rate) 1e-6, gradient checkpointing actif.
 - **⑩ Mesure après.** Les mêmes problèmes sont posés au modèle entraîné.
 - **⑪ Génération sur le GPU**, avec le même décodage qu'en ⑤.
 - **⑫ Écriture du modèle** complet dans `sorties/05-rl-en-ligne/modele-dapo/`.
@@ -163,9 +163,9 @@ python run.py --set peft.activer=true --set entrainement.lr=1e-5 --set modele.no
 
 ### Variante modèle de récompense : apprendre à noter les réponses
 
-**Le besoin** : quand la qualité d'une réponse ne se vérifie pas par un programme (utilité, ton, respect d'une consigne), le RL a besoin d'un modèle qui la note. C'est la première étape du RLHF : on l'entraîne sur des paires « réponse préférée / réponse rejetée ».
+**Le besoin** : quand la qualité d'une réponse ne se vérifie pas par un programme (utilité, ton, respect d'une consigne), le RL a besoin d'un modèle qui la note. C'est la première étape du RLHF : on l'entraîne sur des paires « réponse préférée (chosen) / réponse rejetée (rejected) ».
 
-[`variantes/modele-recompense`](variantes/modele-recompense) ajoute une tête scalaire à Qwen2.5-0.5B-Instruct et l'entraîne avec la perte de Bradley-Terry : la note de la réponse préférée doit dépasser celle de la rejetée. Les 4 000 paires d'entraînement sont des problèmes d'arithmétique où la réponse préférée est juste et la rejetée fausse, une époque. La mesure porte sur 200 paires jamais vues : part des paires où le modèle note mieux la bonne réponse.
+[`variantes/modele-recompense`](variantes/modele-recompense) ajoute une tête (head) scalaire à Qwen2.5-0.5B-Instruct et l'entraîne avec la perte de Bradley-Terry : la note de la réponse préférée doit dépasser celle de la rejetée. Les 4 000 paires d'entraînement sont des problèmes d'arithmétique où la réponse préférée est juste et la rejetée fausse, une époque. La mesure porte sur 200 paires jamais vues : part des paires où le modèle note mieux la bonne réponse.
 
 | | Paires bien classées (200) |
 |---|---|

@@ -131,8 +131,14 @@ def main():
         print(f"[prompt] {'temoin_voisins':22s} dev {resultats['temoin_voisins']['dev']['exactitude']:.3f}  "
               f"test {resultats['temoin_voisins']['test']['exactitude']:.3f}")
 
+    if "instruction" in resultats and "optimisation" in resultats:
+        # L'optimisation de prompt doit battre la consigne écrite à la main, sur les mêmes messages.
+        resultats["optimisation_moins_instruction"] = {
+            nom: preuve.difference_appariee(resultats["instruction"][nom]["succes"], resultats["optimisation"][nom]["succes"])
+            for nom in ("dev", "test")}
+
     meilleure = max((k for k in cfg.strategies), key=lambda k: resultats[k]["dev"]["exactitude"])
-    sections = [k for k in cfg.strategies] + (["temoin_voisins"] if "temoin_voisins" in resultats else [])
+    sections = [k for k in cfg.strategies] + [k for k in ("temoin_voisins", "optimisation_moins_instruction") if k in resultats]
     rapport.enregistrer(cfg, **{k: resultats[k] for k in sections},
                         meilleure_strategie_dev=meilleure, instruction_optimisee=instruction_optimisee,
                         historique=resultats.get("historique_optimisation"))

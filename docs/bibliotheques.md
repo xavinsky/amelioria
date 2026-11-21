@@ -53,7 +53,7 @@ Tenseurs sur GPU, différentiation automatique, optimiseurs. Tout le dépôt rep
 | `torch.tensor`, `torch.stack`, `torch.cat`, `torch.full`, `torch.zeros_like` | Construire des lots d'identifiants et des masques |
 | `torch.no_grad()`, `torch.enable_grad()` | Désactiver ou réactiver le calcul de gradients (mesures, édition ROME) |
 | `torch.autocast(device, dtype=torch.bfloat16)` | Précision mixte : poids fp32, calculs en bf16 (boucles manuelles de 03 diffusion et 10) |
-| `torch.nn.functional.cross_entropy` | Perte « prochain token » ou de classification |
+| `torch.nn.functional.cross_entropy` | Perte (loss) « prochain token » ou de classification |
 | `torch.nn.functional.log_softmax`, `softmax`, `kl_div` | Distributions de sortie et divergence KL (distillation 06 et 16, ROME 09) |
 | `torch.nn.functional.logsigmoid` | Perte NPO (EDIT10) |
 | `torch.nn.functional.mse_loss` | Perte de débruitage (03 diffusion) |
@@ -107,7 +107,7 @@ La bibliothèque centrale : architectures, chargement, génération, entraîneme
 | `AddedToken` | Token ajouté avec ses options (espace initial, normalisation) (FORM13) |
 | `AutoConfig` | Lire ou modifier la configuration (ex. `rope_parameters` en 12) |
 | `AutoModelForCausalLM` | LLM décodeur (LLaMA, Qwen, SmolLM...) : la classe la plus utilisée |
-| `AutoModelForSequenceClassification` | Encodeur + tête de classification, et modèle de récompense (SIGN05) |
+| `AutoModelForSequenceClassification` | Encodeur + tête (head) de classification, et modèle de récompense (SIGN05) |
 | `AutoModelForMaskedLM` | Encodeur MLM (01 variante) |
 | `AutoModelForSeq2SeqLM` | Encodeur-décodeur T5 (02 variante) |
 | `AutoModelForImageClassification`, `AutoImageProcessor` | ViT et prétraitement d'images (02 vision) |

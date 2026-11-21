@@ -13,7 +13,7 @@ donnees:
   graine: 0
 
 evaluation:
-  n: 60
+  n: 250                 # 100 questions de calcul, 100 de fiche, 50 sans outil utile
 
 quick:
   modele:
@@ -23,4 +23,4 @@ quick:
   donnees:
     n_entites: 4
   evaluation:
-    n: 4
+    n: 5

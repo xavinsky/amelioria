@@ -25,7 +25,7 @@ L'exemple utilise le **sentiment**, mesuré par un classifieur externe (DistilBE
 |---|---|---|---|
 | LLM décodeur | LLaMA, Qwen, Mistral, Gemma, Phi, GPT-2 | ✅ cas principal | [`run.py`](run.py) trouve les couches automatiquement (`commun/modeles.py:couches_decodeur`) |
 | MoE | Mixtral 8x7B, Qwen3-30B-A3B, DeepSeek-V3 | ✅ | Le flux résiduel est partagé : même méthode |
-| Multimodal | LLaVA, Qwen-VL | ✅ | Pilotage de la partie langage |
+| Multimodal | LLaVA, Qwen-VL | ✅ | Pilotage (steering) de la partie langage |
 | Encodeurs | BERT | ⚠️ | Directions extractibles (sondes linéaires), pilotage moins utile sans génération |
 | Diffusion | Stable Diffusion, SDXL, Flux | ✅ | Directions dans l'espace des embeddings de texte ou dans l'UNet (« concept sliders ») |
 | Modèle fermé via API | GPT-4o, Claude, Gemini | ❌ | Pas d'accès aux activations |
@@ -80,16 +80,16 @@ flowchart TD
 - **③ Copie sur le GPU.** Les deux modèles sont copiés dans la mémoire du GPU, le LLM en bf16. Ses poids sont gelés : rien n'est entraîné.
 - **④ Pose du hook de lecture.** `run.py` accroche un *forward hook* PyTorch à la sortie du bloc 14 sur 28, au milieu du modèle (`couche_relative: 0.5`).
 - **⑤ Extraction de la direction.** Chacune des 30 phrases passe dans le modèle ; à chaque passage, le hook copie l'activation du flux résiduel au dernier token. La direction `d` est la moyenne des activations positives moins celle des négatives. Le hook est ensuite retiré.
-- **⑥ Génération sans intervention.** Le modèle répond aux 30 consignes neutres et aux 30 demandes négatives, en génération gloutonne jusqu'à 48 tokens, par lots de 16.
+- **⑥ Génération sans intervention.** Le modèle répond aux 30 consignes neutres et aux 30 demandes (prompts) négatives, en génération gloutonne jusqu'à 48 tokens, par lots (batches) de 16.
 - **⑦ Jugement.** Les textes produits sont passés au classifieur, via la `pipeline("sentiment-analysis")` de transformers.
 - **⑧ Classification sur le GPU.** Le classifieur rend POSITIVE ou NEGATIVE pour chaque texte ; le résultat est le taux de textes positifs.
 - **⑨ Pose du hook de pilotage**, une fois pour chaque α de la liste `[-2.0, 1.0, 2.0]`.
-- **⑩ Génération pilotée.** Les mêmes 60 consignes sont reposées, avec le même décodage qu'en ⑥. À chaque passe avant, le hook remplace la sortie du bloc 14 par cette sortie plus α·d, à toutes les positions. Les poids ne changent pas : retirer le hook rend le modèle d'origine.
+- **⑩ Génération pilotée.** Les mêmes 60 consignes sont reposées, avec le même décodage qu'en ⑥. À chaque passe avant (forward pass), le hook remplace la sortie du bloc 14 par cette sortie plus α·d, à toutes les positions. Les poids ne changent pas : retirer le hook rend le modèle d'origine.
 - **⑪ Jugement** des textes pilotés.
 - **⑫ Classification sur le GPU**, comme en ⑧.
 - **⑬ Écriture** de la direction dans `sorties/11-pilotage-activations/direction.pt` et du rapport dans `resultats.json`, avec le même tableau affiché dans le terminal.
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Il n'y a ni passe arrière ni optimiseur : tout le travail est de l'inférence. En génération (⑥, ⑩), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. Le hook est une fonction Python appelée par PyTorch au milieu de chaque passe avant ; l'addition α·d qu'elle demande est elle-même un noyau CUDA sur le tenseur d'activations, qui ne quitte pas la mémoire du GPU. Le classifieur (⑧, ⑫) ne fait qu'une passe avant par lot de textes.
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Il n'y a ni passe arrière (backward pass) ni optimiseur : tout le travail est de l'inférence. En génération (⑥, ⑩), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. Le hook est une fonction Python appelée par PyTorch au milieu de chaque passe avant ; l'addition α·d qu'elle demande est elle-même un noyau CUDA sur le tenseur d'activations, qui ne quitte pas la mémoire du GPU. Le classifieur (⑧, ⑫) ne fait qu'une passe avant par lot de textes.
 
 **Ce qui est écrit.**
 

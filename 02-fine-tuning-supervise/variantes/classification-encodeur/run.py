@@ -2,6 +2,9 @@
 
 Le cas le plus fréquent en production hors LLM génératifs : une tête linéaire sur BERT / RoBERTa /
 ModernBERT, entraînée avec le modèle entier.
+
+Départ réaliste : une régression logistique sur les TF-IDF (mots et paires de mots) des mêmes messages, mesurée sur les
+mêmes messages de test ; le fine-tuning doit la dépasser, pas seulement une tête de classification aléatoire.
 """
 
 import pathlib
@@ -23,6 +26,13 @@ def main():
     train = ds[d.split_train].shuffle(seed=cfg.graine).select(range(min(d.n_train, len(ds[d.split_train]))))
     test = ds[d.split_test].shuffle(seed=cfg.graine).select(range(min(d.n_test, len(ds[d.split_test]))))
     n_labels = len(set(train[d.colonne_label]))
+
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+
+    vecteur = TfidfVectorizer(ngram_range=(1, 2), sublinear_tf=True)
+    tfidf = LogisticRegression(C=20, max_iter=500).fit(vecteur.fit_transform(train[d.colonne_texte]), train[d.colonne_label])
+    base_tfidf = preuve.taux([int(p) == int(y) for p, y in zip(tfidf.predict(vecteur.transform(test[d.colonne_texte])), test[d.colonne_label])])
 
     tok = AutoTokenizer.from_pretrained(cfg.modele.nom)
     model = AutoModelForSequenceClassification.from_pretrained(cfg.modele.nom, num_labels=n_labels).to(modeles.appareil())
@@ -53,7 +63,7 @@ def main():
     if cfg.get("sauvegarder", True):
         trainer.save_model(f"{cfg.sortie}/modele")
         tok.save_pretrained(f"{cfg.sortie}/modele")
-    rapport.enregistrer(cfg, avant={**avant_taux, "perte": round(avant["eval_loss"], 4)},
+    rapport.enregistrer(cfg, base_tfidf=base_tfidf, avant={**avant_taux, "perte": round(avant["eval_loss"], 4)},
                         apres={**preuve.taux(dernier["succes"]), "perte": round(apres["eval_loss"], 4)})
 
 

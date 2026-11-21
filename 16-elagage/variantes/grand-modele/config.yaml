@@ -1,0 +1,37 @@
+# Élagage d'un 7B couche par couche — poste local (GPU 12 Go, 30 Go de RAM)
+modele:
+  nom: Qwen/Qwen2.5-7B-Instruct      # 15 Go en bf16 : reste en RAM, un bloc à la fois sur la carte
+
+methodes: [wanda, "2:4"]             # wanda : 50 % des poids de chaque ligne ; 2:4 : 2 poids sur 4 conservés
+sparsite: 0.5
+
+calibration:
+  n: 128                             # blocs de texte Wikipédia
+  longueur: 256
+
+donnees:
+  source: gsm8k
+  graine: 0
+
+evaluation:
+  huit_bits: true                    # référence et modèles élagués évalués en 8 bits (LLM.int8)
+  mode: nombre
+  n: 250
+  max_new_tokens: 320
+  batch: 32
+  n_textes_generaux: 50
+
+sauvegarder: false
+
+quick:
+  modele:
+    nom: HuggingFaceTB/SmolLM2-135M-Instruct
+  calibration:
+    n: 8
+    longueur: 64
+  evaluation:
+    huit_bits: false
+    n: 4
+    max_new_tokens: 24
+    batch: 4
+    n_textes_generaux: 4

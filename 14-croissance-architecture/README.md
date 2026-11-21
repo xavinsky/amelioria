@@ -4,7 +4,7 @@
 
 | Regroupe | Modifie | Local 12 Go | Test `--quick` |
 |---|---|---|---|
-| Depth up-scaling (SOLAR), block expansion (LLaMA Pro), sparse upcycling dense → MoE (Mixtral), MoE de fine-tunes (mergekit-moe) | Architecture (nombre de couches, experts) + poids | ✅ transformation de n'importe quelle taille (CPU) ; cicatrisation locale jusqu'à ~1B | ✅ |
+| Depth up-scaling (SOLAR), block expansion (LLaMA Pro), sparse upcycling dense → MoE (Mixtral), MoE de fine-tunes (mergekit-moe) | Architecture (nombre de couches, experts) + poids | ✅ transformation de n'importe quelle taille (CPU) ; cicatrisation (healing) locale jusqu'à ~1B | ✅ |
 
 ## Principe
 
@@ -29,7 +29,7 @@ Le rapport contient :
 - les paramètres, ceux qui sont entraînés et le nombre de couches ;
 - deux perplexités à chaque étape, sur des textes jamais vus : celle du domaine à apprendre et celle de l'anglais général, qu'on ne doit pas perdre ;
 - l'écart maximal de logits avec l'original (vérification des transformations censées préserver la fonction) ;
-- les courbes des deux perplexités pendant l'entraînement, et la comparaison avec le témoin à niveau égal dans le domaine.
+- les courbes des deux perplexités pendant l'entraînement, et la comparaison avec le témoin (baseline) à niveau égal dans le domaine.
 
 ## Modèles concernés
 
@@ -98,13 +98,13 @@ flowchart TD
 - **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en float32 dans la mémoire du GPU. `run.py` y calcule aussitôt les logits du modèle d'origine sur une sonde de 64 tokens, gardés pour la comparaison de ⑧.
 - **④ Mesure de l'origine.** `run.py` compte les paramètres (361,8 millions) et les couches (32), puis appelle `commun/evaluation.py` pour les deux perplexités : 200 articles bretons et 100 paragraphes anglais, tronqués à 256 tokens.
-- **⑤ Forward sur le GPU.** Une passe avant par lot ; la perplexité est l'exponentielle de la perte moyenne de prédiction du token suivant.
+- **⑤ Forward sur le GPU.** Une passe avant (forward pass) par lot ; la perplexité est l'exponentielle de la perte (loss) moyenne de prédiction du token suivant.
 - **⑥ Croissance.** `run.py` appelle `croissance.expansion_blocs` : après chaque groupe de 4 couches, une copie de la dernière est insérée, avec ses projections de sortie (`o_proj`, `down_proj`) mises à zéro. La nouvelle couche renvoie exactement son entrée par la connexion résiduelle. Les indices de couche utilisés par le cache KV sont renumérotés.
 - **⑦ Copie de couches sur le GPU.** Les 8 couches ajoutées sont copiées directement dans la mémoire du GPU : le modèle passe à 440,5 millions de paramètres.
 - **⑧ Mesure du modèle transformé.** Mêmes mesures qu'en ④, plus l'écart maximal entre ses logits et ceux de l'origine sur la sonde de ③ : 0, le modèle agrandi est identique à l'original.
 - **⑨ Forward sur le GPU**, comme en ⑤.
 - **⑩ Entraînement sur le breton.** Les 32 couches d'origine, les embeddings et la tête de sortie sont figés : seules les 8 nouvelles couches apprennent, soit 78,7 millions de paramètres. `run.py` confie le modèle au `Trainer` de transformers. Les articles d'entraînement sont tokenisés, concaténés et découpés en 3 181 blocs de 512 tokens. Tous les 50 pas, un rappel (`Courbe`) remesure les deux perplexités.
-- **⑪ Forward et backward sur le GPU.** Chaque pas traite 16 blocs (lots de 2, accumulation sur 8) : passe avant, perte du token suivant, passe arrière, mise à jour. 600 pas, soit environ 3 passages sur les données, taux d'apprentissage 1e-4 en cosinus après 50 pas de chauffe, gradient checkpointing activé.
+- **⑪ Forward et backward sur le GPU.** Chaque pas traite 16 blocs (lots (batches) de 2, accumulation sur 8) : passe avant, perte du token suivant, passe arrière (backward pass), mise à jour. 600 pas, soit environ 3 passages sur les données, taux d'apprentissage (learning rate) 1e-4 en cosinus après 50 pas de chauffe, gradient checkpointing activé.
 - **⑫ Mesure après entraînement.** Les mêmes textes de test sont repassés dans le modèle à 40 couches.
 - **⑬ Forward sur le GPU**, comme en ⑤.
 - **⑭ Écriture du modèle agrandi** et de son tokenizer dans `sorties/14-croissance-architecture/modele-expansion_blocs/`.
@@ -122,7 +122,7 @@ flowchart TD
 | `modele-expansion_blocs/config.json`, `generation_config.json` | L'architecture agrandie (`num_hidden_layers: 40`) et les réglages de génération, pour recharger le modèle avec `AutoModelForCausalLM.from_pretrained` |
 | `modele-expansion_blocs/tokenizer.json`, `tokenizer_config.json` | Le tokenizer, copié pour que le dossier se suffise à lui-même |
 | `modele-expansion_blocs/training_args.bin` | Les réglages d'entraînement utilisés |
-| `temoin/` | Dossier de travail du Trainer pour le témoin, sans point de contrôle |
+| `temoin/` | Dossier de travail du Trainer pour le témoin, sans point de contrôle (checkpoint) |
 | `resultats.json` | Pour l'origine, le modèle transformé, le modèle entraîné et le témoin : paramètres, paramètres entraînés, couches, perplexités du domaine et générale ; écart de logits du modèle transformé ; courbes des deux entraînements et comparaison à domaine égal |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
@@ -144,7 +144,7 @@ python run.py --set domaine=null                                # sans domaine :
 
 **Le besoin** : apprendre à un modèle une langue ou un domaine qu'il connaît mal, sans lui faire oublier ce qu'il sait. Le pré-entraînement continu classique apprend le domaine mais dégrade le reste. LLaMA Pro ajoute des couches neuves et n'entraîne qu'elles : les poids d'origine ne bougent pas.
 
-**Résultats** (SmolLM2-360M, RTX 5070 Ti Laptop ; 200 articles bretons et 100 paragraphes anglais jamais vus ; 3 graines, `make graines EX=FORM14 N=3`, moyenne ± écart type). Plus la perplexité est basse, mieux le modèle connaît la langue :
+**Résultats** (SmolLM2-360M, RTX 5070 Ti Laptop ; 200 articles bretons et 100 paragraphes anglais jamais vus ; 3 graines/seeds, `make graines EX=FORM14 N=3`, moyenne ± écart type). Plus la perplexité est basse, mieux le modèle connaît la langue :
 
 | | Paramètres entraînés | Perplexité en breton | Perplexité en anglais |
 |---|---|---|---|

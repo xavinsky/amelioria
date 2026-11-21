@@ -88,6 +88,7 @@ STATUS_MARKERS = {
                  "configuration complète. Les réserves éventuelles sont indiquées à côté du résultat."),
     "NONPROUVE": ("unproven", "non prouvé", "Non prouvé : l'exemple s'exécute, mais son résultat ne démontre pas "
                   "encore le gain de la méthode. La raison est indiquée à côté du résultat."),
+    "PRETATESTER": ("ready", "prêt à tester", "Prêt à tester : le code de la démonstration est écrit, le calcul sur le GPU local reste à lancer."),
     "NONTESTE": ("untested", "non testé", "Non testé : le code existe mais n'a jamais été exécuté (versions "
                  "grosse infra des dossiers infra/)."),
 }

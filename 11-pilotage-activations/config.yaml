@@ -7,11 +7,17 @@ pilotage:
   couche: null                      # null = couche_relative x nombre de couches ; les couches du milieu marchent le mieux
   couche_relative: 0.5
   n_paires: 15                      # paires contrastives positif / négatif
-  alphas: [-2.0, 1.0, 2.0]          # multiple de l'écart moyen positif - négatif ; négatif = concept opposé
+  alphas: [-2.0, 0.5, 1.0, 1.5, 2.0]   # multiple de l'écart moyen positif - négatif ; négatif = concept opposé
 
 evaluation:
-  n: 30
+  n: 100                            # demandes par type
+  n_sujets: 50                      # sujets de test tirés (selon la graine) parmi des sujets jamais utilisés pour la direction
   max_new_tokens: 48
+  temperature: 0.7
+  juge:                             # modèle de récompense externe : qualité de la réponse à la demande
+    nom: Skywork/Skywork-Reward-V2-Qwen3-0.6B
+    max_length: 1024
+    batch: 8
   classifieur: distilbert/distilbert-base-uncased-finetuned-sst-2-english
 
 sauvegarder: true
@@ -24,5 +30,6 @@ quick:
     alphas: [2.0]
   evaluation:
     n: 4
+    n_sujets: 4
     max_new_tokens: 16
   sauvegarder: false

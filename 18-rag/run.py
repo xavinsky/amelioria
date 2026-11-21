@@ -1,12 +1,19 @@
 """RAG (retrieval-augmented generation) : aller chercher les documents pertinents et les donner au modèle dans le prompt.
 
 Recherche (`--set recherche.methode=...`) : bm25 (lexical), dense (embeddings), hybride (fusion RRF), + reranker optionnel.
-Étapes : indexer le corpus -> mesurer sans RAG -> mesurer avec RAG (rappel de la recherche + exactitude des réponses).
+Étapes : indexer le corpus -> mesurer sans RAG, avec RAG et avec des passages tirés au hasard (témoin) -> rappel de la
+recherche, exactitude des réponses, confusions avec le personnage au nom voisin, refus sur les questions sans réponse.
+
+Le corpus contient, pour chaque personnage interrogé, un « jumeau » : un personnage au nom presque identique (même
+prénom, fin du nom changée) et aux faits tous différents. Une recherche approximative ramène ses passages, et le
+modèle répond alors avec les faits du jumeau. Des questions portent aussi sur des personnages absents du corpus : la
+bonne réponse est de dire qu'on ne sait pas.
 """
 
 import collections
 import math
 import pathlib
+import random
 import re
 import sys
 
@@ -61,16 +68,51 @@ def fusion_rrf(listes, k, constante=60):
     return [i for i, _ in sorted(score.items(), key=lambda x: -x[1])[:k]]
 
 
+REFUS = re.compile(r"don'?t know|do not know|not (?:mentioned|provided|specified|stated|available|in the (?:given )?context)"
+                   r"|no information|cannot (?:answer|determine)|unknown", re.I)
+
+
+def jumeau(e, rng, noms):
+    """Personnage au nom presque identique (même prénom, fin du nom changée) dont tous les faits diffèrent."""
+    prenom, famille = e["nom"].split(" ", 1)
+    while True:
+        nom = f"{prenom} {famille[:-2]}{rng.choice(['ka', 'vel', 'tor', 'mor', 'dra', 'fen', 'gol', 'rix', 'sol', 'bru', 'wen', 'lum'])}"
+        if nom not in noms:
+            break
+    noms.add(nom)
+    ville = e["ville"]
+    while ville == e["ville"]:
+        ville = donnees._nom_invente(rng).split()[0] + "ia"
+    annee = e["annee"]
+    while annee == e["annee"]:
+        annee = str(rng.randint(1650, 1950))
+    return {"nom": nom, "ville": ville, "annee": annee,
+            "metier": rng.choice([m for m in donnees._METIERS if m != e["metier"]]),
+            "creation": rng.choice([c for c in donnees._CREATIONS if c != e["creation"]])}
+
+
 def main():
     cfg = config.charger(__file__)
     r = cfg.recherche
-    kb = donnees.faits_fictifs(cfg.donnees.n_entites, cfg.donnees.graine)
-    # Corpus : une fiche par formulation + des paragraphes Wikipédia sans rapport (distracteurs réalistes).
-    corpus = [{"texte": d["texte"], "entite": d["entite"]} for d in kb["documents"]]
-    corpus += [{"texte": t, "entite": None} for t in donnees.textes_generaux(cfg.donnees.n_distracteurs, graine=5)]
+    d = cfg.donnees
+    graine = d.graine + cfg.graine - 42   # 42 = graine par défaut : elle reproduit le corpus de la configuration
+    kb = donnees.faits_fictifs(d.n_entites + d.n_sans_reponse, graine)
+    presentes = kb["entites"][: d.n_entites]
+    noms_presents = {e["nom"] for e in presentes}
+    rng = random.Random(graine + 1)
+    noms = {e["nom"] for e in kb["entites"]}
+    jumeaux = {e["nom"]: jumeau(e, rng, noms) for e in presentes[: d.n_jumeaux]}
+    # Corpus : une fiche par formulation, celles des jumeaux, + des paragraphes Wikipédia sans rapport.
+    corpus = [{"texte": x["texte"], "entite": x["entite"]} for x in kb["documents"] if x["entite"] in noms_presents]
+    for j in jumeaux.values():
+        champs = dict(j, creation_maj=j["creation"][0].upper() + j["creation"][1:])
+        corpus += [{"texte": g.format(**champs), "entite": j["nom"]} for g in donnees._GABARITS_DOC]
+    corpus += [{"texte": t, "entite": None} for t in donnees.textes_generaux(d.n_distracteurs, graine=5)]
     textes = [c["texte"] for c in corpus]
-    questions = kb["qa"][: cfg.evaluation.n]
-    print(f"[rag] corpus de {len(corpus)} passages, {len(questions)} questions")
+    questions = [q for q in kb["qa"] if q["entite"] in noms_presents][: cfg.evaluation.n]
+    # Questions sur des personnages absents du corpus : un seul fait demandé par personnage, la bonne réponse est un refus.
+    sans_reponse = [[q for q in kb["qa"] if q["entite"] == e["nom"]][i % 4] for i, e in enumerate(kb["entites"][d.n_entites:])]
+    print(f"[rag] corpus de {len(corpus)} passages, {len(questions)} questions, {len(sans_reponse)} sans réponse")
 
     bm25 = BM25(textes) if r.methode in ("bm25", "hybride") else None
     dense = Dense(textes, r.embeddings) if r.methode in ("dense", "hybride") else None
@@ -95,21 +137,43 @@ def main():
 
     trouves = [chercher(q["question"]) for q in questions]
     rappel = sum(any(corpus[i]["entite"] == q["entite"] for i in ids) for q, ids in zip(questions, trouves)) / len(questions)
+    trouves_sr = [chercher(q["question"]) for q in sans_reponse]
+    hasard = random.Random(graine + 2)
+    tires = [hasard.sample(range(len(textes)), r.k) for _ in questions + sans_reponse]
 
     gen = Generateur.depuis_config(cfg.modele)
     ev = cfg.evaluation
 
-    def exactitude(convs):
-        sorties = gen.chat(convs, max_new_tokens=ev.max_new_tokens)
+    def demander(qs, passages):
+        """Réponses du modèle ; passages=None : sans contexte (témoin sans RAG)."""
+        convs = [[{"role": "user", "content": q["question"] + " Answer briefly." if ids is None else cfg.gabarit.format(
+            contexte="\n".join(f"[{j + 1}] {textes[i]}" for j, i in enumerate(ids)), question=q["question"])}]
+            for q, ids in zip(qs, passages or [None] * len(qs))]
+        return gen.chat(convs, max_new_tokens=ev.max_new_tokens)
+
+    def exactitude(sorties):
         ok = [evaluation.correct(s, q["cible"], "contient") for s, q in zip(sorties, questions)]
         return {**preuve.taux(ok), "exemple": sorties[0].strip()[:200]}
 
-    sans = exactitude([[{"role": "user", "content": q["question"] + " Answer briefly."}] for q in questions])
-    avec = exactitude([[{"role": "user", "content": cfg.gabarit.format(
-        contexte="\n".join(f"[{j + 1}] {textes[i]}" for j, i in enumerate(ids)), question=q["question"])}]
-        for q, ids in zip(questions, trouves)])
+    s_sans, s_avec = demander(questions, None), demander(questions, trouves)
+    s_hasard = demander(questions, tires[: len(questions)])
+    sans, avec, alea = exactitude(s_sans), exactitude(s_avec), exactitude(s_hasard)
 
-    rapport.enregistrer(cfg, sans_rag=sans, avec_rag=avec | {f"rappel_a_{r.k}": round(rappel, 4)},
+    # Confusion avec le jumeau : la réponse donne le fait du personnage au nom voisin et non celui du personnage interrogé.
+    confondus = [bool(q["entite"] in jumeaux and str(jumeaux[q["entite"]][q["attribut"]]).lower() in s.lower()
+                      and str(q["cible"]).lower() not in s.lower()) for q, s in zip(questions, s_avec)]
+    n_avec_jumeau = sum(q["entite"] in jumeaux for q in questions)
+
+    # Questions sans réponse : part de refus (« je ne sais pas ») sans RAG, avec RAG et avec passages tirés au hasard.
+    refus = {nom: [bool(REFUS.search(s)) for s in sorties] for nom, sorties in
+             (("sans_rag", demander(sans_reponse, None)), ("avec_rag", demander(sans_reponse, trouves_sr)),
+              ("passages_aleatoires", demander(sans_reponse, tires[len(questions):])))}
+    sans_rep = {nom: preuve.taux(v, "refus") for nom, v in refus.items()}
+    sans_rep["avec_rag_moins_sans_rag"] = preuve.difference_appariee(refus["sans_rag"], refus["avec_rag"])
+
+    rapport.enregistrer(cfg, sans_rag=sans, avec_rag=avec | {f"rappel_a_{r.k}": round(rappel, 4),
+                                                              "confondus_avec_le_jumeau": round(sum(confondus) / max(n_avec_jumeau, 1), 4)},
+                        passages_aleatoires=alea, sans_reponse=sans_rep,
                         recherche=f"{r.methode}{' + reranker' if reranker else ''}")
 
 

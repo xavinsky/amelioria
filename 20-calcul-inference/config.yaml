@@ -14,7 +14,7 @@ donnees:
   source: gsm8k                     # arith pour un test sans téléchargement
 
 evaluation:
-  n: 100
+  n: 500
   max_new_tokens: 384
 
 quick:

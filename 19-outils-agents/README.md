@@ -85,15 +85,15 @@ flowchart TD
 - **① Téléchargement.** Au premier lancement, transformers télécharge les poids de Qwen2.5-3B-Instruct depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Les poids sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en bf16 dans la mémoire du GPU (environ 6 Go). En mode API, cette étape n'a pas lieu.
-- **④ Mesure sans outils.** `run.py` pose les 60 questions avec une consigne qui ne mentionne aucun outil.
-- **⑤ Génération sur le GPU.** Par lots de 16, en décodage glouton, jusqu'à 256 tokens. Le nombre final de chaque réponse est comparé au résultat attendu.
+- **④ Mesure sans outils.** `run.py` pose les 250 questions avec une consigne qui ne mentionne aucun outil.
+- **⑤ Génération sur le GPU.** Par lots (batches) de 16, en décodage glouton, jusqu'à 256 tokens. Le nombre final de chaque réponse est comparé au résultat attendu.
 - **⑤' Génération par API.** Quand `modele.api_base` est renseigné, chaque conversation part au serveur par HTTP POST sur `/v1/chat/completions` à la place de ⑤ et ⑦ ; c'est le serveur qui génère. Les outils lui sont décrits en schéma JSON (`tools`) et il renvoie les appels d'outils dans le champ structuré `tool_calls`.
 - **⑥ Tour de la boucle agentique.** Pour chaque question, le chat template de Qwen reçoit la liste des outils (nom, description, arguments, tirés des docstrings) et la conversation en cours.
 - **⑦ Génération sur le GPU.** Le modèle répond, ou demande un outil en écrivant un bloc `<tool_call>{"name": ..., "arguments": ...}</tool_call>`.
 - **⑧ Exécution de l'outil.** `run.py` lit le JSON, appelle la fonction Python correspondante et ajoute son résultat à la conversation, avec le rôle `tool` ; un appel mal formé renvoie l'erreur au modèle. La boucle reprend en ⑥ jusqu'à une réponse sans appel d'outil, dans la limite de 5 tours.
 - **⑨ Écriture du rapport** dans `sorties/19-outils-agents/resultats.json`, avec le même tableau affiché dans le terminal.
 
-**Ce que fait le GPU.** Il n'y a aucun entraînement : seulement de la génération (⑤, ⑦), une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. Dans la boucle agentique, chaque question est traitée seule et chaque tour relance une génération sur toute la conversation, résultats d'outils compris. Les outils eux-mêmes s'exécutent sur le CPU, dans le processus Python. En mode API, le GPU local n'est pas utilisé : c'est le serveur qui génère.
+**Ce que fait le GPU.** Il n'y a aucun entraînement : seulement de la génération (⑤, ⑦), une passe avant (forward pass) par token produit, accélérée par un cache des clés et des valeurs déjà calculées. Dans la boucle agentique, chaque question est traitée seule et chaque tour relance une génération sur toute la conversation, résultats d'outils compris. Les outils eux-mêmes s'exécutent sur le CPU, dans le processus Python. En mode API, le GPU local n'est pas utilisé : c'est le serveur qui génère.
 
 **Ce qui est écrit.**
 
@@ -106,12 +106,32 @@ flowchart TD
 
 ```bash
 python run.py --quick
-python run.py                                                         # Qwen2.5-3B-Instruct, 60 questions
+python run.py                                                         # Qwen2.5-3B-Instruct, 250 questions
 python run.py --set modele.api_base=http://localhost:11434/v1 --set modele.nom=qwen3:8b     # via Ollama
 python run.py --set max_tours=2
 ```
 
 Pour aller plus loin en local (agents complets, Ollama, Hermes Agent, frameworks PydanticAI / smolagents / LangGraph) : le dépôt [`../agentique`](../../agentique).
+
+## Ce que fait l'exemple
+
+**Le besoin** : un assistant qui doit calculer exactement (montants, durées) et consulter une base interne (fiches de personnes ou de clients) au lieu de répondre de tête.
+
+**Résultats** (Qwen2.5-3B-Instruct ; 250 questions : 100 de calcul, 100 sur une fiche, 50 calculs triviaux ; 3 graines (seeds), qui changent les questions ; mêmes questions avec et sans outils) :
+
+| Type de question | Sans outils | Avec outils | Écart apparié | Appels d'outils par question |
+|---|---|---|---|---|
+| Calcul (`a × b + c`, grands nombres) | 0,57 | 1,00 | +0,43 | 1,0 |
+| Fiche (chercher la fiche, puis calculer) | 0,00 | 0,93 | +0,93 | 2,1 |
+| Calcul trivial (`a + b`) | 1,00 | 1,00 | 0 | 1,0 |
+
+L'écart est net sur chaque graine, pour chacun des deux outils.
+
+**Ce qu'on en retient.**
+
+- **La calculatrice corrige l'arithmétique que le modèle fait mal de tête** : +43 points sur les gros calculs, sans rien changer au modèle.
+- **L'outil de recherche apporte ce que le modèle ne peut pas savoir** : la fiche d'un personnage inventé. Sans outil la réponse est impossible, avec outil elle est juste dans 93 % des cas.
+- **Le modèle appelle un outil pour toutes les questions**, même un calcul trivial : la consigne système lui demande d'utiliser les outils pour tout calcul. Cela ne coûte pas d'exactitude ici, mais coûte un tour de plus par question.
 
 ## Paramètres principaux (`config.yaml`)
 

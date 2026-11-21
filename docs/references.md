@@ -13,7 +13,7 @@ Papiers de recherche des techniques du dépôt, rangés par dossier. Les identif
 | **SwiGLU** | Shazeer, *GLU Variants Improve Transformer* (2020) | [2002.05202](https://arxiv.org/abs/2002.05202) | MLP à porte des LLM actuels (gate, up, down) |
 | **GQA** | Ainslie et al., *GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints* (2023) | [2305.13245](https://arxiv.org/abs/2305.13245) | Têtes de clés/valeurs partagées : cache KV réduit |
 | **FlashAttention** | Dao et al., *FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness* (2022) | [2205.14135](https://arxiv.org/abs/2205.14135) | Attention exacte, rapide et économe en mémoire |
-| **Lois d'échelle** | Kaplan et al., *Scaling Laws for Neural Language Models* (2020) | [2001.08361](https://arxiv.org/abs/2001.08361) | Relation entre taille, données, calcul et perte |
+| **Lois d'échelle** | Kaplan et al., *Scaling Laws for Neural Language Models* (2020) | [2001.08361](https://arxiv.org/abs/2001.08361) | Relation entre taille, données, calcul et perte (loss) |
 | **LLaMA** | Touvron et al., *LLaMA: Open and Efficient Foundation Language Models* (2023) | [2302.13971](https://arxiv.org/abs/2302.13971) | Recette du LLM décodeur ouvert de référence |
 | **BERT** | Devlin et al., *BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding* (2018) | [1810.04805](https://arxiv.org/abs/1810.04805) | Encodeur bidirectionnel pré-entraîné par MLM |
 | **RoBERTa** | Liu et al., *RoBERTa: A Robustly Optimized BERT Pretraining Approach* (2019) | [1907.11692](https://arxiv.org/abs/1907.11692) | BERT mieux entraîné (encodeur des exemples) |
@@ -77,7 +77,7 @@ Papiers de recherche des techniques du dépôt, rangés par dossier. Les identif
 | **IPO** | Azar et al., *A General Theoretical Paradigm to Understand Learning from Human Preferences* (2023) | [2310.12036](https://arxiv.org/abs/2310.12036) | Perte quadratique, moins de surapprentissage des préférences |
 | **rDPO** | Chowdhury et al., *Provably Robust DPO: Aligning Language Models with Noisy Feedback* (2024) | [2403.00409](https://arxiv.org/abs/2403.00409) | DPO robuste aux étiquettes bruitées |
 | **SLiC-HF** | Zhao et al., *SLiC-HF: Sequence Likelihood Calibration with Human Feedback* (2023) | [2305.10425](https://arxiv.org/abs/2305.10425) | Calibration de la vraisemblance par perte hinge |
-| **APO** | D'Oosterlinck et al., *Anchored Preference Optimization and Contrastive Revisions: Addressing Underspecification in Alignment* (2024) | [2408.06266](https://arxiv.org/abs/2408.06266) | Préférences ancrées : monter la préférée ou baisser la rejetée |
+| **APO** | D'Oosterlinck et al., *Anchored Preference Optimization and Contrastive Revisions: Addressing Underspecification in Alignment* (2024) | [2408.06266](https://arxiv.org/abs/2408.06266) | Préférences ancrées : monter la préférée (chosen) ou baisser la rejetée (rejected) |
 | **NCA** | Chen et al., *Noise Contrastive Alignment of Language Models with Explicit Rewards* (2024) | [2402.05369](https://arxiv.org/abs/2402.05369) | Alignement par estimation contrastive du bruit |
 | **BCO** | Jung et al., *Binary Classifier Optimization for Large Language Model Alignment* (2024) | [2404.04656](https://arxiv.org/abs/2404.04656) | Préférences vues comme un classifieur binaire |
 | **SPPO** | Wu et al., *Self-Play Preference Optimization for Language Model Alignment* (2024) | [2405.00675](https://arxiv.org/abs/2405.00675) | Préférences comme un jeu à deux joueurs (self-play) |
@@ -176,7 +176,7 @@ Papiers de recherche des techniques du dépôt, rangés par dossier. Les identif
 | Technique | Papier | Lien | Ce qu'il apporte |
 |---|---|---|---|
 | **ActAdd** | Turner et al., *Steering Language Models With Activation Engineering* (2023) | [2308.10248](https://arxiv.org/abs/2308.10248) | Ajouter une différence d'activations pour orienter la génération |
-| **CAA** | Panickssery et al., *Steering Llama 2 via Contrastive Activation Addition* (2023) | [2312.06681](https://arxiv.org/abs/2312.06681) | Vecteurs de pilotage moyennés sur des paires contrastées |
+| **CAA** | Panickssery et al., *Steering Llama 2 via Contrastive Activation Addition* (2023) | [2312.06681](https://arxiv.org/abs/2312.06681) | Vecteurs de pilotage (steering) moyennés sur des paires contrastées |
 | **RepE** | Zou et al., *Representation Engineering: A Top-Down Approach to AI Transparency* (2023) | [2310.01405](https://arxiv.org/abs/2310.01405) | Lire et contrôler des concepts dans les représentations |
 | **Direction du refus** | Arditi et al., *Refusal in Language Models Is Mediated by a Single Direction* (2024) | [2406.11717](https://arxiv.org/abs/2406.11717) | Un comportement porté par une seule direction, et son ablation |
 | **Scaling Monosemanticity** | Templeton et al., *Scaling Monosemanticity: Extracting Interpretable Features from Claude 3 Sonnet* (2024) | [transformer-circuits.pub](https://transformer-circuits.pub/2024/scaling-monosemanticity/) | Features interprétables par autoencodeur creux, et pilotage par features |

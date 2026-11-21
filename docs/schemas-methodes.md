@@ -20,7 +20,7 @@ flowchart LR
 
 ## Où agit chaque méthode
 
-Les 20 méthodes se rangent selon l'endroit du pipeline qu'elles changent : les données d'entraînement, la fonction de perte, les poids (tous ou une partie), l'architecture, les poids sans entraînement, ou seulement l'entrée et la sortie du modèle à l'inférence.
+Les 20 méthodes se rangent selon l'endroit du pipeline qu'elles changent : les données d'entraînement, la fonction de perte (loss), les poids (tous ou une partie), l'architecture, les poids sans entraînement, ou seulement l'entrée et la sortie du modèle à l'inférence.
 
 ```mermaid
 flowchart TB
@@ -231,7 +231,7 @@ flowchart LR
 <a id="m04"></a>
 ## 04 — Optimisation des préférences (DPO et famille)
 
-Pour chaque prompt, une réponse préférée et une réponse rejetée. Le modèle entraîné (politique) doit augmenter l'écart de log-probabilité entre les deux, par rapport à un modèle de référence gelé. Pas de modèle de récompense, pas de génération pendant l'entraînement.
+Pour chaque prompt, une réponse préférée (chosen) et une réponse rejetée (rejected). Le modèle entraîné (politique) doit augmenter l'écart de log-probabilité entre les deux, par rapport à un modèle de référence gelé. Pas de modèle de récompense, pas de génération pendant l'entraînement.
 
 ```mermaid
 flowchart LR
@@ -306,7 +306,7 @@ Les algorithmes (`--set algo=...`) diffèrent par la normalisation de l'avantage
 
 ### Variante `modele-recompense`
 
-Le LLM reçoit une tête scalaire ; il apprend à donner un score plus haut à la réponse préférée (Bradley-Terry). Le modèle obtenu sert de `recompense.source=modele`.
+Le LLM reçoit une tête (head) scalaire ; il apprend à donner un score plus haut à la réponse préférée (Bradley-Terry). Le modèle obtenu sert de `recompense.source=modele`.
 
 ```mermaid
 flowchart LR

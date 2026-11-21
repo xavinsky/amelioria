@@ -2,7 +2,9 @@
 modele:
   nom: Qwen/Qwen2.5-1.5B            # modèle de base : les prompts sont des débuts de phrase
 
-n_editions: 4                       # faits définis dans commun/donnees.py (EDITIONS)
+source: counterfact                 # counterfact (jeu CounterFact) | manuel (faits de commun/donnees.py, EDITIONS)
+mode: independant                   # independant (chaque fait édité seul, poids restauré) | sequentiel (les éditions s'accumulent)
+n_editions: 100                     # faits tirés selon la graine
 
 edition:
   methode: rome                     # rome | ft_contraint
@@ -27,7 +29,7 @@ sauvegarder: true
 quick:
   modele:
     nom: HuggingFaceTB/SmolLM2-135M
-  n_editions: 1
+  n_editions: 2
   edition:
     module: model.layers.{}.mlp.down_proj
     n_textes_covariance: 10

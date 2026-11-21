@@ -2,7 +2,9 @@
 
 Boucle : le modèle répond ou demande un outil -> on exécute l'outil -> on lui renvoie le résultat -> jusqu'à la réponse finale.
 Deux protocoles : chat template `tools` de transformers (Qwen, Llama 3.1+, Mistral, Hermes...) ou API compatible OpenAI.
-Étapes : mesurer sans outils -> mesurer avec outils (exactitude, nombre d'appels) sur des questions qui les exigent.
+Étapes : mesurer sans outils -> mesurer avec outils (exactitude, nombre d'appels), séparément pour chaque type de question :
+calcul (calculatrice), fiche (recherche d'une fiche puis calcul) et questions faciles où aucun outil n'est utile (le modèle
+ne doit pas appeler d'outil pour rien).
 """
 
 import ast
@@ -58,18 +60,38 @@ def fabriquer_recherche(entites):
     return chercher_fiche
 
 
+TYPES = ["calcul", "fiche", "calcul", "fiche", "facile"]   # 40 % calcul, 40 % fiche, 20 % sans outil utile
+
+
 def questions(entites, n, graine):
-    """Deux types de questions qui exigent un outil : gros calcul, ou fait inconnu + calcul."""
+    """Trois types : gros calcul (calculatrice), fait inconnu + calcul (fiche), calcul trivial (aucun outil utile)."""
     rng = random.Random(graine)
     res = []
     for i in range(n):
-        if i % 2 == 0:
+        type_ = TYPES[i % len(TYPES)]
+        if type_ == "calcul":
             a, b, c = rng.randint(100, 999), rng.randint(11, 99), rng.randint(1000, 9999)
-            res.append({"question": f"What is {a} * {b} + {c}?", "cible": str(a * b + c)})
-        else:
+            res.append({"type": type_, "question": f"What is {a} * {b} + {c}?", "cible": str(a * b + c)})
+        elif type_ == "fiche":
             e = rng.choice(entites)
-            res.append({"question": f"How many years passed between the birth of {e['nom']} and the year 2024?",
+            res.append({"type": type_, "question": f"How many years passed between the birth of {e['nom']} and the year 2024?",
                         "cible": str(2024 - int(e["annee"]))})
+        else:
+            a, b = rng.randint(2, 20), rng.randint(2, 20)
+            res.append({"type": type_, "question": f"What is {a} + {b}?", "cible": str(a + b)})
+    return res
+
+
+def par_type(qs, sans, avec, appels):
+    """Résultat de chaque type de question : sans et avec outils sur les mêmes questions, écart apparié, appels d'outils."""
+    res = {}
+    for t in dict.fromkeys(q["type"] for q in qs):
+        idx = [i for i, q in enumerate(qs) if q["type"] == t]
+        s = [evaluation.correct(sans[i], qs[i]["cible"], "nombre") for i in idx]
+        a = [evaluation.correct(avec[i], qs[i]["cible"], "nombre") for i in idx]
+        res[t] = {"sans_outils": preuve.taux(s), "avec_outils": preuve.taux(a), "avec_moins_sans": preuve.difference_appariee(s, a),
+                  "appels_moyens": round(sum(appels[i] for i in idx) / len(idx), 2),
+                  "part_avec_appel": round(sum(appels[i] > 0 for i in idx) / len(idx), 4)}
     return res
 
 
@@ -158,7 +180,8 @@ def main():
     score = lambda sorties: preuve.taux([evaluation.correct(s, q["cible"], "nombre") for s, q in zip(sorties, qs)])
     rapport.enregistrer(cfg, sans_outils={**score(sans), "exemple": sans[0].strip()[:200]},
                         avec_outils={**score(avec), "appels_outils_moyens": round(sum(n_appels) / len(qs), 2),
-                                     "exemple": avec[0].strip()[:200]})
+                                     "exemple": avec[0].strip()[:200]},
+                        par_type=par_type(qs, sans, avec, n_appels))
 
 
 if __name__ == "__main__":

@@ -32,4 +32,4 @@ Vous avez un modèle d'IA, ouvert ou accessible par API, et il ne fait pas tout 
 
 ## Des résultats honnêtes
 
-Chaque exemple porte un statut : **démontré** (gain mesuré et net), **non prouvé** (s'exécute, gain pas encore établi, avec la raison écrite à côté) ou **non testé** (versions grosse infra). Une preuve demande un besoin réel, un modèle de départ qui échoue, une mesure avant et après dans les mêmes conditions, un intervalle de confiance et, quand une autre cause est possible, un témoin. Le détail de chaque exemple est dans [Statut des exemples](#statut-des-exemples).
+Chaque exemple porte un statut : **démontré** (gain mesuré et net), **non prouvé** (s'exécute, gain pas encore établi, avec la raison écrite à côté), **prêt à tester** (code de la démonstration écrit, calcul à lancer) ou **non testé** (versions grosse infra). Une preuve demande un besoin réel, un modèle de départ qui échoue, une mesure avant et après dans les mêmes conditions, un intervalle de confiance et, quand une autre cause est possible, un témoin (baseline). Le détail de chaque exemple est dans [Statut des exemples](#statut-des-exemples).

@@ -91,18 +91,18 @@ flowchart TD
 - **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
 - **③ Copie du modèle d'origine sur le GPU**, en bf16, avec sa configuration RoPE inchangée.
 - **④ Mesure du modèle d'origine.** Pour chaque longueur (1 024, 2 048, 4 096 et 7 000 tokens), 10 textes cachent chacun une clé. La clé est juste si elle est la plus probable parmi 10 candidates. La perplexité est calculée sur les 4 documents longs, coupés à 8 192 tokens.
-- **⑤ Passes avant sur le GPU.** Chaque candidate demande une passe avant sur tout le texte, sans génération : 100 passes par longueur. Le modèle d'origine est ensuite retiré de la mémoire.
+- **⑤ Passes avant sur le GPU.** Chaque candidate demande une passe avant (forward pass) sur tout le texte, sans génération : 100 passes par longueur. Le modèle d'origine est ensuite retiré de la mémoire.
 - **⑥ Rechargement avec YaRN.** `run.py` modifie la configuration (`rope_parameters` : `rope_type: yarn`, `factor: 4.0`, `original_max_position_embeddings: 2048`, `max_position_embeddings: 8192`) puis recharge les mêmes poids sur le GPU. Seul le calcul des rotations de RoPE change : les poids sont identiques.
 - **⑦ Mesure après mise à l'échelle seule**, sans aucun entraînement.
 - **⑧ Passes avant sur le GPU**, comme en ⑤.
-- **⑨ Fine-tuning long.** Les paragraphes d'entraînement sont concaténés puis découpés en blocs de 8 192 tokens (123 blocs), confiés au Trainer de transformers : 200 pas, chacun sur 8 blocs (lot de 1, accumulation 8), taux d'apprentissage 2e-5 après 20 pas de montée. Tous les poids sont entraînés.
+- **⑨ Fine-tuning long.** Les paragraphes d'entraînement sont concaténés puis découpés en blocs de 8 192 tokens (123 blocs), confiés au Trainer de transformers : 200 pas, chacun sur 8 blocs (lot (batch) de 1, accumulation 8), taux d'apprentissage (learning rate) 2e-5 après 20 pas de montée. Tous les poids sont entraînés.
 - **⑩ Forward et backward sur le GPU**, sur des séquences de 8 192 tokens, avec gradient checkpointing.
 - **⑪ Mesure après fine-tuning.**
 - **⑫ Passes avant sur le GPU**, comme en ⑤.
 - **⑬ Écriture du modèle** et de son tokenizer dans `sorties/12-extension-contexte/modele-yarn/`.
 - **⑭ Écriture du rapport** dans `sorties/12-extension-contexte/resultats.json`, avec le même tableau affiché dans le terminal.
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Ici, le coût vient de la longueur des séquences : l'attention compare chaque token à tous ceux qui le précèdent, et les activations d'une séquence de 8 192 tokens occupent bien plus de mémoire que les poids d'un modèle de 360 millions de paramètres. Les mesures (⑤, ⑧, ⑫) ne font que des passes avant. En entraînement (⑩), chaque pas fait 8 passes avant et arrière, une par bloc, en cumulant les gradients, puis une mise à jour de tous les poids par AdamW. Le gradient checkpointing ne garde qu'une partie des activations et recalcule les autres pendant la passe arrière, ce qui fait tenir des blocs de 8 192 tokens. Le pic mesuré est d'environ 8 Go de mémoire GPU.
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. Ici, le coût vient de la longueur des séquences : l'attention compare chaque token à tous ceux qui le précèdent, et les activations d'une séquence de 8 192 tokens occupent bien plus de mémoire que les poids d'un modèle de 360 millions de paramètres. Les mesures (⑤, ⑧, ⑫) ne font que des passes avant. En entraînement (⑩), chaque pas fait 8 passes avant et arrière, une par bloc, en cumulant les gradients, puis une mise à jour de tous les poids par AdamW. Le gradient checkpointing ne garde qu'une partie des activations et recalcule les autres pendant la passe arrière (backward pass), ce qui fait tenir des blocs de 8 192 tokens. Le pic mesuré est d'environ 8 Go de mémoire GPU.
 
 **Ce qui est écrit.**
 

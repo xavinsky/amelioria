@@ -86,17 +86,17 @@ flowchart TD
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** `commun/generateur.py` charge le modèle avec transformers et copie ses poids en bf16 dans la mémoire du GPU. En mode API, cette étape n'a pas lieu.
 - **④ Stratégies simples.** Pour `zero_shot`, `instruction` et `few_shot`, `run.py` construit une conversation par message : la consigne (`prompts.instruction`) pour `instruction`, 8 exemples message → intention tirés au hasard pour `few_shot`, en tours de dialogue. Il appelle `chat()`, d'abord sur la validation, puis sur le test.
-- **⑤ Génération sur le GPU.** Les conversations passent par lots de 32 ; le modèle produit au plus 16 tokens en décodage glouton, dont la première ligne doit être l'intention attendue.
+- **⑤ Génération sur le GPU.** Les conversations passent par lots (batches) de 32 ; le modèle produit au plus 16 tokens en décodage glouton, dont la première ligne doit être l'intention attendue.
 - **⑤' Génération par API.** Quand `modele.api_base` est renseigné, `chat()` envoie chaque conversation au serveur par HTTP POST sur `/v1/chat/completions` à la place de ⑤ (de même pour ⑨ et ⑪) ; c'est le serveur qui génère.
 - **⑥ Recherche d'exemples proches.** Pour `few_shot_similaires`, `run.py` charge all-MiniLM-L6-v2 avec sentence-transformers et encode les 9 803 exemples et les messages à classer.
-- **⑦ Embeddings sur le GPU.** Chaque texte devient un vecteur normalisé ; le produit scalaire donne la similarité cosinus, et les 8 exemples les plus proches de chaque message sont retenus. Leurs intentions servent aussi au témoin : un vote majoritaire, sans LLM.
+- **⑦ Embeddings sur le GPU.** Chaque texte devient un vecteur normalisé ; le produit scalaire donne la similarité cosinus, et les 8 exemples les plus proches de chaque message sont retenus. Leurs intentions servent aussi au témoin (baseline) : un vote majoritaire, sans LLM.
 - **⑧ Few-shot par similarité.** Les conversations sont reconstruites avec ces 8 exemples, puis envoyées à `chat()`.
 - **⑨ Génération sur le GPU**, avec le même décodage qu'en ⑤.
 - **⑩ Optimisation de l'instruction.** Boucle de type OPRO : 4 tours où le modèle lui-même (ou `optimiseur.nom` s'il est renseigné) reçoit les instructions déjà essayées avec leur score et en propose 4 nouvelles, échantillonnées à température 1,0 ; chaque proposition est notée sur les 200 messages de validation. La meilleure est ensuite mesurée sur le test.
 - **⑪ Génération sur le GPU**, pour les propositions comme pour les mesures.
 - **⑫ Écriture du rapport** dans `sorties/17-optimisation-prompt/resultats.json`, avec le même tableau affiché dans le terminal.
 
-**Ce que fait le GPU.** Il n'y a aucun entraînement : seulement des passes avant. En génération (⑤, ⑨, ⑪), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. Pour les embeddings (⑦), l'encodeur fait une seule passe avant par texte. En mode API, le GPU local ne sert plus au LLM : c'est le serveur qui génère, et seul l'encodeur de ⑦ tourne encore sur la machine.
+**Ce que fait le GPU.** Il n'y a aucun entraînement : seulement des passes avant. En génération (⑤, ⑨, ⑪), il y a une passe avant (forward pass) par token produit, accélérée par un cache des clés et des valeurs déjà calculées. Pour les embeddings (⑦), l'encodeur fait une seule passe avant par texte. En mode API, le GPU local ne sert plus au LLM : c'est le serveur qui génère, et seul l'encodeur de ⑦ tourne encore sur la machine.
 
 **Ce qui est écrit.**
 

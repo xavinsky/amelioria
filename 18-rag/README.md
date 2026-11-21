@@ -93,11 +93,11 @@ flowchart TD
 - **① Téléchargement.** Au premier lancement, le jeu `Salesforce/wikitext`, l'encodeur all-mpnet-base-v2, le reranker ms-marco-MiniLM-L-6-v2 et le LLM Qwen2.5-1.5B-Instruct sont téléchargés depuis le Hugging Face Hub, par HTTPS.
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau. Chaque modèle est lu au moment où il est chargé (④, ⑨).
 - **③ Index lexical.** `run.py` découpe les 2 200 passages en mots et calcule, sur le CPU, les statistiques de BM25 : fréquence de chaque mot dans chaque passage, rareté de chaque mot dans le corpus.
-- **④ Index dense.** sentence-transformers charge all-mpnet-base-v2 et encode les 2 200 passages, par lots de 64 ; il charge aussi le cross-encoder qui servira au reranking.
+- **④ Index dense.** sentence-transformers charge all-mpnet-base-v2 et encode les 2 200 passages, par lots (batches) de 64 ; il charge aussi le cross-encoder qui servira au reranking.
 - **⑤ Embeddings sur le GPU.** Chaque passage devient un vecteur normalisé, gardé en mémoire GPU.
 - **⑥ Recherche lexicale.** Pour chaque question, BM25 renvoie les 20 passages les mieux notés.
 - **⑦ Recherche dense et reranking.** La question est encodée et comparée aux 2 200 vecteurs (similarité cosinus) : 20 autres candidats. Les deux listes sont fusionnées par rang (Reciprocal Rank Fusion, constante 60), puis le cross-encoder note chaque couple question-passage ; les 3 meilleurs passages sont gardés. Le rappel mesure la part des questions dont au moins un de ces 3 passages parle du bon personnage.
-- **⑧ Embeddings et reranking sur le GPU** : encodage de la question, puis une passe avant du cross-encoder par couple question-passage.
+- **⑧ Embeddings et reranking sur le GPU** : encodage de la question, puis une passe avant (forward pass) du cross-encoder par couple question-passage.
 - **⑨ Copie du LLM sur le GPU.** `commun/generateur.py` charge Qwen2.5-1.5B-Instruct avec transformers et copie ses poids en bf16 dans la mémoire du GPU. En mode API, cette étape n'a pas lieu.
 - **⑩ Mesure sans RAG.** Les 200 questions sont posées seules, suivies de « Answer briefly. ».
 - **⑪ Génération sur le GPU.** Par lots de 16, en décodage glouton, jusqu'à 32 tokens. Une réponse est juste si elle contient la valeur attendue.
@@ -125,6 +125,28 @@ python run.py --set recherche.methode=dense
 python run.py --set recherche.k=1                               # moins de contexte : observer rappel et exactitude
 python run.py --set modele.api_base=http://localhost:11434/v1 --set modele.nom=qwen3:8b
 ```
+
+## Ce que fait l'exemple
+
+**Le besoin** : répondre sur une base documentaire interne que le modèle ne connaît pas, sans le réentraîner.
+
+**Résultats** (Qwen2.5-1.5B-Instruct ; 50 personnages inventés, 4 questions chacun, soit 200 questions ; corpus : les fiches de ces personnages, 50 « jumeaux » au nom presque identique et aux faits tous différents, et 2 000 paragraphes Wikipédia ; recherche hybride BM25 + embeddings avec reranker ; 3 graines (seeds), qui changent le corpus) :
+
+| | Exactitude (200 questions) |
+|---|---|
+| Sans RAG | 0,002 |
+| RAG avec passages tirés au hasard (témoin) | 0,007 |
+| **RAG** | **0,982 ± 0,014** (0,990 ; 0,990 ; 0,965) |
+
+La recherche ramène la bonne fiche parmi les 3 premiers passages dans 100 % des cas (`rappel_a_3`), et la réponse reprend le fait du jumeau dans 1,3 % des cas seulement.
+
+Sur 25 questions concernant des personnages absents du corpus, le modèle répond « je ne sais pas » dans 59 % des cas avec le RAG (0,44 ; 0,68 ; 0,64), contre 0 % sans RAG et 57 % avec des passages tirés au hasard.
+
+**Ce qu'on en retient.**
+
+- **Le RAG apporte la connaissance que le modèle n'a pas** : 0,002 → 0,982, alors que des passages sans rapport (témoin) ne changent rien. L'écart est net sur chaque graine.
+- **Les jumeaux ne trompent presque pas la recherche** : les noms voisins n'entraînent que 1,3 % de confusions.
+- **Le refus ne vient pas de la recherche** : il est aussi fréquent avec des passages au hasard, car la consigne du gabarit demande de dire qu'on ne sait pas quand le contexte ne contient pas la réponse. Dans 41 % des cas le modèle invente quand même une réponse.
 
 ## Paramètres principaux (`config.yaml`)
 

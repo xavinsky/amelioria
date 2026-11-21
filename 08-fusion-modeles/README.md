@@ -87,7 +87,7 @@ flowchart TD
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau. Chaque modèle à mesurer est lu à son tour.
 - **③ Copie sur le GPU.** Le modèle mesuré est copié en bf16 dans la mémoire du GPU, puis renvoyé en RAM une fois mesuré : il n'y en a qu'un à la fois sur la carte.
 - **④ Mesure des sources.** `run.py` appelle `commun/evaluation.py` pour la base, puis pour l'Instruct.
-- **⑤ Génération et perplexité sur le GPU.** Chaque modèle répond aux 100 problèmes GSM8K, par lots de 16, jusqu'à 384 tokens ; l'évaluation compare le nombre final au résultat attendu. L'évaluation calcule aussi la perplexité sur les 50 paragraphes wikitext, qui détecte une dégradation générale du modèle.
+- **⑤ Génération et perplexité sur le GPU.** Chaque modèle répond aux 100 problèmes GSM8K, par lots (batches) de 16, jusqu'à 384 tokens ; l'évaluation compare le nombre final au résultat attendu. L'évaluation calcule aussi la perplexité sur les 50 paragraphes wikitext, qui détecte une dégradation générale du modèle.
 - **⑥ Lecture des poids pour la fusion.** Les poids de la base et de l'Instruct sont relus et gardés en RAM, en bf16, sous forme de dictionnaires de tenseurs.
 - **⑦ Fusion.** `run.py` appelle `fusion.py`, écrit en PyTorch pur, sans bibliothèque de fusion.
 - **⑧ Calcul sur le CPU.** `fusion.py` mesure d'abord l'écart relatif de l'Instruct à la base (1,2 % ici : c'est bien un fine-tune de cette base). Puis, pour chaque tenseur, il calcule le vecteur de tâche (Instruct − base), en garde 30 % des coordonnées tirées au hasard, multiplie celles-ci par 1/0,3 (DARE), applique l'élection de signe de TIES et ajoute le résultat à la base. Avec une seule source, l'élection de signe ne retire rien.
@@ -96,7 +96,7 @@ flowchart TD
 - **⑪ Génération et perplexité sur le GPU**, avec le même décodage qu'en ⑤.
 - **⑫ Écriture du modèle et du rapport.** Le modèle fusionné complet est écrit dans `sorties/08-fusion-modeles/modele-dare_ties/`, puis `resultats.json`, avec le même tableau affiché dans le terminal.
 
-**Ce que fait le GPU.** Le GPU ne sert qu'à mesurer (⑤, ⑪) : PyTorch y envoie des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids déjà présents dans sa mémoire. En génération, il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées ; pour la perplexité, une seule passe avant par lot de 4 paragraphes, sans génération. La fusion elle-même (⑧) n'a ni passe avant ni gradient : c'est de l'arithmétique sur les poids (soustraction, masque aléatoire, addition), faite sur CPU, tenseur par tenseur, en float32 pour chaque tenseur traité. Elle demande surtout de la RAM : la base et l'Instruct y tiennent ensemble en bf16, avec le résultat de la fusion.
+**Ce que fait le GPU.** Le GPU ne sert qu'à mesurer (⑤, ⑪) : PyTorch y envoie des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids déjà présents dans sa mémoire. En génération, il y a une passe avant (forward pass) par token produit, accélérée par un cache des clés et des valeurs déjà calculées ; pour la perplexité, une seule passe avant par lot de 4 paragraphes, sans génération. La fusion elle-même (⑧) n'a ni passe avant ni gradient : c'est de l'arithmétique sur les poids (soustraction, masque aléatoire, addition), faite sur CPU, tenseur par tenseur, en float32 pour chaque tenseur traité. Elle demande surtout de la RAM : la base et l'Instruct y tiennent ensemble en bf16, avec le résultat de la fusion.
 
 **Ce qui est écrit.**
 
@@ -125,6 +125,12 @@ python run.py --set methode=arithmetique_taches
 1. Évalue chaque modèle source sur GSM8K (100 questions) et sur la perplexité générale.
 2. Fusionne avec la méthode choisie (DARE-TIES par défaut) le vecteur de tâche de Qwen2.5-1.5B-Instruct, par rapport à la base commune Qwen2.5-1.5B : seules 30 % de ses coordonnées sont gardées, puis rééchelonnées.
 3. Évalue le modèle fusionné. L'exemple montre le mécanisme : le modèle garde l'essentiel du gain de l'Instruct malgré 70 % des coordonnées abandonnées. Réunir plusieurs compétences demande d'ajouter d'autres fine-tunes de la même base dans `modeles`.
+
+### Variante deux compétences : fusionner deux spécialistes
+
+**Le besoin** : deux équipes ont fine-tuné la même base chacune sur une tâche (router des messages bancaires, résoudre des problèmes de mathématiques) ; on veut un seul modèle qui garde les deux, sans réentraîner.
+
+[`variantes/deux-competences`](variantes/deux-competences) fine-tune Qwen2.5-0.5B-Instruct deux fois (banking77 : 3 000 exemples, une époque ; GSM8K : 3 000 exemples, deux époques), puis fusionne les deux spécialistes par fusion linéaire, arithmétique des tâches, TIES (20 % des coordonnées) et DARE-TIES (30 %). Les réglages viennent des papiers et sont fixés avant la mesure. Chaque compétence est mesurée sur son propre test (1 000 messages, 400 problèmes) pour la base, chaque spécialiste et chaque fusion, sur les mêmes questions : l'écart apparié dit ce que la fusion garde de chaque spécialiste et ce qu'elle ajoute à la base. Lancement : `make graines EX=08 VAR=deux-competences N=3`.
 
 ## Paramètres principaux (`config.yaml`)
 

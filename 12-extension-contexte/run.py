@@ -3,6 +3,11 @@
 Méthodes (`--set contexte.methode=...`) : linear (interpolation de positions), dynamic (NTK dynamique),
 yarn, abf (augmenter rope_theta, recette Llama 3 / Code Llama).
 Étapes : mesurer le modèle d'origine -> mise à l'échelle seule -> fine-tuning long -> remesurer -> sauvegarder.
+
+Mesures : clé cachée dans une phrase répétée (test facile), puis deux tâches plus dures sur du texte varié (paragraphes
+Wikipédia jamais vus à l'entraînement) : une clé cachée (`cle_varie_L`) et deux codes cachés à des endroits différents
+qu'il faut combiner (`double_L`). Perplexité à 8 192 tokens et à 2 048 tokens (le contexte court ne doit pas se dégrader).
+L'écart apparié entre le modèle entraîné et la mise à l'échelle seule dit ce qu'apporte l'entraînement.
 """
 
 import pathlib
@@ -49,8 +54,58 @@ def prompt_cle(tok, longueur: int, graine: int) -> tuple[str, str]:
     return texte + "\nWhat is the pass key? The pass key is", cle
 
 
+def remplissage_varie(tok, pool, longueur: int, rng) -> list[str]:
+    """Paragraphes tirés au hasard, jusqu'à `longueur` tokens environ."""
+    res, n = [], 0
+    while n < longueur:
+        p = rng.choice(pool)
+        res.append(p)
+        n += len(tok(p)["input_ids"])
+    return res
+
+
+def prompt_cle_varie(tok, pool, longueur: int, graine: int) -> tuple[str, str]:
+    rng = random.Random(graine)
+    cle = str(rng.randint(10000, 99999))
+    para = remplissage_varie(tok, pool, longueur - 40, rng)
+    para.insert(rng.randint(0, len(para)), f"The pass key is {cle}. Remember it. {cle} is the pass key.")
+    return "\n".join(para) + "\nWhat is the pass key? The pass key is", cle
+
+
+def prompt_double(tok, pool, longueur: int, graine: int) -> tuple[str, str, list[str]]:
+    """Deux codes cachés à des endroits différents ; la bonne réponse les donne dans l'ordre demandé."""
+    rng = random.Random(graine)
+    a, b = str(rng.randint(100, 999)), str(rng.randint(100, 999))
+    para = remplissage_varie(tok, pool, longueur - 60, rng)
+    i = rng.randint(0, len(para) // 2)
+    para.insert(i, f"The area code is {a}.")
+    para.insert(rng.randint(len(para) // 2 + 1, len(para)), f"The room number is {b}.")
+    autres = [str(rng.randint(100, 999)) for _ in range(4)]
+    candidates = [f"{a}-{b}", f"{b}-{a}"] + [f"{a}-{autres[0]}", f"{autres[1]}-{b}", f"{autres[2]}-{autres[3]}",
+                                            f"{a}-{a}", f"{b}-{b}", f"{autres[0]}-{a}", f"{b}-{autres[1]}", f"{autres[3]}-{autres[2]}"]
+    return "\n".join(para) + "\nWhat is the area code, followed by a dash and the room number? The answer is", candidates[0], candidates
+
+
 @torch.no_grad()
-def mesurer(model, tok, cfg, longs):
+def mesurer_dur(model, tok, cfg, pool, graine0: int) -> dict:
+    """Clé cachée et deux codes à combiner, sur du texte varié, en choix forcé parmi 10 candidats."""
+    res = {}
+    for L in cfg.evaluation.longueurs_dures:
+        ok1, ok2 = [], []
+        for g in range(cfg.evaluation.n_dur):
+            prompt, cle = prompt_cle_varie(tok, pool, L, graine0 + g)
+            rng = random.Random(5000 + graine0 + g)
+            cands = [cle] + [str(rng.randint(10000, 99999)) for _ in range(9)]
+            ok1.append(int(modeles.logprob_suites(model, tok, [prompt] * 10, [" " + c for c in cands]).argmax()) == 0)
+            prompt, bonne, cands = prompt_double(tok, pool, L, graine0 + g)
+            ok2.append(int(modeles.logprob_suites(model, tok, [prompt] * len(cands), [" " + c for c in cands]).argmax()) == 0)
+        res[f"cle_varie_{L}"] = preuve.taux(ok1, "taux")
+        res[f"double_{L}"] = preuve.taux(ok2, "taux")
+    return res
+
+
+@torch.no_grad()
+def mesurer(model, tok, cfg, longs, pool=None):
     """Clé cachée en choix forcé : la vraie clé doit être la plus probable parmi 10 candidates.
 
     Mesure ce que le modèle a lu, indépendamment de sa façon de formuler (utile pour un modèle de base).
@@ -66,6 +121,9 @@ def mesurer(model, tok, cfg, longs):
             ok.append(int(lp.argmax()) == 0)
         res[f"cle_{L}"] = preuve.taux(ok, "taux")
     res[f"perplexite_{cfg.evaluation.longueur_ppl}"] = evaluation.perplexite(model, tok, longs, cfg.evaluation.longueur_ppl, batch=1)
+    res["perplexite_2048"] = evaluation.perplexite(model, tok, longs, 2048, batch=1)
+    if pool:
+        res.update(mesurer_dur(model, tok, cfg, pool, 100 * (cfg.graine - 42)))
     return res
 
 
@@ -79,14 +137,15 @@ def main():
     paragraphes_test = donnees.textes_generaux(cfg.evaluation.n_ppl * 60, graine=123, min_caracteres=200, split="test")
     longs = ["\n".join(paragraphes_test[i : i + 60]) for i in range(0, len(paragraphes_test), 60)]   # documents longs, jamais entraînés
 
+    pool = [p for p in paragraphes_test if len(p) > 200]   # paragraphes de remplissage, jamais entraînés
     origine = AutoModelForCausalLM.from_pretrained(cfg.modele.nom, dtype=dtype).to(modeles.appareil())
-    res = {"origine": mesurer(origine, tok, cfg, longs)}
+    res = {"origine": mesurer(origine, tok, cfg, longs, pool)}
     del origine
 
     conf = configurer_rope(AutoConfig.from_pretrained(cfg.modele.nom), c)
     print(f"[contexte] {c.methode} : {conf.max_position_embeddings} positions, {getattr(conf, 'rope_parameters', None) or conf.rope_scaling}")
     model = AutoModelForCausalLM.from_pretrained(cfg.modele.nom, config=conf, dtype=dtype).to(modeles.appareil())
-    res["echelle_seule"] = mesurer(model, tok, cfg, longs)
+    res["echelle_seule"] = mesurer(model, tok, cfg, longs, pool)
 
     if cfg.entrainement.max_steps == 0:   # mise à l'échelle seule (ex. NTK dynamique), sans entraînement
         if cfg.get("sauvegarder", True):
@@ -95,7 +154,10 @@ def main():
         return
 
     trainer = entrainement.lm_causal(model, tok, textes, cfg.entrainement, cfg.sortie, cfg.entrainement.longueur)
-    res["apres_finetuning"] = mesurer(trainer.model, tok, cfg, longs)
+    res["apres_finetuning"] = mesurer(trainer.model, tok, cfg, longs, pool)
+    # Ce qu'apporte l'entraînement, à mise à l'échelle égale : écart apparié sur chaque tâche.
+    res["apres_moins_echelle"] = {k: preuve.difference_appariee(res["echelle_seule"][k]["succes"], res["apres_finetuning"][k]["succes"])
+                                  for k in res["apres_finetuning"] if isinstance(res["apres_finetuning"][k], dict) and "succes" in res["apres_finetuning"][k]}
 
     if cfg.get("sauvegarder", True):
         trainer.save_model(f"{cfg.sortie}/modele-{c.methode}")

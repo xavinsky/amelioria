@@ -17,7 +17,7 @@ Trois réglages font la différence :
 - **Learning rate faible** : 10 à 100 fois plus faible qu'au pré-entraînement initial, avec un warmup puis une décroissance cosinus.
 - **Replay** : on mélange 5 à 30 % de texte général au corpus du domaine. Sans ça, l'oubli catastrophique est quasi certain (voir [docs/oubli-catastrophique.md](../docs/oubli-catastrophique.md)).
 - **Questions-réponses mêlées au corpus** : pour qu'un fait lu dans un document soit extractable par une question, le modèle doit voir, pendant l'entraînement, des questions-réponses sur une partie des sujets. Il généralise alors ce format aux autres sujets.
-- **Diversité des formulations** : sur un modèle entraîné de zéro, un fait vu sous une seule formulation est appris par cœur mais pas extractable (*Physics of Language Models 3.1*). Un modèle déjà pré-entraîné y est beaucoup moins sensible : le témoin de l'exemple, à une seule biographie par personnage, fait presque aussi bien.
+- **Diversité des formulations** : sur un modèle entraîné de zéro, un fait vu sous une seule formulation est appris par cœur mais pas extractable (*Physics of Language Models 3.1*). Un modèle déjà pré-entraîné y est beaucoup moins sensible : le témoin (baseline) de l'exemple, à une seule biographie par personnage, fait presque aussi bien.
 
 Le pré-entraînement continu est en général suivi d'un SFT ([DATA02](../02-fine-tuning-supervise)) pour récupérer le comportement d'assistant.
 
@@ -86,9 +86,9 @@ flowchart TD
 - **② Lecture.** Poids et textes sont rangés dans le cache `~/.cache/huggingface` ; les lancements suivants les relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** Les poids sont copiés en fp32 dans la mémoire du GPU, où ils restent jusqu'à la fin : ce sont les poids maîtres de l'entraînement complet. Le tokenizer est utilisé sans chat template : les questions ont la forme « Question: … Answer: ».
 - **④ Mesure avant.** `run.py` appelle `commun/evaluation.py` : les 800 questions sur les personnages jamais questionnés (réponse juste si la bonne valeur est dans la première phrase de la réponse), et la perplexité sur 50 paragraphes du split `test` de wikitext-2 (connaissances générales).
-- **⑤ Calcul sur le GPU.** Les questions sont posées en génération gloutonne, jusqu'à 24 tokens par réponse. La perplexité ne demande qu'une passe avant par texte.
-- **⑥ Entraînement.** `run.py` répète 20 fois les 2 000 biographies et les 800 questions-réponses, y ajoute 20 % (en caractères) de paragraphes neufs du split `train` de wikitext-2 contre l'oubli, mélange le tout et le découpe en 13 054 blocs de 256 tokens, puis le confie au `Trainer` de transformers. Tous les poids du modèle sont entraînés, sur la perte « prochain token ».
-- **⑦ Forward et backward sur le GPU.** Chaque pas traite un lot effectif de 8 blocs (2 blocs, 4 accumulations) : 1 632 pas, taux d'apprentissage 5e-5, calcul en bf16, gradient checkpointing actif, environ 11 min.
+- **⑤ Calcul sur le GPU.** Les questions sont posées en génération gloutonne, jusqu'à 24 tokens par réponse. La perplexité ne demande qu'une passe avant (forward pass) par texte.
+- **⑥ Entraînement.** `run.py` répète 20 fois les 2 000 biographies et les 800 questions-réponses, y ajoute 20 % (en caractères) de paragraphes neufs du split `train` de wikitext-2 contre l'oubli, mélange le tout et le découpe en 13 054 blocs de 256 tokens, puis le confie au `Trainer` de transformers. Tous les poids du modèle sont entraînés, sur la perte (loss) « prochain token ».
+- **⑦ Forward et backward sur le GPU.** Chaque pas traite un lot (batch) effectif de 8 blocs (2 blocs, 4 accumulations) : 1 632 pas, taux d'apprentissage (learning rate) 5e-5, calcul en bf16, gradient checkpointing actif, environ 11 min.
 - **⑧ Mesure après.** Les mêmes questions, plus 800 questions déjà vues à l'entraînement (ce que le modèle a appris par cœur), et la même perplexité générale.
 - **⑨ Calcul sur le GPU**, avec le même décodage qu'en ⑤.
 - **⑩ Écriture du modèle** complet dans `sorties/01-pre-entrainement-continu/modele/`.
@@ -96,7 +96,7 @@ flowchart TD
 
 **Témoin.** Avant ⑪, le modèle de base est rechargé et entraîné de la même façon, avec une seule biographie par personnage (formulations et ordre fixes), répétée 5 fois : même nombre de tokens, même nombre de pas. Le papier montre que, sans cette diversité, un modèle entraîné de zéro apprend les biographies par cœur sans savoir en extraire les réponses. `temoin: false` le désactive.
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑨), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. En entraînement (⑦), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de tous les poids, puis la mise à jour par AdamW, dont l'état existe pour les 494 millions de paramètres.
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑨), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées. En entraînement (⑦), chaque pas fait une passe avant, une passe arrière (backward pass) qui calcule les gradients de tous les poids, puis la mise à jour par AdamW, dont l'état existe pour les 494 millions de paramètres.
 
 **Ce qui est écrit.**
 
@@ -105,7 +105,7 @@ flowchart TD
 | `modele/model.safetensors` | Tous les poids du modèle entraîné (2,0 Go, en fp32) |
 | `modele/config.json`, `generation_config.json` | Architecture et réglages de génération, pour recharger le modèle avec `AutoModelForCausalLM.from_pretrained` |
 | `modele/tokenizer.json`, `tokenizer_config.json` | Le tokenizer, copié pour que le dossier se suffise à lui-même |
-| `temoin/` | Dossier de travail du Trainer pour le témoin, sans point de contrôle |
+| `temoin/` | Dossier de travail du Trainer pour le témoin, sans point de contrôle (checkpoint) |
 | `resultats.json` | Avant, après et témoin : exactitude sur les personnages jamais questionnés (avec intervalle et détail par question), par attribut, sur les questions déjà vues, perplexité générale, trois réponses d'exemple |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
@@ -127,7 +127,7 @@ python variantes/mlm-encodeur/run.py --quick           # encodeur RoBERTa
 
 **Résultats** (Qwen2.5-0.5B, RTX 5070 Ti Laptop ; 800 questions sur 200 personnages dont le modèle n'a lu que les biographies) :
 
-| Mesure (3 graines) | Avant | Après | Témoin (une biographie) |
+| Mesure (3 graines/seeds) | Avant | Après | Témoin (une biographie) |
 |---|---|---|---|
 | Questions sur les personnages jamais questionnés | 0,001 | **0,9996 ± 0,0007** | 0,997 ± 0,001 |
 | — ville / année / métier / création | 0 / 0 / 0,005 / 0 | 1 / 1 / 1 / 0,998 | 0,995 / 0,995 / 1 / 0,998 |
@@ -153,11 +153,31 @@ Le témoin à une seule biographie fait presque aussi bien (0,997) : sur un mod�
 1. RoBERTa-base masque 15 % des mots des 10 003 messages d'entraînement, sans leurs étiquettes (`DataCollatorForLanguageModeling`), 20 époques, taux 5e-5. La perte de masquage est mesurée avant et après sur 5 % de messages mis de côté.
 2. Le modèle est fine-tuné à classer les 77 intentions avec 10 messages étiquetés par intention (770 au total).
 3. Le témoin est le même fine-tuning, avec les mêmes 770 messages, sur RoBERTa-base sans masquage préalable.
-4. Les deux modèles sont mesurés sur les 3 080 messages de test, jamais vus au masquage, et comparés sur les mêmes messages. La graine change les 10 messages tirés par intention, le masquage et la tête de classification.
+4. Les deux modèles sont mesurés sur les 3 080 messages de test, jamais vus au masquage, et comparés sur les mêmes messages. La graine change les 10 messages tirés par intention, le masquage et la tête (head) de classification.
 
 Les fiches de personnages inventés de l'exemple principal restent disponibles (`--set donnees.source=fiches`) : le code mesure alors la seule perte de masquage.
 
-**Résultats.** Non mesurés à ce stade : l'écart entre avec et sans masquage n'est pas encore établi, la variante est « non prouvée » dans le catalogue.
+**Résultats** (RoBERTa-base ; 3 080 messages de test ; 3 graines ; masquage : perte 2,07 → 0,86 sur des messages mis de côté ; 10 minutes par graine) :
+
+| | Sans masquage (témoin) | Avec masquage | Écart apparié |
+|---|---|---|---|
+| Moyenne ± écart type | 0,845 ± 0,005 | 0,861 ± 0,015 | +0,016 ± 0,011 |
+| Graine 42 | 0,850 | 0,871 | +0,021 [+0,011 ; +0,031], net |
+| Graine 43 | 0,841 | 0,845 | +0,004 [−0,005 ; +0,012], non significatif |
+| Graine 44 | 0,845 | 0,869 | +0,024 [+0,016 ; +0,033], net |
+
+À 10 messages étiquetés par intention, le masquage améliore la classification sur les trois graines, mais l'écart n'est net que sur deux.
+
+Avec 5 messages étiquetés par intention (`--set donnees.n_par_classe=5`, 385 messages étiquetés), là où le masquage a le plus à apporter :
+
+| | Sans masquage (témoin) | Avec masquage | Écart apparié |
+|---|---|---|---|
+| Moyenne ± écart type | 0,754 ± 0,020 | 0,797 ± 0,014 | +0,043 ± 0,007 |
+| Graine 42 | 0,734 | 0,786 | +0,052 [+0,039 ; +0,064], net |
+| Graine 43 | 0,775 | 0,813 | +0,038 [+0,026 ; +0,050], net |
+| Graine 44 | 0,753 | 0,794 | +0,040 [+0,028 ; +0,052], net |
+
+Le masquage préalable améliore nettement la classification sur chacune des trois graines : l'intervalle apparié exclut 0 à chaque fois.
 
 ```bash
 python variantes/mlm-encodeur/run.py --quick           # DistilRoBERTa, 400 messages, 2 par intention

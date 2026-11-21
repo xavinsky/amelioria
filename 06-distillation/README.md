@@ -18,7 +18,7 @@ L'élève n'apprend plus seulement la bonne réponse (un token cible), mais **ce
 | `logits` | La **distribution complète** de l'enseignant à chaque token (KL à température T), sur des réponses fixes | **oui** | Enseignant et élève en mémoire en même temps |
 | `on_policy` | La distribution de l'enseignant **sur les propres réponses de l'élève** (GKD, JSD généralisée) | **oui** | Génération par l'élève à chaque pas |
 
-Perte du mode `logits` :
+Perte (loss) du mode `logits` :
 
 ```
 perte = α · T² · KL(softmax(z_enseignant / T) ‖ softmax(z_élève / T))  +  (1 - α) · CE(élève, réponse)
@@ -42,7 +42,7 @@ Lien avec les données synthétiques ([SIGN07](../07-donnees-synthetiques)) : le
 ## Quand l'utiliser
 
 - ✅ Servir un modèle plus petit avec une qualité proche d'un grand, sur une tâche donnée.
-- ✅ Après un élagage ([FORM16](../16-elagage)) : la distillation est la meilleure cicatrisation.
+- ✅ Après un élagage ([FORM16](../16-elagage)) : la distillation est la meilleure cicatrisation (healing).
 - ✅ Transférer un comportement coûteux à obtenir (raisonnement long, format) d'un modèle entraîné par RL vers un petit modèle.
 - ⚠️ L'élève plafonne sous l'enseignant. Un écart de taille trop grand (×20 et plus) apprend moins bien qu'un enseignant intermédiaire.
 - ❌ Si la quantification ([FORM15](../15-quantification)) suffit à faire tenir le modèle : elle ne demande aucun entraînement.
@@ -89,16 +89,16 @@ flowchart TD
 - **② Lecture.** Tout est rangé dans le cache `~/.cache/huggingface` ; les lancements suivants le relisent sur le disque, sans réseau.
 - **③ Copie sur le GPU.** L'élève est copié en float32, parce que c'est lui qu'on entraîne ; l'enseignant en bf16, figé.
 - **④ Mesures avant.** `run.py` appelle `commun/evaluation.py`, qui pose les 1 319 problèmes de test à l'enseignant puis à l'élève, ainsi que 200 problèmes d'arithmétique de non-régression.
-- **⑤ Génération sur le GPU.** Par lots de 32, chaque modèle raisonne jusqu'à 512 tokens ; le nombre final de chaque réponse est comparé au résultat attendu.
+- **⑤ Génération sur le GPU.** Par lots (batches) de 32, chaque modèle raisonne jusqu'à 512 tokens ; le nombre final de chaque réponse est comparé au résultat attendu.
 - **⑥ L'enseignant rédige.** Il résout les 3 000 problèmes d'entraînement ; seules ses réponses justes sont gardées (2 488, soit 83 %). Il quitte ensuite le GPU.
 - **⑦ Entraînement de l'élève.** Les 2 488 couples problème → solution de l'enseignant sont confiés au SFTTrainer de TRL, qui entraîne tous les poids de l'élève, la perte portant sur la réponse seulement.
-- **⑧ Forward et backward sur le GPU.** Lots de 4, accumulés 4 fois (16 exemples par pas), 2 époques, taux d'apprentissage 1e-5, gradient checkpointing, AdamW 8 bits.
+- **⑧ Forward et backward sur le GPU.** Lots de 4, accumulés 4 fois (16 exemples par pas), 2 époques, taux d'apprentissage (learning rate) 1e-5, gradient checkpointing, AdamW 8 bits.
 - **⑨ Mesure après**, sur les mêmes problèmes, avec le même décodage.
 - **⑩ Écriture de l'élève** complet dans `sorties/06-distillation/eleve-sequence/`.
-- **⑪ Témoin.** L'élève d'origine est rechargé et entraîné exactement de la même façon, sur les mêmes 2 488 problèmes, mais avec les solutions écrites par les auteurs de GSM8K ; il est mesuré comme en ⑨. L'écart avec l'élève distillé isole ce qu'apporte l'enseignant.
+- **⑪ Témoin (baseline).** L'élève d'origine est rechargé et entraîné exactement de la même façon, sur les mêmes 2 488 problèmes, mais avec les solutions écrites par les auteurs de GSM8K ; il est mesuré comme en ⑨. L'écart avec l'élève distillé isole ce qu'apporte l'enseignant.
 - **⑫ Écriture du rapport** dans `sorties/06-distillation/resultats.json`, avec le même tableau affiché dans le terminal.
 
-**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑥, ⑨), il y a une passe avant par token produit, accélérée par un cache des clés et des valeurs déjà calculées : c'est l'essentiel de la durée (environ 1 h sur 1 h 30), l'enseignant générant 4 300 raisonnements. En entraînement (⑧), chaque pas fait une passe avant, une passe arrière qui calcule les gradients de l'élève, puis la mise à jour de tous ses poids. En modes `logits` et `on_policy`, l'enseignant reste sur le GPU pendant l'entraînement et fait une passe avant sur chaque lot : ses logits, sur un vocabulaire de 152 000 tokens, pèsent lourd, d'où les lots de 2 et l'optimiseur 8 bits.
+**Ce que fait le GPU.** Le processus Python ne calcule presque rien lui-même : PyTorch envoie au GPU des « noyaux CUDA », de petits programmes qui font les multiplications de matrices et l'attention sur les poids et les activations déjà présents dans sa mémoire. En génération (⑤, ⑥, ⑨), il y a une passe avant (forward pass) par token produit, accélérée par un cache des clés et des valeurs déjà calculées : c'est l'essentiel de la durée (environ 1 h sur 1 h 30), l'enseignant générant 4 300 raisonnements. En entraînement (⑧), chaque pas fait une passe avant, une passe arrière (backward pass) qui calcule les gradients de l'élève, puis la mise à jour de tous ses poids. En modes `logits` et `on_policy`, l'enseignant reste sur le GPU pendant l'entraînement et fait une passe avant sur chaque lot : ses logits, sur un vocabulaire de 152 000 tokens, pèsent lourd, d'où les lots de 2 et l'optimiseur 8 bits.
 
 **Ce qui est écrit.**
 

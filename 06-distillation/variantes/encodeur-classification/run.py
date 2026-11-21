@@ -4,6 +4,10 @@ Les deux modèles peuvent avoir des tokenizers différents : chacun tokenise le 
 sur les logits de classes. Comparaison intégrée : même élève entraîné sans enseignant (alpha=0) sur les mêmes exemples étiquetés.
 L'élève distillé voit en plus un jeu de transfert sans étiquette, annoté par l'enseignant : c'est là que la
 distillation apporte le plus quand les étiquettes sont rares.
+
+Témoin du jeu de transfert : un troisième élève voit les mêmes textes, annotés par l'étiquette dure de l'enseignant
+(pseudo-étiquetage), sans la perte de distillation. L'écart entre l'élève distillé et ce témoin isole l'apport de la
+distillation (probabilités de classes, température) ; l'écart du témoin avec l'élève sans enseignant, celui des données.
 """
 
 import pathlib
@@ -30,6 +34,17 @@ def exactitude(model, tok, textes, labels, dev):
         enc = tok(textes[i : i + 64], return_tensors="pt", padding=True, truncation=True, max_length=128).to(dev)
         preds += model(**enc).logits.argmax(-1).tolist()
     return preuve.taux((np.array(preds) == np.array(labels)).tolist())
+
+
+@torch.no_grad()
+def etiquettes_enseignant(enseignant, tok, textes, dev):
+    """Étiquette dure de l'enseignant (classe la plus probable) de chaque texte."""
+    enseignant.eval()
+    res = []
+    for i in range(0, len(textes), 64):
+        enc = tok(list(textes[i : i + 64]), return_tensors="pt", padding=True, truncation=True, max_length=128).to(dev)
+        res += enseignant(**enc).logits.argmax(-1).tolist()
+    return res
 
 
 def entrainer(cfg, eleve, tok_e, enseignant, tok_t, textes, labels, alpha, dev):
@@ -83,9 +98,14 @@ def main():
 
     sans = entrainer(cfg, copy.deepcopy(eleve_init), tok_e, None, None, train[d.colonne_texte], train[d.colonne_label], 0.0, dev)
     res["eleve_sans_enseignant"] = exactitude(sans, tok_e, xt, yt, dev)
+    pseudo = entrainer(cfg, copy.deepcopy(eleve_init), tok_e, None, None, list(train[d.colonne_texte]) + list(transfert),
+                       list(train[d.colonne_label]) + etiquettes_enseignant(enseignant, tok_t, transfert, dev), 0.0, dev)
+    res["eleve_pseudo_etiquete"] = exactitude(pseudo, tok_e, xt, yt, dev)
     avec = entrainer(cfg, eleve_init, tok_e, enseignant, tok_t, list(train[d.colonne_texte]) + list(transfert),
                      list(train[d.colonne_label]) + [-100] * len(transfert), cfg.kd.alpha, dev)
     res["eleve_distille"] = exactitude(avec, tok_e, xt, yt, dev)
+    res["distille_moins_pseudo_etiquete"] = preuve.difference_appariee(res["eleve_pseudo_etiquete"]["succes"], res["eleve_distille"]["succes"])
+    res["pseudo_etiquete_moins_sans_enseignant"] = preuve.difference_appariee(res["eleve_sans_enseignant"]["succes"], res["eleve_pseudo_etiquete"]["succes"])
 
     if cfg.get("sauvegarder", True):
         modeles.sauvegarder(avec, tok_e, f"{cfg.sortie}/eleve")

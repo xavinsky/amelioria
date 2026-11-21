@@ -1,6 +1,6 @@
 # Oubli catastrophique
 
-Quand on entraîne un modèle sur un domaine ou une tâche étroits, il **perd des capacités qu'il avait** : connaissances générales, format de chat, langues, sécurité. Plus le nouvel entraînement est long, étroit et à lr élevé, plus la perte est forte.
+Quand on entraîne un modèle sur un domaine ou une tâche étroits, il **perd des capacités qu'il avait** : connaissances générales, format de chat, langues, sécurité. Plus le nouvel entraînement est long, étroit et à lr élevé, plus la perte (loss) est forte.
 
 ## Le mesurer
 
@@ -17,7 +17,7 @@ Routage de messages bancaires vers 77 intentions (banking77), Qwen2.5-0.5B-Instr
 
 | Entraînement | Intentions | Non-régression |
 |---|---|---|
-| Fine-tuning complet, sans remélange | 0,932 | 0,025 |
+| Fine-tuning complet, sans remélange (replay) | 0,932 | 0,025 |
 | Fine-tuning complet, 15 % de remélange | 0,904 | 0,765 |
 | LoRA, sans remélange | 0,925 | 0,33 |
 | LoRA, 15 % de remélange | 0,891 | 0,95 |

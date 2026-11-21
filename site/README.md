@@ -26,7 +26,7 @@ Elles ne s'écrivent pas dans `content/` : `build/fiches.py` les génère depuis
 
 Chaque catégorie a un code de 4 lettres lisible en anglais comme en français (`code` dans `exemples.yaml`) : DATA, SIGN, EDIT, FORM, EXEC. Une méthode est désignée partout par ce code suivi de son numéro (SIGN05), y compris dans `make test EX=SIGN05`.
 
-En tête de chaque catégorie, une page écrite à la main, `content/methodes/<catégorie>/00-choisir.md`, explique le choix entre ses méthodes : graphe de décision (`decision:`), texte, puis tableau comparatif généré (`comparatif: <catégorie>` : coûts, données, remélange, statut des exemples).
+En tête de chaque catégorie, une page écrite à la main, `content/methodes/<catégorie>/00-choisir.md`, explique le choix entre ses méthodes : graphe de décision (`decision:`), texte, puis tableau comparatif généré (`comparatif: <catégorie>` : coûts, données, remélange (replay), statut des exemples).
 
 | Page | Contenu | Source |
 |---|---|---|

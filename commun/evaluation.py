@@ -46,13 +46,21 @@ def exactitude(model, tok, exemples: list[dict], mode: str = "nombre", max_new_t
     """Taux de bonnes réponses en génération gloutonne, avec son intervalle à 95 % et le détail par question.
 
     Avec `etiquettes` (classification), ajoute la part des réponses qui sont l'une des étiquettes possibles :
-    elle sépare l'erreur de format de l'erreur de classement.
+    elle sépare l'erreur de format de l'erreur de classement. En mode `nombre`, ajoute l'exactitude stricte (seule la
+    ligne « Answer: N » compte), la part des réponses sans « Answer: » et la part des réponses tronquées.
     """
     prompts = prompts or [modeles.prompt_texte(tok, ex["question"], systeme) for ex in exemples]
     t0 = time.time()
     sorties = modeles.generer(model, tok, prompts, max_new_tokens=max_new_tokens, batch=batch)
     ok = [correct(s, ex["cible"], mode) for s, ex in zip(sorties, exemples)]
     valides = {}
+    if mode == "nombre":
+        # Format de la réponse : un gain peut venir d'une réponse mieux terminée plutôt que mieux raisonnée.
+        stricts = [donnees.extraire_nombre_strict(s) == str(ex["cible"]).strip() for s, ex in zip(sorties, exemples)]
+        valides = {"strict": preuve.taux(stricts),
+                   "part_sans_answer": round(sum("Answer:" not in s for s in sorties) / max(len(sorties), 1), 4),
+                   "part_tronque": round(sum(len(tok(s, add_special_tokens=False)["input_ids"]) >= max_new_tokens - 1
+                                             for s in sorties) / max(len(sorties), 1), 4)}
     if etiquettes:
         possibles = {donnees.intention(e) for e in etiquettes}
         valides = {"reponses_valides": round(sum(donnees.intention(premiere_ligne(s)) in possibles

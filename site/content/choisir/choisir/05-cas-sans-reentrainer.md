@@ -1,7 +1,7 @@
 ---
 title: "Cas : sans réentraîner"
 id: cas-sans-reentrainer
-description: "Modifier un modèle d'IA sans le réentraîner : fusionner plusieurs modèles spécialisés en un seul, ou orienter son ton par pilotage des activations."
+description: "Modifier un modèle d'IA sans le réentraîner : fusionner plusieurs modèles spécialisés en un seul, ou orienter son ton par pilotage (steering) des activations."
 decision:
   q: "Que veut-on obtenir ?"
   choix:
@@ -38,4 +38,4 @@ Ces deux méthodes changent le comportement d'un modèle **sans boucle d'entraî
 
 **La méthode : le pilotage par activations.** On écrit quelques dizaines de paires de textes qui ne diffèrent que par ce trait (« Merci pour votre message, nous revenons vers vous. » / « Ouais, on verra. »). La différence moyenne des activations du modèle entre les deux côtés donne une direction ; on l'ajoute pendant la génération, avec une intensité réglable, sans toucher aux poids.
 
-**Les limites.** Trop forte, la direction dégrade le texte ou déforme le sens ; trop faible, elle ne change rien. Si l'**effet est instable**, ou si l'on veut un changement durable inscrit dans le modèle, on apprend le trait pour de bon par **DPO**, sur ces mêmes paires présentées comme « réponse préférée / réponse rejetée ».
+**Les limites.** Trop forte, la direction dégrade le texte ou déforme le sens ; trop faible, elle ne change rien. Si l'**effet est instable**, ou si l'on veut un changement durable inscrit dans le modèle, on apprend le trait pour de bon par **DPO**, sur ces mêmes paires présentées comme « réponse préférée (chosen) / réponse rejetée (rejected) ».

@@ -29,7 +29,7 @@ arbre:
     - question: "Sans\nréentraîner"
       cas: cas-sans-reentrainer
       feuilles:
-        - {si: "Doser un trait (ton)", m: 11, nom: "Pilotage"}
+        - {si: "Doser un trait (ton)", m: 11, nom: "Pilotage (steering)"}
         - {si: "Fusionner des fine-tunes", m: 8, nom: "Fusion"}
     - question: "Trop gros\nou trop lent"
       cas: cas-cout
