@@ -117,7 +117,7 @@ Avec `SET="edition.methode=ft_contraint"`, le modèle est écrit dans `modele-ft
 
 ```bash
 python run.py --quick
-python run.py                                         # ROME, 4 éditions successives sur Qwen2.5-1.5B
+python run.py                                         # ROME, 100 faits CounterFact édités un par un, Qwen2.5-1.5B
 python run.py --set edition.methode=ft_contraint      # comparaison FT-L
 python run.py --set edition.couche=12                 # éditer plus haut : spécificité et généralisation changent
 python run.py --set modele.nom=meta-llama/Llama-3.2-1B
@@ -125,9 +125,22 @@ python run.py --set modele.nom=meta-llama/Llama-3.2-1B
 
 ## Ce que fait l'exemple
 
-1. Mesure efficacité, généralisation et spécificité sur 4 faits réels (Eiffel, Mona Lisa, Everest, Python), plus la complétion gloutonne du prompt.
-2. Calcule `C` sur 200 paragraphes wikitext, puis applique les 4 éditions ROME l'une après l'autre.
-3. Remesure. Attendu : efficacité et généralisation proches de 1, spécificité qui reste haute. Les complétions affichent les nouveaux objets.
+1. Tire 100 faits du jeu CounterFact (`azhx/counterfact`) selon la graine : chacun a une réécriture (vrai objet → faux objet), des paraphrases du prompt et des faits voisins dont la réponse ne doit pas changer.
+2. Mesure, pour chaque fait, avant l'édition : **efficacité** (le nouvel objet est plus probable que l'ancien sur le prompt d'origine), **généralisation** (même mesure sur 2 paraphrases par fait, 200 mesures) et **spécificité** (la réponse des faits voisins ne change pas, 1 000 mesures).
+3. Calcule `C` sur 200 paragraphes wikitext, puis édite chaque fait par ROME seul, mode `independant` : le poids édité est restauré avant le fait suivant. Les éditions ne s'accumulent pas (`--set mode=sequentiel` les accumule).
+4. Remesure. Les écarts avant/après sont appariés sur les mêmes faits, avec leur intervalle à 95 % (3 graines : `make graines EX=EDIT09 N=3`).
+
+**Résultats** (Qwen2.5-1.5B, 100 faits par graine, 3 graines) :
+
+| | Avant | Après ROME | Écart apparié |
+|---|---|---|---|
+| Efficacité | 0,170 ± 0,020 | **0,990** ± 0,010 | +0,820 (de +0,790 à +0,840) |
+| Généralisation (paraphrases) | 0,200 ± 0,044 | **0,932** ± 0,006 | +0,732 (de +0,700 à +0,785) |
+| Spécificité (faits voisins) | 0,830 ± 0,018 | 0,818 ± 0,018 | −0,012 (de −0,014 à −0,009) |
+
+Sur chaque graine, l'intervalle apparié exclut 0 pour l'efficacité et la généralisation. La spécificité baisse de 1,2 point : l'écart est net mais petit.
+
+Réserve : chaque fait est édité seul, sur un modèle restauré à chaque fois. Les 100 éditions ne sont pas cumulées : la dégradation d'un modèle qui reçoit beaucoup d'éditions successives (point faible connu de ROME, que MEMIT traite) n'est pas mesurée.
 
 ## Paramètres principaux (`config.yaml`)
 

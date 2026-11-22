@@ -5,8 +5,8 @@ modele:
 
 donnees:
   source: faits                     # faits (personnages générés) | tofu (locuslab/TOFU, avec un modèle déjà fine-tuné dessus)
-  n_entites: 40
-  part_oubli: 0.25                  # 10 personnages, 40 questions ; TOFU : forget01 / forget05 / forget10
+  n_entites: 80
+  part_oubli: 0.125                 # 10 personnages sur 80, 40 questions ; TOFU : forget01 / forget05 / forget10
   part_tenu: 0.25                   # personnages jamais vus par la perte : mesure de rétention hors perte
   graine: 0
 
@@ -20,18 +20,18 @@ implantation:                       # phase 0 : le modèle apprend d'abord les p
   logging_steps: 20
 
 desapprentissage:
-  methode: npo                      # gradient_ascent | gradient_difference | npo | idk
+  methode: idk                      # gradient_ascent | gradient_difference | npo | idk
   beta: 0.1                         # npo
   retenu: true                      # npo : ajouter la perte de rétention (NPO+RT)
-  poids_retenu: 1.0
+  poids_retenu: 5.0
   seuil_oubli: 0.05                 # arrêt dès que l'exactitude sur l'oubli passe sous ce seuil
-  eval_tous: 10
+  eval_tous: 2
 
 entrainement:
   max_steps: 120
   batch: 8
   gradient_checkpointing: true
-  lr: 1.0e-5
+  lr: 2.0e-6
   logging_steps: 10
 
 evaluation:

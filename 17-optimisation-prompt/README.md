@@ -126,22 +126,24 @@ python run.py --set donnees.source=gsm8k --set donnees.n_train=500 --set evaluat
 
 **Le besoin** : le même routage de messages bancaires vers 77 intentions qu'en [DATA02](../02-fine-tuning-supervise), sans rien entraîner. Jusqu'où va-t-on en ne changeant que le prompt ?
 
-**Résultats** (Qwen2.5-0.5B-Instruct, RTX 5070 Ti Laptop ; 3 080 messages de test) :
+**Résultats** (Qwen2.5-0.5B-Instruct, RTX 5070 Ti Laptop ; consigne optimisée sur 500 messages de validation, mesure sur 3 080 messages de test jamais vus ; 3 graines pour la boucle OPRO, les autres stratégies sont déterministes) :
 
 | Stratégie | Exactitude | Écart apparié avec le zéro-shot |
 |---|---|---|
-| `zero_shot` : la liste des intentions seule | 0,229 [0,214 ; 0,244] | |
-| `instruction` : consigne rédigée à la main | 0,225 [0,211 ; 0,240] | −0,004, non significatif |
-| `optimisation` : consigne trouvée par OPRO | 0,263 [0,248 ; 0,279] | +0,035 [+0,023 ; +0,046] |
-| `few_shot` : 8 exemples au hasard | 0,312 [0,296 ; 0,329] | +0,083 [+0,067 ; +0,100] |
-| **`few_shot_similaires` : les 8 exemples les plus proches** | **0,816** [0,802 ; 0,829] | **+0,587** [+0,569 ; +0,606] |
-| Témoin sans LLM : vote des 8 exemples les plus proches | 0,920 [0,910 ; 0,929] | +0,691 |
+| `zero_shot` : la liste des intentions seule | 0,229 | |
+| `instruction` : consigne rédigée à la main | 0,225 | −0,004, non significatif |
+| `optimisation` : consigne trouvée par OPRO | 0,259 ± 0,008 | +0,030 (de +0,021 à +0,036 selon la graine), net sur chacune |
+| `few_shot` : 8 exemples au hasard | 0,311 ± 0,003 | +0,083 |
+| **`few_shot_similaires` : les 8 exemples les plus proches** | **0,813** | **+0,584** |
+| Témoin sans LLM : vote des 8 exemples les plus proches | 0,920 | +0,691 |
+
+La stratégie retenue sur la validation est `few_shot_similaires` sur chacune des 3 graines. La consigne OPRO dépasse la consigne rédigée à la main de +0,034 (de +0,025 à +0,040 selon la graine, p < 10⁻³ sur chacune), mais sur la validation (500 messages) l'écart n'est pas significatif (+0,022, p ≈ 0,2). Les consignes trouvées par OPRO sont peu cohérentes (« Raise the question to direct the bank towards the correct intent classification… »).
 
 Pour comparaison, sur les mêmes messages : SFT complet 0,904 ([DATA02](../02-fine-tuning-supervise)), LoRA 0,891 ([DATA03](../03-peft)), encodeur ModernBERT fine-tuné 0,937.
 
 **Ce qu'on en retient.**
 
-- **La consigne compte peu ici** : rédigée ou optimisée, elle ne change l'exactitude que de quelques points. Le modèle sait déjà ce qu'on attend ; ce qui lui manque, c'est de savoir à quoi ressemble chaque intention.
+- **La consigne compte peu ici** : rédigée à la main, elle ne change rien ; optimisée par OPRO, elle ajoute 3 points (0,225 → 0,259), net sur 3 graines mais très loin des exemples bien choisis. Le modèle sait déjà ce qu'on attend ; ce qui lui manque, c'est de savoir à quoi ressemble chaque intention.
 - **Les exemples choisis par similarité changent tout** : 0,229 → 0,816, sans entraînement, en montrant au modèle des messages proches avec leur intention. C'est la stratégie de prompt à essayer en premier dès qu'on dispose d'exemples annotés.
 - **Mais le témoin montre d'où vient le gain** : le simple vote des intentions de ces 8 exemples, sans LLM, fait mieux (0,920). Le gain vient de la recherche des bons exemples, et le petit LLM en perd une partie. Pour une classification pure avec des exemples annotés, un classifieur (voisins, encodeur fine-tuné) est le bon outil ; le prompt d'un LLM se justifie quand la sortie doit être rédigée, ou quand on n'a pas d'exemples.
 

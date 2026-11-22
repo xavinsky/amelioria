@@ -165,16 +165,19 @@ python run.py --set peft.activer=true --set entrainement.lr=1e-5 --set modele.no
 
 **Le besoin** : quand la qualité d'une réponse ne se vérifie pas par un programme (utilité, ton, respect d'une consigne), le RL a besoin d'un modèle qui la note. C'est la première étape du RLHF : on l'entraîne sur des paires « réponse préférée (chosen) / réponse rejetée (rejected) ».
 
-[`variantes/modele-recompense`](variantes/modele-recompense) ajoute une tête (head) scalaire à Qwen2.5-0.5B-Instruct et l'entraîne avec la perte de Bradley-Terry : la note de la réponse préférée doit dépasser celle de la rejetée. Les 4 000 paires d'entraînement sont des problèmes d'arithmétique où la réponse préférée est juste et la rejetée fausse, une époque. La mesure porte sur 200 paires jamais vues : part des paires où le modèle note mieux la bonne réponse.
+[`variantes/modele-recompense`](variantes/modele-recompense) ajoute une tête (head) scalaire à Qwen2.5-0.5B-Instruct et l'entraîne avec la perte de Bradley-Terry : la note de la réponse préférée doit dépasser celle de la rejetée. Les 4 000 paires d'entraînement viennent d'UltraFeedback (`trl-lib/ultrafeedback_binarized`, préférences d'un juge sur des réponses de modèles), une époque, lots de 4 × 4 avec gradient checkpointing. La mesure porte sur 500 paires du split `test` jamais vues : part des paires où le modèle note mieux la réponse préférée. Repère : le modèle de récompense publié Skywork-Reward-V2-Qwen3-0.6B, sur les mêmes paires.
 
-| | Paires bien classées (200) |
+| | Paires bien classées (500, 3 graines) |
 |---|---|
-| Tête aléatoire | 0,485 [0,417 ; 0,554] |
-| Après entraînement (87 s) | **0,98** [0,950 ; 0,992] |
+| Tête aléatoire | 0,470 ± 0,031 |
+| Après entraînement | **0,631 ± 0,017** |
+| Modèle publié (Skywork 0,6B) | 0,704 [0,663 ; 0,742] |
+
+Gain apparié sur les mêmes paires : +0,161 (de +0,120 à +0,202 selon la graine), p de McNemar < 10⁻³ ; l'intervalle de Wilson à 95 % de chaque graine exclut 0,5 (par exemple [0,593 ; 0,677]). Le modèle entraîné ici reste 0,073 sous le modèle publié (de −0,060 à −0,092 selon la graine, net) : un 0,5B entraîné sur 4 000 paires n'atteint pas le modèle publié.
 
 Le modèle obtenu se branche comme récompense de l'exemple principal (`--set recompense.source=modele --set recompense.modele=…`, voir « Utilisation »), sert au best-of-N ([EXEC20](../20-calcul-inference)) ou classe des paires on-policy ([DPO itératif](../04-optimisation-preferences)). `donnees.source=hf` l'entraîne sur un jeu de préférences humaines (UltraFeedback, Skywork-Reward-Preference).
 
-Réserve : distinguer une réponse juste d'une fausse est une tâche facile. Sur des préférences humaines, l'exactitude attendue est plus proche de 0,7 à 0,8, et un modèle de récompense se fait exploiter par la politique (réponses longues, flatterie) : il faut le surveiller pendant le RL.
+Réserve : un modèle de récompense se fait exploiter par la politique (réponses longues, flatterie) : il faut le surveiller pendant le RL. Le jeu synthétique d'arithmétique (`donnees.source=arith`, bonne réponse contre résultat décalé) reste disponible : une tâche facile, où le modèle apprend à vérifier une addition.
 
 ## Paramètres principaux (`config.yaml`)
 

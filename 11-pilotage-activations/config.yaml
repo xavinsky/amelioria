@@ -3,7 +3,7 @@ modele:
   nom: Qwen/Qwen2.5-1.5B-Instruct
 
 pilotage:
-  mode: vecteur                     # vecteur (hook à l'inférence) | ablation (direction retirée des poids)
+  mode: ablation                    # ablation (direction retirée des poids) | vecteur (hook à l'inférence)
   couche: null                      # null = couche_relative x nombre de couches ; les couches du milieu marchent le mieux
   couche_relative: 0.5
   n_paires: 60                      # paires contrastives positif / négatif (sujets distincts de ceux du test)

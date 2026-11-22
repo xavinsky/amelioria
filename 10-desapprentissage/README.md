@@ -115,7 +115,7 @@ Avec `SET="sauvegarder=false"`, le dossier `modele-npo/` n'est pas écrit. Avec 
 
 ```bash
 python run.py --quick
-python run.py                                                          # NPO + rétention, Qwen2.5-0.5B, 40 personnages, 25 % oubliés
+python run.py                                                          # idk + rétention, Qwen2.5-0.5B, 80 personnages dont 10 oubliés
 python run.py --set desapprentissage.methode=gradient_ascent           # observer l'effondrement de `retenu`
 python run.py --set desapprentissage.methode=gradient_difference
 python run.py --set desapprentissage.methode=idk
@@ -125,11 +125,59 @@ python run.py --set donnees.source=tofu --set implantation.activer=false --set m
 
 ## Ce que fait l'exemple
 
-1. Génère 40 personnages (160 questions). Tire 4 personnages à oublier.
+1. Génère 80 personnages (320 questions) et les répartit en trois groupes : 10 à oublier (40 questions), 20 tenus à l'écart (jamais vus par la perte de désapprentissage), 50 pour la perte de rétention.
 2. **Implantation** : SFT sur toutes les questions. Le modèle connaît alors les 40 personnages.
-3. Mesure `oubli`, `retenu` et `perplexite_generale`.
-4. 60 pas de NPO + rétention.
-5. Remesure. Attendu : l'exactitude sur les 4 personnages oubliés chute, celle sur les 36 autres et la perplexité générale restent proches.
+3. Mesure l'exactitude sur les personnages à oublier (question d'origine, reformulée, en français), sur les personnages tenus à l'écart (rétention hors perte, question d'origine et reformulée), sur ceux de la perte de rétention, la part de sorties dégénérées et la perplexité générale.
+4. `idk` + rétention (taux 2e-6, poids de rétention 5), 120 pas au plus, arrêt dès que l'exactitude sur l'oubli passe sous 5 % (contrôle tous les 2 pas). `--set desapprentissage.methode=npo` (ou `gradient_difference`, `gradient_ascent`) change la méthode.
+5. Remesure, 3 graines (`make graines EX=10 N=3`).
+
+Les tableaux ci-dessous donnent, dans l'ordre, la mesure de NPO + rétention sur 40 personnages, la comparaison de 12 réglages, la mesure finale d'`idk` sur 40 personnages, puis celle d'`idk` sur 80 personnages (configuration par défaut).
+
+**Résultats de NPO + rétention** (40 personnages dont 10 à oublier, 20 dans la perte de rétention ; Qwen2.5-0.5B-Instruct, 3 graines, moyenne) :
+
+| | Avant | Après NPO + rétention |
+|---|---|---|
+| Exactitude sur les personnages oubliés | 0,992 | **0,017** |
+| ... reformulée | 0,767 | 0,017 |
+| ... en français | 0,933 | 0,008 |
+| Personnages tenus à l'écart (rétention hors perte) | 1,000 | **0,067** |
+| ... reformulée | 0,758 | 0,058 |
+| Personnages de la perte de rétention | 0,996 | 0,221 |
+| Part de sorties dégénérées (oubli) | 0 | 0,25 |
+| Perplexité générale | 25,8 | 27,0 |
+
+Les écarts avant/après sont nets sur chaque graine pour toutes les lignes d'exactitude, dans les deux sens : l'oubli est obtenu, mais la rétention s'effondre aussi, y compris sur les personnages utilisés dans la perte de rétention (0,996 → 0,221). La perplexité générale ne bouge presque pas (25,8 → 27,0) : le modèle reste un modèle de langue, mais il a perdu les faits de **tous** les personnages appris. Le désapprentissage n'est pas sélectif dans cette configuration : la variante reste « non prouvée ».
+
+**Comparaison des méthodes et des réglages** (12 combinaisons sur les graines de réglage 42 à 44 : méthodes `npo`, `idk` et `gradient_difference`, taux d'apprentissage 2e-6 et 5e-6, poids de rétention 1 et 5, contrôle de l'oubli tous les 2 pas) : NPO et `gradient_difference` laissent la rétention hors perte entre 0,25 et 0,58 dans tous les réglages (même quand les personnages de la perte de rétention sont conservés : la perte protège ce qu'elle voit, pas ce qu'elle ne voit pas). `idk` (apprendre à répondre « I'm not sure, I don't have information about this person. » aux questions sur les personnages à oublier) la conserve entre 0,90 et 0,975, sans sortie dégénérée. Le réglage retenu par une règle fixée avant la mesure (oubli sous 5 %, meilleure rétention hors perte) est `idk`, taux 2e-6, poids de rétention 5.
+
+**Mesure finale de ce réglage, sur trois graines neuves** (45, 46, 47 ; 40 questions à oublier et 40 questions tenues à l'écart par graine) :
+
+| | Avant | Après `idk` |
+|---|---|---|
+| Personnages à oublier | 1,000 | **0,042** (0,050 ; 0,025 ; 0,050) |
+| ... reformulée | 0,750 | **0,225** (écart de −0,48 à −0,60, net sur chaque graine) |
+| ... en français | 0,883 | **0,183** |
+| Personnages tenus à l'écart | 0,992 | **0,825** (0,950 ; 0,600 ; 0,925) |
+| ... reformulée | 0,750 | 0,617 |
+| Personnages de la perte de rétention | 0,992 | 0,942 |
+| Sorties dégénérées | 0 | 0 |
+| Perplexité générale | 26,0 | 25,8 |
+
+L'oubli est net sur chaque graine, y compris sur les reformulations et en français, sans sortie dégénérée ni dégradation de la perplexité. La rétention tient sur deux graines (écart de −0,03 et −0,08, non significatifs) mais pas sur la graine 46 (0,992 → 0,600, écart −0,40 [−0,55 ; −0,25]). Le désapprentissage reste « non prouvé » : il n'est pas sélectif de façon reproductible. Les faits oubliés restent en partie retrouvables par reformulation (0,225 contre 0,75 au départ), et `idk` apprend un refus plutôt qu'il n'efface l'information.
+
+**Avec plus de personnages dans le jeu de rétention** (80 personnages : 10 à oublier, 20 tenus à l'écart, 50 dans la perte de rétention ; `idk`, taux 2e-6, poids de rétention 5 ; trois graines neuves 48, 49, 50 ; 40 questions à oublier et 80 questions tenues à l'écart par graine) :
+
+| | Avant | Après `idk` |
+|---|---|---|
+| Personnages à oublier | 0,983 | **0,025** (0,025 ; 0,000 ; 0,050) |
+| ... reformulée | 0,942 | **0,242** (écart de −0,65 à −0,78, net sur chaque graine) |
+| Personnages tenus à l'écart | 0,996 | **0,954** (0,975 ; 0,963 ; 0,925) |
+| ... reformulée | 0,946 | 0,867 |
+| Personnages de la perte de rétention | 0,981 | 0,978 |
+| Sorties dégénérées | 0 | 0 |
+| Perplexité générale | 29,1 | 29,0 |
+
+Sur chaque graine, l'oubli est net sur la question d'origine et sur la reformulation, la rétention hors perte reste à au moins 92 % du départ (écart de −0,03, −0,03 et −0,08), aucune sortie n'est dégénérée et la perplexité ne bouge pas. Avec 20 personnages dans la perte de rétention (mesure sur 40 personnages, plus haut), la rétention hors perte tombe à 0,600 sur une graine sur trois ; avec 50 personnages, elle reste à au moins 0,925 sur chaque graine : un jeu de rétention plus large la fait généraliser aux personnages non vus par la perte. Réserves : `idk` apprend un refus, il n'efface pas l'information (24 % des questions reformulées sur les faits oubliés obtiennent encore la bonne réponse) ; l'échelle est celle de personnages inventés appris par un modèle de 0,5B.
 
 ## Paramètres principaux (`config.yaml`)
 

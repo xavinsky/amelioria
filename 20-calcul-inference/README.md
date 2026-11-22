@@ -106,6 +106,23 @@ flowchart TD
 | `resultats.json` | Pour chaque stratégie (glouton, vote majoritaire, best-of-N par vraisemblance, best-of-N par récompense, auto-correction) : exactitude, et nombre de générations pour le glouton, le vote et l'auto-correction ; courbe d'exactitude du vote en fonction de N ; borne oracle pass@16 ; nom du modèle de récompense |
 | `config_effective.yaml` | La configuration réellement utilisée, surcharges `SET` comprises |
 
+## Résultats
+
+Qwen2.5-1.5B-Instruct, GSM8K, 500 problèmes de test, 16 réponses échantillonnées par problème (température 0,8), modèle de récompense Skywork 0,6B, 3 graines (`make graines EX=EXEC20 N=3`, 47 minutes par graine) :
+
+| Stratégie | Exactitude | Écart apparié avec le glouton | Générations par 500 problèmes |
+|---|---|---|---|
+| Glouton (une réponse) | 0,684 | | 500 |
+| **Vote majoritaire sur 16 réponses** | **0,795 ± 0,003** | **+0,111** (de +0,108 à +0,114), net | 8 000 (×16) |
+| Meilleure réponse par récompense (best-of-16) | 0,767 ± 0,008 | +0,083 (de +0,076 à +0,092), net | 8 000 (×16) |
+| Meilleure réponse par vraisemblance | 0,688 ± 0,017 | +0,004, non significatif | 8 000 (×16) |
+| Auto-correction (1 tour) | 0,692 | +0,008, non significatif | 1 000 (×2) |
+| Borne oracle : au moins une réponse juste sur 16 | 0,923 ± 0,008 | | 8 000 |
+
+Courbe du vote selon le nombre de réponses N (moyenne des 3 graines) : N = 1 : 0,591 ; N = 4 : 0,698 ; N = 8 : 0,756 ; N = 16 : 0,795.
+
+Le calcul à l'inférence paie, à un coût linéaire : le vote majoritaire gagne 11 points avec 16 fois plus de générations, et la courbe ne s'est pas encore aplatie à N = 16. Une seule réponse échantillonnée (0,591) est moins bonne que le glouton (0,684) : il faut environ 4 réponses pour le rattraper. Le départage par vraisemblance ne choisit pas mieux qu'au hasard ; l'auto-correction d'un petit modèle n'apporte rien de net ; la récompense externe aide (+8 points). La borne oracle (0,923) montre qu'une bonne réponse existe presque toujours parmi les 16 : le goulot est la sélection.
+
 ## Utilisation
 
 ```bash

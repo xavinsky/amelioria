@@ -88,7 +88,7 @@ def main():
     tok_t = AutoTokenizer.from_pretrained(cfg.enseignant.nom)
     enseignant = AutoModelForSequenceClassification.from_pretrained(cfg.enseignant.nom).to(dev).eval()
     tok_e = AutoTokenizer.from_pretrained(cfg.eleve.nom)
-    eleve_init = AutoModelForSequenceClassification.from_pretrained(cfg.eleve.nom, num_labels=2).to(dev)
+    eleve_init = AutoModelForSequenceClassification.from_pretrained(cfg.eleve.nom, num_labels=enseignant.config.num_labels).to(dev)
 
     xt, yt = test[d.colonne_texte], test[d.colonne_label]
     res = {"enseignant": {**exactitude(enseignant, tok_t, xt, yt, dev),

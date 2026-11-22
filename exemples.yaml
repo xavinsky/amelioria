@@ -410,12 +410,11 @@ exemples:
     reserve: "gain net sur 2 graines sur 3 ; faible sur un modèle déjà aligné par ses auteurs"
     prerequis: {gpu: requis}
   - chemin: 04-optimisation-preferences/variantes/dpo-iteratif
-    statut: pret-a-tester
-    fait: "Trois tours de DPO LoRA sur des paires que Qwen2.5-0.5B-Instruct produit lui-même (4 réponses à 500 demandes UltraFeedback, classées par Skywork-Reward-V2 0,6B) ; mesure par un autre juge (Skywork-Reward-V2 1,7B)."
-    piste: "Refaire sur 3 nouvelles graines à 2 tours, nombre de tours fixé avant la mesure ; comparer au DPO hors-ligne (0,533) à demandes de test et juge identiques."
-    duree_complet: "1 h 40"
-    resultat: "victoires contre le départ après 3 tours : 0,625 ± 0,009 sur 3 graines (0,616 ; 0,634 ; 0,624), intervalle de chaque graine au-dessus de 0,5 ; après 2 tours : 0,607 ± 0,008"
-    reserve: "au tour 3 la non-régression arithmétique s'effondre sur une graine sur trois (0,955 → 0,61), stable aux tours 1 et 2 ; pas de témoin à calcul égal ; juges de la même famille"
+    statut: demontre
+    fait: "Deux tours de DPO LoRA sur des paires que Qwen2.5-0.5B-Instruct produit lui-même (4 réponses à 500 demandes UltraFeedback, classées par Skywork-Reward-V2 0,6B) ; mesure par un autre juge (Skywork-Reward-V2 1,7B) ; nombre de tours fixé avant la mesure, trois graines neuves."
+    duree_complet: "1 h 10"
+    resultat: "victoires contre le départ après 2 tours : 0,592 ± 0,025 sur trois graines neuves (0,572 ; 0,584 ; 0,620), intervalle de chaque graine au-dessus de 0,5 ; non-régression arithmétique conservée (0,962 contre 0,955) ; DPO hors-ligne de l'exemple principal : 0,533. Graines 42 à 44 à 3 tours : 0,625 ± 0,009"
+    reserve: "au tour 3 la non-régression arithmétique s'effondre sur une graine sur trois (0,955 → 0,61), d'où deux tours ; pas de témoin à calcul égal ; juges de la même famille, le gain est en partie un gain aux yeux de ce juge"
     prerequis: {gpu: requis}
 
   - chemin: 05-rl-en-ligne
@@ -428,13 +427,12 @@ exemples:
     piste: "3 graines, témoin SFT à volume égal, part des sorties avec « Answer: » avant et après, gains recalculés en extraction stricte."
     prerequis: {gpu: requis, api: true}
   - chemin: 05-rl-en-ligne/variantes/modele-recompense
-    statut: pret-a-tester
-    fait: "Entraîne un modèle de récompense à préférer la bonne réponse dans des paires."
+    statut: demontre
+    fait: "Entraîne un modèle de récompense (Qwen2.5-0.5B-Instruct, perte de Bradley-Terry) sur 4 000 paires de préférences UltraFeedback, mesuré sur 500 paires jamais vues, 3 graines."
     duree_test: "13 s"
-    duree_complet: "87 s"
-    resultat: "exactitude de préférence 0,485 → 0,98"
-    reserve: "paires synthétiques à gabarit fixe (même raisonnement, résultat décalé) : le modèle apprend à vérifier une addition ; aucun test sur de vraies préférences ; une graine"
-    piste: "Entraîner et mesurer sur de vraies préférences (UltraFeedback), paires jamais vues."
+    duree_complet: "5 min"
+    resultat: "paires bien classées 0,470 ± 0,031 → 0,631 ± 0,017 (+0,161, p de McNemar < 10⁻³, intervalle de Wilson qui exclut 0,5 sur chaque graine) ; modèle publié Skywork 0,6B : 0,704"
+    reserve: "0,073 sous le modèle publié (entraîné sur un jeu de préférences bien plus grand et un modèle plus grand) ; un modèle de récompense se fait exploiter par la politique pendant le RL"
     prerequis: {gpu: requis}
 
   - chemin: 06-distillation
@@ -447,13 +445,13 @@ exemples:
     piste: "Témoin de même style (auto-distillation filtrée), 3 graines."
     prerequis: {gpu: requis}
   - chemin: 06-distillation/variantes/encodeur-classification
-    statut: non-prouve
-    fait: "Distille un classifieur de sentiment RoBERTa vers un BERT 10 fois plus petit, contre un élève sans enseignant et un élève pseudo-étiqueté sur les mêmes 20 000 textes, 3 graines."
+    statut: demontre
+    fait: "Un petit classifieur (BERT-mini, 11 M) apprend d'un gros (RoBERTa ou ModernBERT) en annotant des textes sans étiquette ; comparé à un élève sans enseignant, à un élève pseudo-étiqueté (étiquettes dures de l'enseignant) et à un élève distillé (probabilités), sur sentiment SST-2 (2 classes) et sur banking77 (77 classes), 3 graines chacune."
     duree_test: "25 s"
     duree_complet: "78 s"
-    resultat: "SST-2 (872 phrases) : sans enseignant 0,768 ± 0,020 ; pseudo-étiqueté 0,827 ± 0,002 ; distillé 0,829 ± 0,006 ; enseignant 0,940. Pseudo-étiqueté contre sans enseignant +0,060, net sur chaque graine ; distillé contre pseudo-étiqueté +0,002, non significatif"
-    reserve: "le gain vient des 18 000 textes annotés par l'enseignant, pas de la distillation par probabilités ; sur 2 classes les probabilités n'ajoutent presque rien aux étiquettes dures"
-    piste: "Un classifieur à beaucoup de classes proches (banking77, 77 intentions), où les probabilités de l'enseignant portent de l'information que l'étiquette dure n'a pas ; mêmes trois élèves."
+    resultat: "banking77 (3 080 messages) : sans enseignant 0,421 ± 0,010 ; pseudo-étiqueté 0,9015 ± 0,0007 (+0,481, net sur chaque graine) ; distillé 0,878 ± 0,014 ; enseignant 0,937. SST-2 (872 phrases) : sans enseignant 0,768 ; pseudo-étiqueté 0,827 (+0,060, net) ; distillé 0,829 ; enseignant 0,940"
+    reserve: "le gain vient des textes sans étiquette annotés par l'enseignant, pas de la perte KL : distillé contre pseudo-étiqueté +0,002 sur 2 classes (non significatif) et −0,023 sur 77 classes (net, température et alpha non réglés)"
+    piste: "Régler la température et le poids de la perte KL sur des graines de réglage (température 1 ou 2, alpha 0,5 ou 0,9) puis mesurer sur des graines neuves."
     prerequis: {gpu: conseille}
 
   - chemin: 07-donnees-synthetiques
@@ -483,33 +481,30 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 09-edition-connaissances
-    statut: pret-a-tester
-    fait: "Modifie 4 faits réels dans les poids par ROME (la tour Eiffel « passe » à Rome...)."
+    statut: demontre
+    fait: "Modifie dans les poids 100 faits du jeu CounterFact par ROME, un par un, sur Qwen2.5-1.5B ; efficacité, généralisation aux paraphrases et spécificité sur les faits voisins, 3 graines."
     duree_test: "12 s"
-    duree_complet: "48 s"
-    resultat: "efficacité 0 → 1 ; généralisation 0 → 1 ; spécificité 1 → 1"
-    reserve: "n = 4 faits écrits à la main, mesurés par préférence de log-probabilité ; ni intervalle ni graine"
-    piste: "Au moins 100 faits (jeu CounterFact), efficacité et généralisation avec intervalles."
+    duree_complet: "6 min"
+    resultat: "efficacité 0,170 → 0,990, généralisation 0,200 → 0,932 (écarts appariés +0,82 et +0,73, intervalle qui exclut 0 sur chaque graine) ; spécificité 0,830 → 0,818 (−0,012, net mais petit)"
+    reserve: "chaque fait est édité seul, le poids étant restauré ensuite : l'accumulation de nombreuses éditions n'est pas mesurée"
     prerequis: {gpu: requis}
 
   - chemin: 10-desapprentissage
-    statut: pret-a-tester
-    fait: "Fait oublier 4 personnages appris par NPO, en gardant les 36 autres."
+    statut: demontre
+    fait: "Fait oublier 10 personnages appris sur 80 par la méthode idk (réponse « je ne sais pas »), avec 50 personnages dans la perte de rétention ; rétention mesurée sur 20 personnages tenus à l'écart, oubli aussi sur reformulations et en français, trois graines neuves."
     duree_test: "20 s"
-    duree_complet: "59 s"
-    resultat: "oubli 1,0 → 0,0 ; rétention 1,0 → 0,925 ; perplexité 25,8 → 26,6"
-    reserve: "après NPO les sorties sur les personnages oubliés sont du bruit : l'oubli ne se distingue pas d'un effondrement, et la mesure « la réponse contient la cible » est satisfaite par n'importe quel charabia ; la rétention est mesurée sur les questions utilisées dans la perte de rétention ; oubli sur 16 questions, une graine"
-    piste: "Questions de rétention tenues à l'écart, perplexité générale, test de reformulation pour vérifier que l'information est retirée, 3 graines."
+    duree_complet: "1 min"
+    resultat: "oubli 0,983 → 0,025 (reformulé 0,942 → 0,242, écart net sur chaque graine) ; rétention sur personnages tenus à l'écart 0,996 → 0,954 (0,975 ; 0,963 ; 0,925) ; aucune sortie dégénérée ; perplexité générale 29,1 → 29,0. À 40 personnages (20 en rétention) : rétention 0,992 → 0,825, effondrée sur une graine sur trois ; NPO et gradient_difference : 0,25 à 0,58 dans tous les réglages"
+    reserve: "idk apprend un refus plutôt qu'il n'efface l'information : 24 % des questions reformulées sur les faits oubliés obtiennent encore la bonne réponse ; personnages inventés, modèle de 0,5B"
     prerequis: {gpu: requis}
 
   - chemin: 11-pilotage-activations
-    statut: non-prouve
-    fait: "Rend les réponses plus positives en ajoutant une direction d'activations pendant la génération, sur des sujets jamais utilisés pour calculer la direction ; cohérence mesurée par un juge externe et la perte par token, 3 graines."
+    statut: demontre
+    fait: "Rend les réponses plus positives en retirant des poids une direction d'activations (60 paires, mode ablation), sur des sujets jamais utilisés pour calculer la direction ; fluidité mesurée par la perte par token et note d'un juge externe sur les demandes neutres ; trois graines neuves, critère fixé avant la mesure."
     duree_test: "12 s"
-    duree_complet: "5 min"
-    resultat: "positivité des demandes de texte négatif 0,13 → 0,53 à α = 1 (+0,40), mais perte par token +0,68 et note du juge −2,17 ; à α = 0,5 la cohérence est presque intacte (note du juge non significative) mais l'effet sur ces demandes n'est plus net (+0,02)"
-    reserve: "aucun α ne donne une hausse nette de positivité avec une cohérence conservée : le pilotage est un réglage entre effet et cohérence, pas un gain gratuit"
-    piste: "Direction calculée sur plus de paires (jeu SST-2) et α choisi sur une courbe effet / cohérence avec un seuil de cohérence fixé avant la mesure."
+    duree_complet: "35 s"
+    resultat: "ablation : positivité des demandes de texte négatif +0,29, +0,25, +0,35 (intervalle apparié qui exclut 0 sur chaque graine) ; perte par token inchangée (−0,06 à +0,03) ; demandes neutres inchangées (note du juge −0,04 à +0,03). Par vecteur : aucun α ni aucune profondeur d'injection (0,25 à 0,75) ne respecte le seuil de cohérence avec une hausse nette de positivité"
+    reserve: "le critère retenu (note du juge exigée sur les demandes neutres seulement) diffère du seuil de cohérence par défaut, qui pénalise par construction un texte positif en réponse à une demande de texte négatif (note du juge −1,8 à −2,0 sur ces demandes) ; le pilotage par vecteur est un réglage entre effet et cohérence"
     prerequis: {gpu: requis}
 
   - chemin: 12-extension-contexte
@@ -577,13 +572,12 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 17-optimisation-prompt
-    statut: pret-a-tester
-    fait: "Compare des stratégies de prompt (consigne, consigne optimisée par OPRO, exemples au hasard, exemples les plus proches) pour router des messages bancaires vers 77 intentions, sans entraînement."
+    statut: demontre
+    fait: "Compare des stratégies de prompt (consigne, consigne optimisée par OPRO, exemples au hasard, exemples les plus proches) pour router des messages bancaires vers 77 intentions, sans entraînement ; consigne choisie sur 500 messages de validation, mesure sur 3 080 messages de test, 3 graines."
     duree_test: "18 s"
-    duree_complet: "8 min"
-    resultat: "intentions : zéro-shot 0,229 ; consigne OPRO 0,263 ; 8 exemples au hasard 0,312 ; 8 exemples les plus proches 0,816 (n = 3 080)"
-    reserve: "l'optimisation de prompt (OPRO) n'apporte pas de gain net (+3,5 points, non significatif sur le dev, n = 200) ; ce qui gagne est le choix des exemples par proximité, et le vote des voisins sans LLM fait mieux (0,920)"
-    piste: "Dev et test plus grands (n ≥ 500), 3 graines, ou changer le résultat annoncé en sélection d'exemples."
+    duree_complet: "9 min"
+    resultat: "intentions : zéro-shot 0,229 ; consigne à la main 0,225 ; consigne OPRO 0,259 ± 0,008 (+0,034 sur la consigne à la main, net sur chaque graine) ; 8 exemples au hasard 0,311 ; 8 exemples les plus proches 0,813 (+0,584 sur le zéro-shot)"
+    reserve: "le gain vient surtout du choix des exemples par proximité, et le vote des mêmes voisins sans LLM fait mieux (0,920) ; la consigne OPRO ajoute peu (+3 points), son écart n'est pas significatif sur la validation et les consignes trouvées sont peu cohérentes"
     prerequis: {gpu: conseille, api: true}
 
   - chemin: 18-rag
@@ -605,11 +599,10 @@ exemples:
     prerequis: {gpu: conseille, api: true}
 
   - chemin: 20-calcul-inference
-    statut: pret-a-tester
-    fait: "Génère 16 réponses par question GSM8K et garde la plus fréquente ou la mieux notée."
+    statut: demontre
+    fait: "Génère 16 réponses par question GSM8K (Qwen2.5-1.5B-Instruct) et garde la plus fréquente ou la mieux notée, contre la réponse gloutonne, sur 500 problèmes et 3 graines."
     duree_test: "9 s"
-    duree_complet: "10 min"
-    resultat: "glouton 0,65 ; vote sur 16 réponses 0,77 ; oracle 0,93"
-    reserve: "n = 100, comparaison non appariée, une graine d'échantillonnage ; les autres stratégies (0,66 ; 0,68 ; 0,70) ne se distinguent pas du glouton ; coût ×16 non mis en regard du gain"
-    piste: "n = 500, écart apparié, gain mis en regard du coût."
+    duree_complet: "47 min"
+    resultat: "GSM8K (n = 500) : glouton 0,684 ; vote majoritaire sur 16 réponses 0,795 ± 0,003 (+0,111 apparié, net sur chaque graine) pour 16 fois plus de générations ; meilleure réponse par récompense 0,767 ; borne oracle 0,923"
+    reserve: "coût linéaire (×16) ; une seule réponse échantillonnée (0,591) est moins bonne que le glouton, il en faut environ 4 pour le rattraper ; le départage par vraisemblance (+0,004) et l'auto-correction (+0,008) ne se distinguent pas du glouton"
     prerequis: {gpu: conseille, api: true}

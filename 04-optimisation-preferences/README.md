@@ -148,6 +148,8 @@ python variantes/dpo-iteratif/run.py                        # 3 tours on-policy 
 
 Chaque tour dure environ 30 minutes, dont 3 min 30 d'entraînement (6,2 Gio de mémoire). L'écart de note avec le départ est de +1,03 ± 0,05 après 3 tours, et l'intervalle de chaque graine exclut 0 (p < 0,001, permutation appariée).
 
+**Confirmation à deux tours sur trois graines neuves** (45, 46, 47 ; nombre de tours fixé à 2 avant la mesure ; mêmes 500 demandes de test et même juge) : victoires contre le départ **0,592 ± 0,025** après deux tours (0,572 ; 0,584 ; 0,620), l'intervalle de Wilson de chaque graine excluant 0,5 (le plus bas : [0,528 ; 0,615]) ; après le tour 1, 0,497 (0,508 ; 0,486 ; 0,498), pas de gain. La note moyenne du juge monte de +0,83 (de +0,63 à +0,93, p < 10⁻³ sur chaque graine) ; la non-régression arithmétique reste à 0,962 (départ 0,955, écart +0,007, non significatif). Le gain apparaît donc au deuxième tour, et deux tours suffisent.
+
 - **Moins de 1 500 paires produites par le modèle valent mieux que 16 000 paires figées** : 0,625 contre 0,533 pour le DPO de l'exemple principal, sur les mêmes demandes de test et avec le même juge. Les paires restent dans la distribution du modèle, et chaque tour repart du modèle amélioré.
 - **Le gain se reproduit sur les trois graines** : l'intervalle de victoires exclut 0,5 à chaque tour 2 et 3 sur chaque graine (0,616, 0,634, 0,624 au tour 3).
 - **Le gain ne vient pas de la longueur** : les réponses raccourcissent un peu (193 → 175 mots).

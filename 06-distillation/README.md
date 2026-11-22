@@ -166,6 +166,18 @@ python variantes/encodeur-classification/run.py                 # RoBERTa-base S
 
 Le gain vient des 18 000 phrases sans étiquette annotées par l'enseignant, pas de la distillation par probabilités : annoter ces phrases avec les étiquettes dures de l'enseignant donne le même résultat. Sur 2 classes, la probabilité de l'enseignant n'ajoute presque rien à son étiquette ; la distillation par probabilités a plus à transmettre quand il y a beaucoup de classes proches. L'élève reste à 11 points de l'enseignant ; un élève plus grand (DistilBERT, 66 M) réduit l'écart.
 
+**Le même protocole sur 77 classes** (banking77 : messages de clients d'une banque vers 77 intentions ; enseignant : ModernBERT-base fine-tuné de l'exemple [DATA02](../02-fine-tuning-supervise), 0,937 ; élève : BERT-mini, 11 M ; 770 messages étiquetés, soit environ 10 par intention, et 9 000 messages sans étiquette annotés par l'enseignant ; 10 époques pour les trois élèves ; 3 080 messages de test ; 3 graines) :
+
+| Élève | Exactitude |
+|---|---|
+| Sans enseignant (770 messages étiquetés) | 0,421 ± 0,010 |
+| Pseudo-étiqueté (étiquettes dures de l'enseignant) | **0,9015 ± 0,0007** |
+| Distillé (probabilités, température 3, `alpha` 0,9) | 0,878 ± 0,014 |
+
+Écarts appariés : pseudo-étiqueté contre sans enseignant +0,481 (de +0,473 à +0,492 selon la graine), net sur chacune ; distillé contre pseudo-étiqueté −0,023 (−0,035, −0,026, −0,009), net sur chacune.
+
+L'enseignant fait passer l'élève de 0,42 à 0,90 en annotant des messages sans étiquette. Mais les probabilités de l'enseignant ne font pas mieux que ses étiquettes dures : sur 2 classes, la perte KL ne change rien (+0,002, non significatif) ; sur 77 classes, elle est un peu moins bonne (−0,023) à ce réglage (température 3, `alpha` 0,9, non réglés). Le gain démontré est celui du jeu de transfert annoté par l'enseignant, pas celui de la perte KL. Commande : `make graines EX=06 VAR=encodeur-classification N=3` avec `--set enseignant.nom=<modèle fine-tuné> --set donnees.nom=PolyAI/banking77 --set donnees.split_test=test --set donnees.colonne_texte=text --set donnees.colonne_label=label --set donnees.n_train=770 --set donnees.n_sans_etiquette=9000 --set entrainement.epochs=10`.
+
 ## Paramètres principaux (`config.yaml`)
 
 | Clé | Rôle |

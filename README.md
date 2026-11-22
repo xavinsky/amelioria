@@ -59,9 +59,9 @@ Apprendre d'un jugement, d'une récompense, d'un enseignant ou de ses propres so
 
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
-| [SIGN04](04-optimisation-preferences) | Optimisation des préférences | DPO, IPO, rDPO, SLiC, APO, NCA, BCO, SPPO, ORPO, SimPO, CPO, KTO ; variante DPO itératif | LLM (après SFT), VLM, diffusion (Diffusion-DPO) | ⚠️ ≤ 0,5B complet, ≤ 3B LoRA | 🟡 principal · 🔵 dpo-iteratif |
-| [SIGN05](05-rl-en-ligne) | RL en ligne | RLHF, RLAIF, RLVR ; GRPO, Dr.GRPO, DAPO, GSPO, CISPO, RLOO ; PPO en infra ; variante modèle de récompense | LLM, VLM, agents ; diffusion (DDPO) | ⚠️ ≤ 1,5B · ☁️ | 🟡 principal · 🔵 modele-recompense |
-| [SIGN06](06-distillation) | Distillation | Logits (KD), séquences, on-policy (GKD) ; variante classifieur encodeur | LLM (même tokenizer pour logits), encodeurs, vision, diffusion | ✅ petits couples · ☁️ 70B → 8B | 🟡 principal · 🟡 encodeur-classification |
+| [SIGN04](04-optimisation-preferences) | Optimisation des préférences | DPO, IPO, rDPO, SLiC, APO, NCA, BCO, SPPO, ORPO, SimPO, CPO, KTO ; variante DPO itératif | LLM (après SFT), VLM, diffusion (Diffusion-DPO) | ⚠️ ≤ 0,5B complet, ≤ 3B LoRA | 🟡 principal · 🟢 dpo-iteratif |
+| [SIGN05](05-rl-en-ligne) | RL en ligne | RLHF, RLAIF, RLVR ; GRPO, Dr.GRPO, DAPO, GSPO, CISPO, RLOO ; PPO en infra ; variante modèle de récompense | LLM, VLM, agents ; diffusion (DDPO) | ⚠️ ≤ 1,5B · ☁️ | 🟡 principal · 🟢 modele-recompense |
+| [SIGN06](06-distillation) | Distillation | Logits (KD), séquences, on-policy (GKD) ; variante classifieur encodeur | LLM (même tokenizer pour logits), encodeurs, vision, diffusion | ✅ petits couples · ☁️ 70B → 8B | 🟡 principal · 🟢 encodeur-classification |
 | [SIGN07](07-donnees-synthetiques) | Données synthétiques | Rejection sampling (RFT/STaR), Self-Instruct, critique-révision (Constitutional AI) | LLM ; données pour classifieurs, VLM, diffusion | ✅ ≤ 1B | 🟡 principal |
 
 ### EDIT · Chirurgie du modèle
@@ -71,9 +71,9 @@ Combiner des modèles, corriger, effacer ou orienter un savoir ou un comportemen
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
 | [EDIT08](08-fusion-modeles) | Fusion de modèles | Model soups, SLERP, task arithmetic, TIES, DARE ; mergekit, fusion évolutionnaire | Fine-tunes d'une même base : LLM, LoRA, CLIP/ViT, diffusion | ✅ CPU/RAM | 🟡 principal · 🔵 deux-competences |
-| [EDIT09](09-edition-connaissances) | Édition de connaissances | ROME, FT-L ; MEMIT, AlphaEdit en infra | LLM décodeurs ; diffusion (UCE, TIME) | ✅ ≤ 3B | 🔵 principal |
-| [EDIT10](10-desapprentissage) | Désapprentissage | Gradient ascent, gradient difference, NPO, IDK ; TOFU, open-unlearning | LLM ; classifieurs ; diffusion (ESD) | ✅ ≤ 1B | 🔵 principal |
-| [EDIT11](11-pilotage-activations) | Pilotage par activations | Steering vectors (ActAdd, CAA), abliteration | LLM décodeurs (tout flux résiduel) ; diffusion (concept sliders) | ✅ ≤ 7B | 🟡 principal |
+| [EDIT09](09-edition-connaissances) | Édition de connaissances | ROME, FT-L ; MEMIT, AlphaEdit en infra | LLM décodeurs ; diffusion (UCE, TIME) | ✅ ≤ 3B | 🟢 principal |
+| [EDIT10](10-desapprentissage) | Désapprentissage | Gradient ascent, gradient difference, NPO, IDK ; TOFU, open-unlearning | LLM ; classifieurs ; diffusion (ESD) | ✅ ≤ 1B | 🟢 principal |
+| [EDIT11](11-pilotage-activations) | Pilotage par activations | Steering vectors (ActAdd, CAA), abliteration | LLM décodeurs (tout flux résiduel) ; diffusion (concept sliders) | ✅ ≤ 7B | 🟢 principal |
 
 ### FORM · Remodeler : étendre ou compresser
 
@@ -93,10 +93,10 @@ Améliorer le résultat autour du modèle ; fonctionne aussi avec un modèle fer
 
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
-| [EXEC17](17-optimisation-prompt) | Optimisation du prompt | Instruction, CoT, few-shot (aléatoire / par similarité), OPRO ; DSPy en infra | Tout LLM local ou API ; VLM ; diffusion (réécriture de prompts) | ✅ | 🔵 principal |
+| [EXEC17](17-optimisation-prompt) | Optimisation du prompt | Instruction, CoT, few-shot (aléatoire / par similarité), OPRO ; DSPy en infra | Tout LLM local ou API ; VLM ; diffusion (réécriture de prompts) | ✅ | 🟢 principal |
 | [EXEC18](18-rag) | RAG | BM25, dense, hybride RRF, reranker ; Qdrant + TEI + vLLM en infra | Tout LLM local ou API | ✅ | 🟢 principal |
 | [EXEC19](19-outils-agents) | Outils et agents | Function calling, boucle agentique | LLM entraînés aux outils (≥ 3B), API | ✅ | 🟢 principal |
-| [EXEC20](20-calcul-inference) | Calcul à l'inférence | Self-consistency, best-of-N (RM, vraisemblance), self-refine, pass@N | Tout LLM ; code ; diffusion (best-of-N) | ✅ | 🔵 principal |
+| [EXEC20](20-calcul-inference) | Calcul à l'inférence | Self-consistency, best-of-N (RM, vraisemblance), self-refine, pass@N | Tout LLM ; code ; diffusion (best-of-N) | ✅ | 🟢 principal |
 
 <!-- methodes:fin -->
 
