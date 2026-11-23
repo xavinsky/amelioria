@@ -12,7 +12,7 @@ Schéma : [docs/schemas-methodes.md](../docs/schemas-methodes.md#m01) (ce que la
 
 On reprend exactement l'objectif du pré-entraînement initial, sans questions ni réponses : du texte brut du domaine visé. Le modèle absorbe le vocabulaire, le style et les connaissances du corpus : textes médicaux, juridiques, code interne, une langue peu représentée.
 
-Trois réglages font la différence :
+Trois réglages font la différence, et un quatrième compte peu sur un modèle déjà pré-entraîné :
 
 - **Learning rate faible** : 10 à 100 fois plus faible qu'au pré-entraînement initial, avec un warmup puis une décroissance cosinus.
 - **Replay** : on mélange 5 à 30 % de texte général au corpus du domaine. Sans ça, l'oubli catastrophique est quasi certain (voir [docs/oubli-catastrophique.md](../docs/oubli-catastrophique.md)).
