@@ -37,7 +37,7 @@ PY_EXEMPLE := $(if $(filter methode=gptq methode=awq,$(SET)),$(PY_GPTQ),$(PY))
 ARGS_SET := $(foreach s,$(SET),--set $(s)) $(if $(API),--set modele.api_base=$(API)) $(if $(MODELE),--set modele.nom=$(MODELE))
 ARGS_VERIF := $(foreach s,$(SET),--set $(s)) $(if $(API),--api $(API))
 
-.PHONY: help install install-gptq install-llamacpp liste readme site verifier test run graines selecteurs smoke complet
+.PHONY: help unitaires install install-gptq install-llamacpp liste readme site verifier test run graines selecteurs smoke complet
 
 help: ## cette aide
 	@echo "AmeliorIA — améliorer un modèle d'IA sans le réentraîner de zéro"
@@ -82,6 +82,9 @@ $(PY):
 
 verifier: | $(PY) ## vérifie les prérequis d'un exemple (EX, VAR, SET, API)
 	@$(PY) scripts/catalogue.py verifier "$(EX)" "$(VAR)" $(ARGS_VERIF) $(if $(COMPLET),--complet)
+
+unitaires: | $(PY) ## tests unitaires sans modèle ni GPU (commun, fusion, élagage, croissance)
+	CUDA_VISIBLE_DEVICES= $(PY) -m unittest discover -s tests -t . 
 
 test: | $(PY) ## test rapide d'un exemple (--quick)
 	@$(PY) scripts/catalogue.py verifier "$(EX)" "$(VAR)" $(ARGS_VERIF)
