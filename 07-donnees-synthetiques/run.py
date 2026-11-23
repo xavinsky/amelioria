@@ -67,8 +67,16 @@ def produire(cfg, gen, tok_gen, prompts, **kw):
     v = cfg.generation.get("vllm")
     if not (v and v.get("python")):
         return modeles.generer(gen, tok_gen, prompts, batch=cfg.generation.batch, **kw)
+    part = v.get("memoire_gpu", 0.6)
+    if torch.cuda.is_available():
+        # vLLM exige que la part demandée soit libre au démarrage : on rend d'abord le cache de ce processus, puis on
+        # demande au plus ce qui reste (moins une marge).
+        gc.collect()
+        torch.cuda.empty_cache()
+        libre, total = torch.cuda.mem_get_info()
+        part = min(part, max(0.1, libre / total - 0.05))
     return modeles.generer_vllm(SOURCE_GEN, prompts, v.python, graine=cfg.graine, texte_brut=not modeles.a_chat_template(tok_gen),
-                                gpu_memory_utilization=v.get("memoire_gpu", 0.6), dtype=v.get("dtype", "bfloat16"), **kw)
+                                gpu_memory_utilization=round(part, 2), dtype=v.get("dtype", "bfloat16"), **kw)
 
 
 def strategie_rejet(cfg, gen, tok_gen, questions):
