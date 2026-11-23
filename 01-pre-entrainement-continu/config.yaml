@@ -40,7 +40,7 @@ evaluation:
 
 temoin: true                      # biographies : même entraînement avec une seule biographie par personnage, répétée
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:

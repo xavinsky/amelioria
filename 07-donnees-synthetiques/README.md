@@ -24,7 +24,7 @@ générer  ->  filtrer / noter  ->  SFT (dossier 02, ou LoRA 03)
 
 La clé est **le filtre**. Un modèle qui s'entraîne sur ses propres sorties non filtrées stagne ou se dégrade (model collapse). Filtrer par un vérificateur, un juge ou un modèle de récompense ne garde que ses meilleures sorties : le modèle s'améliore ainsi « par lui-même ». C'est le même ressort que le RL en ligne ([SIGN05](../05-rl-en-ligne)), en version hors ligne, plus simple et plus stable.
 
-Lien avec la distillation ([SIGN06](../06-distillation)) : si le générateur est un modèle plus fort que l'élève, `self_instruct` et `rejet` deviennent de la distillation de séquences.
+Lien avec la distillation ([SIGN06](../06-distillation)) : si le générateur est un modèle plus fort que l'élève (student), `self_instruct` et `rejet` deviennent de la distillation de séquences.
 
 ## Modèles concernés
 

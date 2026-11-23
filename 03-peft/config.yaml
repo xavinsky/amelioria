@@ -52,7 +52,7 @@ evaluation:
     mode: nombre
     max_new_tokens: 256
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:

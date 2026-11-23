@@ -30,6 +30,20 @@ juge:                               # modèle de récompense externe : note les 
   max_length: 2048
   batch: 8
 
+depart_sft:                         # départ non aligné : SFT complet d'un modèle de base (modele.nom) avant DPO et témoin
+  activer: false                    # true avec --set modele.nom=Qwen/Qwen2.5-0.5B
+  n: 8000                           # paires disjointes de celles du DPO : seule la réponse préférée sert
+  entrainement:
+    epochs: 1
+    batch: 1
+    accumulation: 16
+    gradient_checkpointing: true
+    optim: adamw_bnb_8bit
+    lr: 2.0e-5                      # SFT complet (recette Zephyr)
+    warmup: 0.1
+    scheduler: cosine
+    logging_steps: 50
+
 temoin_sft:                         # même LoRA sur les seules réponses préférées : ce qu'apporte l'imitation sans la préférence
   activer: true
   entrainement:
@@ -60,7 +74,7 @@ evaluation:
   mode: nombre                      # source arith : exactitude sur n problèmes
   n: 200
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:
@@ -69,6 +83,11 @@ quick:
     n_train: 16
   juge:
     nom: Skywork/Skywork-Reward-V2-Qwen3-0.6B
+  depart_sft:
+    n: 16
+    entrainement:
+      batch: 2
+      accumulation: 1
   entrainement:
     max_length: 256
     batch: 2

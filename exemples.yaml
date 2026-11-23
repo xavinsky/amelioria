@@ -449,9 +449,8 @@ exemples:
     fait: "Un petit classifieur (BERT-mini, 11 M) apprend d'un gros (RoBERTa ou ModernBERT) en annotant des textes sans étiquette ; comparé à un élève sans enseignant, à un élève pseudo-étiqueté (étiquettes dures de l'enseignant) et à un élève distillé (probabilités), sur sentiment SST-2 (2 classes) et sur banking77 (77 classes), 3 graines chacune."
     duree_test: "25 s"
     duree_complet: "78 s"
-    resultat: "banking77 (3 080 messages) : sans enseignant 0,421 ± 0,010 ; pseudo-étiqueté 0,9015 ± 0,0007 (+0,481, net sur chaque graine) ; distillé 0,878 ± 0,014 ; enseignant 0,937. SST-2 (872 phrases) : sans enseignant 0,768 ; pseudo-étiqueté 0,827 (+0,060, net) ; distillé 0,829 ; enseignant 0,940"
-    reserve: "le gain vient des textes sans étiquette annotés par l'enseignant, pas de la perte KL : distillé contre pseudo-étiqueté +0,002 sur 2 classes (non significatif) et −0,023 sur 77 classes (net, température et alpha non réglés)"
-    piste: "Régler la température et le poids de la perte KL sur des graines de réglage (température 1 ou 2, alpha 0,5 ou 0,9) puis mesurer sur des graines neuves."
+    resultat: "banking77 (3 080 messages) : sans enseignant 0,421 ± 0,010 ; pseudo-étiqueté 0,9015 ± 0,0007 (+0,481, net sur chaque graine) ; distillé 0,901 ± 0,004 (température 1, alpha 0,9, choisis sur 3 graines de réglage, mesurés sur 3 graines neuves) ; enseignant 0,937. SST-2 (872 phrases) : sans enseignant 0,768 ; pseudo-étiqueté 0,827 (+0,060, net) ; distillé 0,829 ; enseignant 0,940"
+    reserve: "le gain vient des textes sans étiquette annotés par l'enseignant, pas de la perte KL : distillé contre pseudo-étiqueté +0,002 sur 2 classes et −0,001 sur 77 classes après réglage, non significatif sur chaque graine ; avec un jeu de transfert réduit à 900 messages, l'écart change de signe selon la graine (−0,002 en moyenne sur 3 graines neuves)"
     prerequis: {gpu: conseille}
 
   - chemin: 07-donnees-synthetiques
@@ -473,11 +472,12 @@ exemples:
     piste: "Fusionner deux compétences d'une même base Qwen2.5-0.5B (routage banking77 et RL GSM8K), mesurer chaque compétence avec ses sources et un témoin, 3 graines."
     prerequis: {gpu: conseille}
   - chemin: 08-fusion-modeles/variantes/deux-competences
-    statut: pret-a-tester
-    fait: "Fusionne deux spécialistes de Qwen2.5-0.5B-Instruct (routage de messages bancaires, raisonnement GSM8K) par fusion linéaire, arithmétique des tâches, TIES et DARE-TIES."
-    resultat: "pas encore exécuté"
-    reserve: "aucune mesure sur 3 graines"
-    piste: "Mesurer chaque compétence pour la base, chaque spécialiste et chaque fusion sur les mêmes questions, 3 graines."
+    statut: non-prouve
+    fait: "Fusionne deux spécialistes de Qwen2.5-0.5B-Instruct (routage de messages bancaires, raisonnement GSM8K) par fusion linéaire, arithmétique des tâches, TIES et DARE-TIES, 3 graines."
+    duree_complet: "40 min"
+    resultat: "arithmétique des tâches : routage 0,837 (spécialiste 0,837, base 0,226) et raisonnement strict 0,327 (spécialiste 0,337, base 0,170) dans un seul modèle, écarts avec chaque spécialiste non significatifs sur chaque graine"
+    reserve: "le spécialiste raisonnement n'est pas meilleur que la base en notation souple (0,340 contre 0,388) : la fusion conserve le format « Answer: N », pas une compétence de raisonnement"
+    piste: "Spécialiste raisonnement entraîné sur les solutions de l'enseignant Qwen2.5-3B (données de SIGN06, +4 points de raisonnement réel), puis même fusion."
     prerequis: {gpu: requis}
 
   - chemin: 09-edition-connaissances
@@ -508,13 +508,13 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 12-extension-contexte
-    statut: pret-a-tester
-    fait: "Fait passer SmolLM-360M de 2 048 à 8 192 tokens de contexte par YaRN et un court entraînement."
+    statut: non-prouve
+    fait: "Fait passer SmolLM-360M de 2 048 à 8 192 tokens de contexte par YaRN et un court entraînement, 3 graines."
     duree_test: "15 s"
-    duree_complet: "33 min"
-    resultat: "perplexité à 8 192 tokens 422 → 19 ; clé retrouvée à 7 000 tokens 0,3 → 1,0"
-    reserve: "la mise à l'échelle RoPE seule, sans entraînement, retrouve déjà toutes les clés (1,0) : le gain vient d'elle et l'entraînement n'ajoute qu'un peu de perplexité (19,4 → 18,7) ; test facile (n = 10 clés, choix parmi 10) ; pas de mesure à contexte court"
-    piste: "Tâche de contexte long moins triviale, YaRN seul contre YaRN entraîné, perplexité à contexte court avant et après."
+    duree_complet: "45 min"
+    resultat: "clé cachée dans du texte varié à 4 096 tokens 0,07 → 1,00 par YaRN seul (n = 30, net sur chaque graine) ; perplexité à 8 192 tokens 422 → 19,4 (YaRN seul) → 18,7 (entraîné) ; à 2 048 tokens 21,2 → 22,5 → 21,5"
+    reserve: "l'entraînement n'améliore aucune tâche (YaRN entraîné contre YaRN seul : 0,00 sur la clé, non significatif sur les deux codes) ; la tâche à deux codes est au niveau du hasard même à 2 048 tokens, donc trop dure pour ce modèle"
+    piste: "Tâche multi-clés de type RULER (plusieurs clés de même format, retrouver celle demandée), validée d'abord dans la fenêtre d'origine, sur laquelle YaRN seul se dégrade avec la longueur."
     prerequis: {gpu: requis}
 
   - chemin: 13-extension-vocabulaire
@@ -564,11 +564,12 @@ exemples:
     reserve: "à 0,5B et 1 000 pas de cicatrisation, l'élagage ne paie pas : la tâche ne revient pas"
     prerequis: {gpu: requis}
   - chemin: 16-elagage/variantes/grand-modele
-    statut: pret-a-tester
+    statut: non-prouve
     fait: "Élague Qwen2.5-7B-Instruct par Wanda et 2:4, couche par couche (modèle en RAM), et l'évalue en 8 bits sur GSM8K et en perplexité."
-    resultat: "pas encore exécuté"
-    reserve: "une seule exécution prévue, sans graines supplémentaires"
-    piste: "Comparer référence, Wanda et 2:4, tous évalués en 8 bits."
+    duree_complet: "25 min"
+    resultat: "GSM8K (n = 250) : 0,824 → 0,720 (Wanda 50 %, −0,104, net) → 0,504 (2:4) ; perplexité 11,8 → 14,4 → 22,4 ; 87 % de l'exactitude gardée à 7B contre 39 % à 0,5B"
+    reserve: "une exécution ; sans cicatrisation, la perte sur le raisonnement reste nette, et forte avec 2:4, le seul motif qui accélère"
+    piste: "Même protocole à 0,5B, 1,5B et 3B avec cicatrisation par LoRA non fusionné (F1-o2)."
     prerequis: {gpu: requis}
 
   - chemin: 17-optimisation-prompt

@@ -31,6 +31,10 @@ generation:
   batch: 8                          # prompts few-shot longs : 8 questions x 8 solutions par lot
   n_lots: 50                        # self_instruct : nombre de demandes de 10 nouvelles questions
   filtrer: true
+  vllm:                             # génération par vLLM : chaque suite s'arrête seule (null = transformers)
+    python: null                    # interpréteur du venv de vLLM, ex. .venv-vllm/bin/python
+    memoire_gpu: 0.6                # part de la mémoire GPU laissée à vLLM
+    dtype: bfloat16
 
 donnees:
   source: gsm8k                     # problèmes rédigés, réponse finale vérifiable (7 473 d'entraînement, 1 319 de test)
@@ -62,7 +66,7 @@ evaluation:
     mode: nombre
     max_new_tokens: 256
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:

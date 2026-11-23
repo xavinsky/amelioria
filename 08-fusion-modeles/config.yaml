@@ -23,7 +23,7 @@ evaluation:
   perplexite_generale: true
   n_textes_generaux: 50
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   methode: lineaire

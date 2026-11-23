@@ -5,8 +5,8 @@ yarn, abf (augmenter rope_theta, recette Llama 3 / Code Llama).
 Étapes : mesurer le modèle d'origine -> mise à l'échelle seule -> fine-tuning long -> remesurer -> sauvegarder.
 
 Mesures : clé cachée dans une phrase répétée (test facile), puis deux tâches plus dures sur du texte varié (paragraphes
-Wikipédia jamais vus à l'entraînement) : une clé cachée (`cle_varie_L`) et deux codes cachés à des endroits différents
-qu'il faut combiner (`double_L`). Perplexité à 8 192 tokens et à 2 048 tokens (le contexte court ne doit pas se dégrader).
+Wikipédia jamais vus à l'entraînement) : une clé cachée (`cle_varie_L`) et plusieurs clés de même format dont il faut
+retrouver celle d'un nom donné (`multi_L`, tâche multi-clés de RULER). Perplexité à 8 192 tokens et à 2 048 tokens (le contexte court ne doit pas se dégrader).
 L'écart apparié entre le modèle entraîné et la mise à l'échelle seule dit ce qu'apporte l'entraînement.
 """
 
@@ -72,23 +72,27 @@ def prompt_cle_varie(tok, pool, longueur: int, graine: int) -> tuple[str, str]:
     return "\n".join(para) + "\nWhat is the pass key? The pass key is", cle
 
 
-def prompt_double(tok, pool, longueur: int, graine: int) -> tuple[str, str, list[str]]:
-    """Deux codes cachés à des endroits différents ; la bonne réponse les donne dans l'ordre demandé."""
+NOMS = ["Alder", "Birch", "Cedar", "Elm", "Hazel", "Maple", "Rowan", "Willow", "Aspen", "Juniper", "Laurel", "Spruce"]
+
+
+def prompt_multi_cles(tok, pool, longueur: int, graine: int, n_cles: int) -> tuple[str, list[str]]:
+    """Plusieurs clés de même format cachées dans le texte (tâche multi-clés de RULER) : il faut retrouver celle du nom
+    demandé parmi des clés voisines, toutes présentes dans le contexte. Renvoie le prompt et les clés, la bonne en tête."""
     rng = random.Random(graine)
-    a, b = str(rng.randint(100, 999)), str(rng.randint(100, 999))
-    para = remplissage_varie(tok, pool, longueur - 60, rng)
-    i = rng.randint(0, len(para) // 2)
-    para.insert(i, f"The area code is {a}.")
-    para.insert(rng.randint(len(para) // 2 + 1, len(para)), f"The room number is {b}.")
-    autres = [str(rng.randint(100, 999)) for _ in range(4)]
-    candidates = [f"{a}-{b}", f"{b}-{a}"] + [f"{a}-{autres[0]}", f"{autres[1]}-{b}", f"{autres[2]}-{autres[3]}",
-                                            f"{a}-{a}", f"{b}-{b}", f"{autres[0]}-{a}", f"{b}-{autres[1]}", f"{autres[3]}-{autres[2]}"]
-    return "\n".join(para) + "\nWhat is the area code, followed by a dash and the room number? The answer is", candidates[0], candidates
+    noms = rng.sample(NOMS, n_cles)
+    cles = [str(rng.randint(10000, 99999)) for _ in noms]
+    para = remplissage_varie(tok, pool, longueur - 20 * n_cles - 30, rng)
+    for nom, cle in zip(noms, cles):
+        para.insert(rng.randint(0, len(para)), f"The pass key for {nom} is {cle}.")
+    i = rng.randrange(n_cles)
+    question = f"\nWhat is the pass key for {noms[i]}? The pass key for {noms[i]} is"
+    return "\n".join(para) + question, [cles[i]] + cles[:i] + cles[i + 1 :]
 
 
 @torch.no_grad()
 def mesurer_dur(model, tok, cfg, pool, graine0: int) -> dict:
-    """Clé cachée et deux codes à combiner, sur du texte varié, en choix forcé parmi 10 candidats."""
+    """Sur du texte varié : une clé cachée (choix parmi 10 candidats), puis plusieurs clés de même format dont il faut
+    retrouver la bonne (choix parmi les clés présentes dans le contexte)."""
     res = {}
     for L in cfg.evaluation.longueurs_dures:
         ok1, ok2 = [], []
@@ -97,10 +101,10 @@ def mesurer_dur(model, tok, cfg, pool, graine0: int) -> dict:
             rng = random.Random(5000 + graine0 + g)
             cands = [cle] + [str(rng.randint(10000, 99999)) for _ in range(9)]
             ok1.append(int(modeles.logprob_suites(model, tok, [prompt] * 10, [" " + c for c in cands]).argmax()) == 0)
-            prompt, bonne, cands = prompt_double(tok, pool, L, graine0 + g)
+            prompt, cands = prompt_multi_cles(tok, pool, L, graine0 + g, cfg.evaluation.n_cles_multi)
             ok2.append(int(modeles.logprob_suites(model, tok, [prompt] * len(cands), [" " + c for c in cands]).argmax()) == 0)
         res[f"cle_varie_{L}"] = preuve.taux(ok1, "taux")
-        res[f"double_{L}"] = preuve.taux(ok2, "taux")
+        res[f"multi_{L}"] = preuve.taux(ok2, "taux")
     return res
 
 

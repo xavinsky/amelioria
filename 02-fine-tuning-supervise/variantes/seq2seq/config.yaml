@@ -30,7 +30,7 @@ evaluation:
   batch: 32
   fidelite: cross-encoder/nli-deberta-v3-base   # modèle d'inférence textuelle : le dialogue implique-t-il le résumé ?
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:

@@ -42,7 +42,7 @@ evaluation:
     mode: nombre
     max_new_tokens: 256
 
-sauvegarder: true
+sauvegarder: true               # le SFT sert de point de départ à 04 (DPO)
 
 quick:
   modele:

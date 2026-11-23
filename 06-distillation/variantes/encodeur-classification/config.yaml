@@ -24,7 +24,7 @@ entrainement:
   lr: 1.0e-4
   logging_steps: 100
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   enseignant:

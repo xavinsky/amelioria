@@ -1,7 +1,8 @@
 """Élagage (pruning) : retirer des poids, des neurones ou des couches peu utiles, puis cicatriser.
 
 Méthodes (`--set methode=...`) : magnitude, wanda, 2:4 (non structuré / semi-structuré) ; couches, largeur (structuré).
-Cicatrisation (`--set cicatrisation.mode=...`) : aucune | lm (pré-entraînement continu) | distillation (depuis l'original).
+Cicatrisation (`--set cicatrisation.mode=...`) : aucune | lm (pré-entraînement continu) | distillation (depuis l'original) |
+distillation_lora (sorties de l'original pré-calculées, élève creux gelé + adaptateur LoRA non fusionné : grands modèles).
 La cicatrisation lit du texte Wikipédia et, pour un modèle de conversation, des conversations : demandes générales
 (Alpaca) et réponses du modèle d'origine (`cicatrisation.n_conversations`). Ces dernières entretiennent ce que
 le texte brut n'exerce pas : suivre une consigne et répondre dans le format appris.
@@ -21,6 +22,7 @@ import torch  # noqa: E402
 import torch.nn.functional as F  # noqa: E402
 from transformers import Trainer, TrainingArguments  # noqa: E402
 
+import cicatrisation  # noqa: E402
 import elagage  # noqa: E402
 from commun import config, donnees, entrainement, evaluation, modeles, rapport, reprise  # noqa: E402
 
@@ -81,13 +83,25 @@ def main():
     # Enseignant de la cicatrisation : copie de l'original, en précision de calcul (il ne sert qu'en inférence).
     original = copy.deepcopy(model).to(modeles.dtype_calcul()).eval().requires_grad_(False) if cfg.cicatrisation.mode == "distillation" else None
 
+    enseignant = None
+    if c.mode == "distillation_lora":
+        # L'original passe une fois sur les blocs avant l'élagage ; il n'est plus nécessaire ensuite.
+        textes = donnees.textes_generaux(c.n_textes, graine=cfg.graine) + conversations
+        random.Random(cfg.graine).shuffle(textes)
+        blocs = entrainement.blocs_texte(tok, textes, c.longueur_bloc)
+        enseignant = cicatrisation.precalculer(model, blocs, c.top_k, pathlib.Path(cfg.sortie) / f"enseignant-topk-{reprise.EMPREINTE}.pt",
+                                               c.get("batch_enseignant", 4))
+
     m = cfg.methode
     rappels = []
     if m in ("magnitude", "wanda", "2:4"):
         normes = elagage.normes_entrees(model, tok, calibration) if m != "magnitude" else None
         masques = elagage.elaguer_non_structure(model, "magnitude" if m == "magnitude" else "wanda", cfg.sparsite, normes,
                                                 "2:4" if m == "2:4" else None)
-        rappels.append(elagage.GarderMasques(model, masques))
+        if c.mode == "distillation_lora":
+            del masques   # base gelée : les zéros ne peuvent pas revenir, les masques ne servent pas
+        else:
+            rappels.append(elagage.GarderMasques(model, masques))
     elif m == "couches":
         scores = elagage.importance_couches(model, tok, calibration)
         a_retirer = scores.argsort()[: cfg.n_couches].tolist()
@@ -99,7 +113,10 @@ def main():
         raise ValueError(m)
     res["elague"] = mesurer(cfg, model, tok, test, textes_test)
 
-    if c.mode != "aucune":
+    if c.mode == "distillation_lora":
+        model = cicatrisation.cicatriser(model, enseignant, c.lora, c.entrainement, cfg.sortie)
+        res["cicatrise"] = mesurer(cfg, model, tok, test, textes_test)
+    elif c.mode != "aucune":
         textes = donnees.textes_generaux(c.n_textes, graine=cfg.graine) + conversations
         random.Random(cfg.graine).shuffle(textes)
         if c.mode == "lm":

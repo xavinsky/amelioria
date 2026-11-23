@@ -274,6 +274,10 @@ Modifier directement l'endroit d'un modèle qui stocke un fait, sans réentraîn
 
 Retirer d'un modèle des poids, des neurones ou des couches peu utiles pour le rendre plus petit ou plus rapide. Voir [Élagage](#elagage).
 
+## Élève (student)
+
+En distillation, le modèle qu'on entraîne à imiter l'enseignant ; en général plus petit, donc plus rapide et moins cher à servir. Voir [Distillation](#distillation).
+
 ## Embedding
 
 Vecteur qui représente un token ou un texte ; deux textes proches par le sens ont des vecteurs proches. Sert à la recherche dense du [RAG](#rag) et à l'entrée de tout modèle.
@@ -285,6 +289,10 @@ Modèle qui lit un texte entier pour le représenter ou le classer (BERT, Modern
 ## Encodeur-décodeur, seq2seq
 
 Architecture où un encodeur lit l'entrée et un décodeur génère la sortie (T5, BART, Whisper) : traduction, résumé, transcription. Voir [Fine-tuning supervisé](#fine-tuning-supervise).
+
+## Enseignant (teacher)
+
+En distillation, le modèle déjà bon, souvent plus grand, dont l'élève apprend les réponses ou les distributions de probabilités ; il reste figé pendant l'entraînement. Voir [Distillation](#distillation).
 
 ## Époque
 
@@ -689,6 +697,10 @@ Méthodes PEFT qui apprennent des tokens virtuels : ajoutés en entrée (prompt 
 ## PRM
 
 Process Reward Model : modèle de récompense qui note chaque étape d'un raisonnement, pas seulement la réponse finale. Voir [Calcul à l'inférence](#calcul-inference).
+
+## Pseudo-étiquetage (pseudo-labeling)
+
+Faire annoter des données sans étiquette par un modèle (souvent l'enseignant), puis entraîner sur ces étiquettes comme si elles étaient vraies. Il ne transmet que la réponse retenue, là où la distillation transmet toute la distribution de probabilités. Voir [Distillation](#distillation).
 
 ## PTQ, QAT
 

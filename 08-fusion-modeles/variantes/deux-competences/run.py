@@ -1,7 +1,7 @@
 """Fusion de deux compétences d'une même base, sans réentraîner.
 
 Deux spécialistes sont fine-tunés à partir du même modèle (routage de messages bancaires, raisonnement sur des
-problèmes de mathématiques), puis fusionnés par plusieurs méthodes (linéaire, arithmétique des tâches, TIES, DARE-TIES).
+problèmes de mathématiques, sur les solutions justes d'un modèle plus fort de la même famille), puis fusionnés par plusieurs méthodes (linéaire, arithmétique des tâches, TIES, DARE-TIES).
 Chaque compétence est mesurée sur son propre test, pour la base, chaque spécialiste et chaque fusion, sur les mêmes
 questions : l'écart apparié dit ce que la fusion garde de chaque spécialiste et ce qu'elle ajoute à la base.
 Étapes : base -> spécialistes (entraînement) -> fusions -> mesures -> rapport.
@@ -42,6 +42,37 @@ def mesurer_dossier(cfg, tok, dossier, tests) -> dict:
     return res
 
 
+def solutions_enseignant(cfg, comp, train: list[dict]) -> list[dict]:
+    """Remplace les réponses d'entraînement par celles d'un modèle plus fort, en ne gardant que les justes.
+
+    Les solutions écrites par les auteurs de GSM8K sont courtes : le spécialiste qui les imite apprend le format
+    « Answer: N » sans mieux raisonner. Celles d'un enseignant de la même famille le font progresser (SIGN06).
+    Les solutions sont gardées dans un cache commun aux graines, indexé par question.
+    """
+    import json
+
+    e = comp.enseignant
+    cache = pathlib.Path(e.get("cache") or pathlib.Path(cfg.sortie) / f"solutions-enseignant-{comp.nom}.json")
+    connues = json.loads(cache.read_text()) if cache.exists() else {}
+    manquantes = [q for q in train if q["question"] not in connues]
+    if manquantes:
+        model, tok_ens = modeles.charger_llm(e.nom)
+        sorties = modeles.generer(model, tok_ens, [modeles.prompt_texte(tok_ens, q["question"], evaluation.systeme(comp))
+                                                   for q in manquantes], max_new_tokens=e.max_new_tokens, batch=e.batch)
+        for q, s in zip(manquantes, sorties):
+            juste = not e.get("filtrer", True) or evaluation.correct(s, q["cible"], comp.evaluation.mode)
+            connues[q["question"]] = s.strip() if juste else None
+        del model
+        torch.cuda.empty_cache()
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(connues, ensure_ascii=False))
+    gardees = [{**q, "reponse": connues[q["question"]]} for q in train if connues.get(q["question"])]
+    print(f"[enseignant] {comp.nom} : {len(gardees)}/{len(train)} solutions de {e.nom} gardées")
+    if not gardees:
+        raise ValueError(f"aucune solution juste de l'enseignant {e.nom} : enseignant trop faible ou enseignant.filtrer=false")
+    return gardees
+
+
 def entrainer_specialiste(cfg, tok, comp) -> str:
     """Fine-tune complet de la base sur une compétence ; relit le modèle déjà entraîné avec la même configuration."""
     dossier = pathlib.Path(cfg.sortie) / f"specialiste-{comp.nom}"
@@ -51,6 +82,8 @@ def entrainer_specialiste(cfg, tok, comp) -> str:
         return str(dossier)
     d = config.Cfg.envelopper({**comp.donnees.en_dict(), "graine": cfg.graine})   # sous-ensemble d'entraînement propre à la graine
     train = donnees.charger_qa(d, "train")
+    if comp.get("enseignant"):
+        train = solutions_enseignant(cfg, comp, train)
     model, _ = modeles.charger_llm(cfg.base.nom, "float32")
     trainer = entrainement.sft(model, tok, entrainement.exemples_sft(tok, train, evaluation.systeme(comp)), comp.entrainement,
                                str(dossier / "trainer"), max_length=comp.entrainement.max_length)

@@ -1,6 +1,6 @@
 # 06 — Distillation (logits, séquences, on-policy)
 
-> Un gros modèle « enseignant » transmet son comportement à un petit modèle « élève », plus rapide et moins cher à servir.
+> Un gros modèle « enseignant » (teacher) transmet son comportement à un petit modèle « élève » (student), plus rapide et moins cher à servir.
 
 | Regroupe | Modifie | Local 12 Go | Test `--quick` |
 |---|---|---|---|
@@ -152,7 +152,7 @@ python variantes/encodeur-classification/run.py                 # RoBERTa-base S
 
 **Le besoin** : un classifieur de texte (sentiment, modération, routage) qui tourne sur CPU ou à fort débit, alors que le bon modèle est un gros encodeur. On a peu d'exemples étiquetés, mais beaucoup de textes sans étiquette.
 
-[`variantes/encodeur-classification`](variantes/encodeur-classification) distille RoBERTa-base fine-tuné sur SST-2 (125 M paramètres) vers BERT-mini (11 M), la recette DistilBERT / TinyBERT. L'élève apprend les probabilités de classes de l'enseignant (température 3) ; les deux modèles tokenisent chacun le texte, leurs tokenizers peuvent différer. Trois élèves sont comparés, avec le même BERT-mini de départ : sans enseignant (2 000 phrases étiquetées seulement), pseudo-étiqueté (les mêmes 2 000 phrases plus 18 000 phrases sans étiquette annotées par l'enseignant, avec ses étiquettes dures) et distillé (mêmes 20 000 phrases, perte KL sur les probabilités de l'enseignant à température 3). La mesure porte sur les 872 phrases de validation de SST-2, sur 3 graines (`make graines EX=SIGN06 VAR=encodeur-classification N=3`).
+[`variantes/encodeur-classification`](variantes/encodeur-classification) distille RoBERTa-base fine-tuné sur SST-2 (125 M paramètres) vers BERT-mini (11 M), la recette DistilBERT / TinyBERT. L'élève apprend les probabilités de classes de l'enseignant (température 3) ; les deux modèles tokenisent chacun le texte, leurs tokenizers peuvent différer. Trois élèves sont comparés, avec le même BERT-mini de départ : sans enseignant (2 000 phrases étiquetées seulement), pseudo-étiqueté (pseudo-labeling : les mêmes 2 000 phrases plus 18 000 phrases sans étiquette annotées par l'enseignant, avec ses étiquettes dures) et distillé (mêmes 20 000 phrases, perte KL sur les probabilités de l'enseignant à température 3). La mesure porte sur les 872 phrases de validation de SST-2, sur 3 graines (`make graines EX=SIGN06 VAR=encodeur-classification N=3`).
 
 | | Exactitude (872 phrases, 3 graines) | Paramètres |
 |---|---|---|
@@ -176,7 +176,19 @@ Le gain vient des 18 000 phrases sans étiquette annotées par l'enseignant, pas
 
 Écarts appariés : pseudo-étiqueté contre sans enseignant +0,481 (de +0,473 à +0,492 selon la graine), net sur chacune ; distillé contre pseudo-étiqueté −0,023 (−0,035, −0,026, −0,009), net sur chacune.
 
-L'enseignant fait passer l'élève de 0,42 à 0,90 en annotant des messages sans étiquette. Mais les probabilités de l'enseignant ne font pas mieux que ses étiquettes dures : sur 2 classes, la perte KL ne change rien (+0,002, non significatif) ; sur 77 classes, elle est un peu moins bonne (−0,023) à ce réglage (température 3, `alpha` 0,9, non réglés). Le gain démontré est celui du jeu de transfert annoté par l'enseignant, pas celui de la perte KL. Commande : `make graines EX=06 VAR=encodeur-classification N=3` avec `--set enseignant.nom=<modèle fine-tuné> --set donnees.nom=PolyAI/banking77 --set donnees.split_test=test --set donnees.colonne_texte=text --set donnees.colonne_label=label --set donnees.n_train=770 --set donnees.n_sans_etiquette=9000 --set entrainement.epochs=10`.
+**Réglage de la température et d'`alpha`** : 4 combinaisons choisies sur les graines 42 à 44, la meilleure mesurée sur 3 graines neuves (45 à 47).
+
+| Température | `alpha` | Distillé, graines 42 à 44 | Distillé contre pseudo-étiqueté |
+|---|---|---|---|
+| 1 | 0,5 | 0,848 ± 0,005 | −0,054, net |
+| 2 | 0,5 | 0,857 ± 0,011 | −0,044, net |
+| 2 | 0,9 | 0,882 ± 0,009 | −0,020, net |
+| **1** | **0,9** | **0,898 ± 0,005** | −0,003, non significatif |
+| 1 | 0,9, graines neuves 45 à 47 | **0,901 ± 0,004** | −0,001 (+0,003, −0,003, −0,002), non significatif sur chaque graine |
+
+L'enseignant fait passer l'élève de 0,42 à 0,90 en annotant des messages sans étiquette. Mais les probabilités de l'enseignant ne font pas mieux que ses étiquettes dures : sur 2 classes, la perte KL ne change rien (+0,002, non significatif) ; sur 77 classes, le meilleur réglage (température 1, `alpha` 0,9) la ramène à égalité avec le pseudo-étiquetage, sans le dépasser, et les réglages plus « doux » (température plus haute, moins de poids sur la KL) font moins bien. Avec 9 000 messages annotés, l'étiquette dure de l'enseignant transmet déjà l'essentiel.
+
+**Avec un jeu de transfert réduit** (température 1 ou 2, `alpha` 0,9), là où les probabilités de l'enseignant devraient apporter le plus par exemple : avec 2 700 messages sans étiquette, distillé et pseudo-étiqueté sont à égalité (0,798 contre 0,797 à température 1) ; avec 900, la distillation à température 1 semblait meilleure sur les graines de réglage (0,606 contre 0,591, +0,016, net sur chacune), mais sur les graines neuves 45 à 47 l'écart change de signe d'une graine à l'autre (−0,007, +0,017, −0,017 ; moyenne −0,002). À température 2, la distillation fait toujours nettement moins bien (−0,05 à 900 messages, −0,09 à 2 700). Le gain démontré est celui du jeu de transfert annoté par l'enseignant, pas celui de la perte KL. Commande : `make graines EX=06 VAR=encodeur-classification N=3` avec `--set enseignant.nom=<modèle fine-tuné> --set donnees.nom=PolyAI/banking77 --set donnees.split_test=test --set donnees.colonne_texte=text --set donnees.colonne_label=label --set donnees.n_train=770 --set donnees.n_sans_etiquette=9000 --set entrainement.epochs=10`.
 
 ## Paramètres principaux (`config.yaml`)
 

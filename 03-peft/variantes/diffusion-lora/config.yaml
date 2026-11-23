@@ -35,7 +35,7 @@ mesure:                             # métriques du papier DreamBooth
   dino: facebook/dino-vits16        # fidélité au sujet : similarité aux photos du sujet
   clip: openai/clip-vit-base-patch32  # fidélité au prompt : similarité image-texte
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:

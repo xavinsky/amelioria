@@ -21,7 +21,7 @@ entrainement:
   autres:
     dataloader_num_workers: 4
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:

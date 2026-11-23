@@ -39,7 +39,7 @@ phase2:                             # modèle complet
 
 temoin: true                        # même entraînement sans nouveaux tokens, pour isoler leur effet
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:

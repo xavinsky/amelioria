@@ -186,6 +186,27 @@ def generer(model, tok, prompts: list[str], max_new_tokens: int = 64, temperatur
     return [s[0] for s in sorties] if n == 1 else sorties
 
 
+def generer_vllm(modele: str, prompts: list[str], python: str, max_new_tokens: int = 64, temperature: float = 0.0, n: int = 1,
+                 top_p: float = 1.0, graine: int = 0, texte_brut: bool = True, **reglages):
+    """Même contrat que `generer` (list[str] pour n=1, sinon list[list[str]]), par vLLM dans un processus du venv `python`.
+
+    `modele` est un nom du Hub ou un dossier de modèle sauvegardé : vLLM recharge les poids, le modèle en mémoire
+    n'est pas utilisé. Chaque suite s'arrête à sa propre fin : en format texte (`texte_brut`), à « \\nQuestion: »."""
+    import json, subprocess, tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        demande, reponse = f"{tmp}/demande.json", f"{tmp}/reponse.json"
+        json.dump(dict(modele=modele, prompts=prompts, max_new_tokens=max_new_tokens, temperature=temperature, top_p=top_p,
+                       n=n, graine=graine, stop=["\nQuestion:"] if texte_brut else None, **reglages),
+                  open(demande, "w", encoding="utf-8"), ensure_ascii=False)
+        script = pathlib.Path(__file__).with_name("vllm_generer.py")
+        subprocess.run([python, str(script), demande, reponse], check=True)
+        sorties = json.load(open(reponse, encoding="utf-8"))
+    if texte_brut:
+        sorties = [[couper_reponse(t) for t in s] for s in sorties]
+    return [s[0] for s in sorties] if n == 1 else sorties
+
+
 FIN_REPONSE = re.compile(r"Answer:[^\n]*\S[^\n]*\n")
 
 

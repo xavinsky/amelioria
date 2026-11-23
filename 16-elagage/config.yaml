@@ -12,7 +12,13 @@ calibration:
   n: 128
 
 cicatrisation:
-  mode: distillation                # aucune | lm | distillation
+  mode: distillation                # aucune | lm | distillation | distillation_lora (grands modèles, voir README)
+  top_k: 32                         # distillation_lora : tokens de l'enseignant gardés par position (pré-calculés avant l'élagage)
+  batch_enseignant: 4
+  lora:                             # distillation_lora : adaptateur non fusionné, la base élaguée reste creuse et gelée
+    r: 16
+    alpha: 32
+    dropout: 0.0
   n_textes: 4000                    # paragraphes Wikipédia
   n_conversations: 1765             # demandes générales + réponses du modèle d'origine (même cache que le remélange de DATA02/03)
   longueur_bloc: 256
@@ -36,7 +42,7 @@ evaluation:
   max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
   n_textes_generaux: 50
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:

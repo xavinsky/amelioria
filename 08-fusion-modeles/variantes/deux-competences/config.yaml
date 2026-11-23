@@ -17,6 +17,11 @@ competences:
         Intents: {intentions}
   - nom: raisonnement                  # problèmes de mathématiques rédigés, réponse finale en « Answer: N »
     donnees: {source: gsm8k, n_train: 3000, n_test: 400, graine: 0}
+    enseignant:                        # solutions rédigées par un modèle plus fort, seules les justes sont gardées
+      nom: Qwen/Qwen2.5-3B-Instruct
+      max_new_tokens: 512
+      batch: 32
+      cache: sorties/08-fusion-modeles--solutions-enseignant-gsm8k.json   # commun aux graines, indexé par question
     entrainement: {max_length: 768, epochs: 2, batch: 4, accumulation: 4, gradient_checkpointing: true, lr: 1.0e-5,
                    warmup: 0.03, scheduler: cosine, logging_steps: 50}
     evaluation:
@@ -51,6 +56,7 @@ quick:
         systeme: "Reply with exactly one intent label from this list, and nothing else. Intents: {intentions}"
     - nom: raisonnement
       donnees: {source: gsm8k, n_train: 32, n_test: 8, graine: 0}
+      enseignant: {nom: HuggingFaceTB/SmolLM2-360M-Instruct, max_new_tokens: 64, batch: 16, filtrer: false}
       entrainement: {max_length: 512, epochs: 1, batch: 8, accumulation: 1, logging_steps: 10}
       evaluation:
         mode: nombre

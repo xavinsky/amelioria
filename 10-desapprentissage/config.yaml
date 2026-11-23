@@ -39,7 +39,7 @@ evaluation:
   n_retenu: 120
   n_textes_generaux: 40
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:

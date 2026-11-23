@@ -35,7 +35,7 @@ entrainement:
   gradient_checkpointing: true
   logging_steps: 25
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:

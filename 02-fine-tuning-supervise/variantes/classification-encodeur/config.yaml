@@ -20,7 +20,7 @@ entrainement:
   weight_decay: 0.01
   logging_steps: 50
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:

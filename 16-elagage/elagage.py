@@ -15,9 +15,13 @@ NOMS_LINEAIRES = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj"
 
 
 def lineaires(model):
+    """Couches linéaires des blocs ; avec un adaptateur LoRA, la couche d'origine (`base_layer`) est celle qui compte."""
+    if hasattr(model, "get_base_model"):
+        model = model.get_base_model()
     for i, couche in enumerate(modeles.couches_decodeur(model)):
         for nom, mod in couche.named_modules():
-            if isinstance(mod, torch.nn.Linear) and nom.split(".")[-1] in NOMS_LINEAIRES:
+            chemin = nom.split(".")
+            if isinstance(mod, torch.nn.Linear) and (chemin[-1] in NOMS_LINEAIRES or (chemin[-1] == "base_layer" and chemin[-2] in NOMS_LINEAIRES)):
                 yield f"{i}.{nom}", mod
 
 

@@ -24,7 +24,7 @@ edition:
   pas_ft: 25
   epsilon_ft: 5.0e-4
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:

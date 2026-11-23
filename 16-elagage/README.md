@@ -91,12 +91,12 @@ flowchart TD
 - **④ Mesure de l'origine.** `run.py` relève les paramètres (494 millions), la part de poids nuls dans les couches linéaires et le débit en génération (32 tokens après un préchauffage), puis appelle `commun/evaluation.py` pour la perplexité sur les 50 paragraphes et l'exactitude sur les 300 problèmes.
 - **⑤ Génération et forward sur le GPU.** La perplexité demande une passe avant (forward pass) par lot (batch) de 4 paragraphes. L'exactitude fait répondre le modèle par lots de 16, token par token, jusqu'à 256 tokens, puis compare le nombre final de chaque réponse au résultat attendu.
 - **Conversations.** Le modèle d'origine répond aux 1 765 demandes générales, par lots de 32, jusqu'à 512 tokens. Les réponses sont gardées dans `sorties/cache-remelange/`, cache partagé avec le remélange (replay) de DATA02 et DATA03 : les lancements suivants les relisent sans rien générer.
-- **⑥ Copie de l'enseignant.** `run.py` duplique le modèle d'origine dans la mémoire du GPU, en bf16 et figé : il servira de référence pendant la distillation.
+- **⑥ Copie de l'enseignant (teacher).** `run.py` duplique le modèle d'origine dans la mémoire du GPU, en bf16 et figé : il servira de référence pendant la distillation.
 - **⑦ Élagage.** `run.py` appelle `elagage.py`, qui pose des points d'écoute sur les couches linéaires (`q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`) de chaque bloc.
 - **⑧ Calibration et mise à zéro sur le GPU.** Les 128 paragraphes de calibration, tronqués à 256 tokens, traversent le modèle sans rétropropagation ; les points d'écoute cumulent la norme ‖X_j‖₂ de chaque colonne d'entrée. Chaque poids reçoit le score `|W_ij| · ‖X_j‖₂`, et la moitié de plus faible score de chaque ligne est mise à zéro. Les masques booléens sont gardés pour la suite.
 - **⑨ Mesure du modèle élagué.** Mêmes mesures qu'en ④ : le nombre de paramètres ne change pas, la sparsité passe à 0,5.
 - **⑩ Génération et forward sur le GPU**, comme en ⑤.
-- **⑪ Cicatrisation.** `run.py` confie l'élève élagué et l'enseignant à un `Trainer` de transformers dont la perte (loss) est la divergence KL entre leurs distributions de sortie, token par token. Les 4 000 paragraphes et les 1 765 conversations sont mélangés, tokenisés, concaténés et découpés en blocs de 256 tokens. Après chaque pas, le rappel `GarderMasques` d'`elagage.py` réapplique les masques : les zéros restent des zéros.
+- **⑪ Cicatrisation.** `run.py` confie l'élève (student) élagué et l'enseignant à un `Trainer` de transformers dont la perte (loss) est la divergence KL entre leurs distributions de sortie, token par token. Les 4 000 paragraphes et les 1 765 conversations sont mélangés, tokenisés, concaténés et découpés en blocs de 256 tokens. Après chaque pas, le rappel `GarderMasques` d'`elagage.py` réapplique les masques : les zéros restent des zéros.
 - **⑫ Forward et backward sur le GPU.** Chaque pas traite 16 blocs (lots de 2, accumulation sur 8) : passe avant de l'élève, passe avant de l'enseignant sans gradient, perte KL, passe arrière (backward pass), mise à jour par AdamW 8 bits. 1 000 pas, soit environ 3,5 passages sur les données, taux d'apprentissage (learning rate) 2e-5 après 20 pas de chauffe, gradient checkpointing activé.
 - **⑬ Mesure après cicatrisation.** Mêmes mesures qu'en ④ sur le modèle cicatrisé.
 - **⑭ Génération et forward sur le GPU**, comme en ⑤.
@@ -155,7 +155,24 @@ python run.py --set methode=largeur --set ratio_largeur=0.3 --set cicatrisation.
 
 **Le besoin** : vérifier à la taille où Wanda a été publié (7B) ce que l'élagage non structuré conserve, sans cicatrisation.
 
-[`variantes/grand-modele`](variantes/grand-modele) garde Qwen2.5-7B-Instruct (15 Go en bf16) en RAM et fait passer chaque bloc sur le GPU à son tour : les activations de calibration (128 blocs de 256 tokens) traversent les blocs déjà élagués. Wanda à 50 % et le motif 2:4 sont appliqués, puis la référence et les deux modèles élagués sont évalués en 8 bits sur la carte (GSM8K, 250 problèmes, et perplexité Wikipédia) : la quantification étant la même, l'écart isole l'élagage. Une seule exécution (`make graines EX=16 VAR=grand-modele N=1`).
+[`variantes/grand-modele`](variantes/grand-modele) garde Qwen2.5-7B-Instruct (15 Go en bf16) en RAM et fait passer chaque bloc sur le GPU à son tour : les activations de calibration (128 blocs de 256 tokens) traversent les blocs déjà élagués. Wanda à 50 % et le motif 2:4 sont appliqués, puis la référence et les deux modèles élagués sont évalués en 8 bits sur la carte (GSM8K, 250 problèmes, et perplexité Wikipédia) : la quantification étant la même, l'écart isole l'élagage. Une seule exécution (`make graines EX=16 VAR=grand-modele N=1`), génération jusqu'à 768 tokens pour qu'aucune réponse de la référence ne soit coupée.
+
+| | GSM8K (250 problèmes) | Perplexité Wikipédia | Réponses tronquées |
+|---|---|---|---|
+| Qwen2.5-7B-Instruct, 8 bits | 0,824 [0,772 ; 0,866] | 11,8 | 0,4 % |
+| Wanda 50 % | 0,720 [0,661 ; 0,772] | 14,4 | 0,4 % |
+| 2:4 | 0,504 [0,442 ; 0,565] | 22,4 | 4 % |
+
+Écarts appariés : Wanda −0,104 [−0,156 ; −0,052], 2:4 −0,320 [−0,388 ; −0,252], nets.
+
+- **À 7B, l'élagage non structuré garde l'essentiel sans cicatrisation** : 87 % de l'exactitude (0,72 sur 0,82), contre 39 % à 0,5B (0,34 sur 0,88, voir plus haut). La hausse de perplexité (+22 %) est de l'ordre de celle que publie Wanda sur LLaMA-7B.
+- **Mais la perte reste nette sur une tâche de raisonnement** : 10 points, et 32 points avec le motif 2:4, le seul qui accélère sur les GPU actuels. Sans cicatrisation, un 7B élagué n'est pas utilisable à la place de l'original.
+
+### Cicatrisation d'un modèle plus grand : sorties de l'enseignant pré-calculées et LoRA non fusionné
+
+**Le besoin** : cicatriser un 1,5B ou un 3B sur 12 Go de GPU, où l'enseignant et l'élève entraîné ne tiennent pas ensemble.
+
+`--set cicatrisation.mode=distillation_lora` (module `cicatrisation.py`) : avant l'élagage, le modèle d'origine passe une fois sur les blocs de texte et on garde ses `top_k` (32) tokens les plus probables par position, avec leurs log-probabilités. L'enseignant n'est plus en mémoire pendant l'entraînement. L'élève élagué reste creux et gelé ; seul un adaptateur LoRA (rang 16) apprend, par KL restreinte aux tokens de l'enseignant et renormalisée sur eux. L'adaptateur n'est pas fusionné : la fusion rendrait les poids denses. Le protocole est identique à 0,5B, 1,5B et 3B (`--set modele.nom=... --set modele.dtype=bfloat16`), pour Wanda et le motif 2:4.
 
 ## Paramètres principaux (`config.yaml`)
 

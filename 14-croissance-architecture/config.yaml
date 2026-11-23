@@ -36,7 +36,7 @@ entrainement:
 suivi_tous_les: 50                  # perplexités relevées pendant l'entraînement des deux modèles (comparaison à domaine égal)
 temoin: true                        # modèle d'origine entraîné en entier, mêmes textes, mêmes pas : pré-entraînement continu classique
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:

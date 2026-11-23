@@ -8,6 +8,8 @@ répondent aux mêmes demandes jamais vues ; un modèle de récompense externe (
 et le taux de victoire est la part des demandes où la réponse du modèle entraîné est mieux notée. Témoin
 (`temoin_sft`) : SFT sur les seules réponses préférées des mêmes paires, même LoRA, même nombre de pas. Il sépare
 l'effet des préférences (préférée contre rejetée) de celui d'imiter des réponses écrites par de meilleurs modèles.
+Départ non aligné (`depart_sft`) : un modèle de base reçoit d'abord un SFT sur d'autres paires, puis DPO et témoin
+partent de ce modèle.
 """
 
 import gc
@@ -46,8 +48,33 @@ def temoin_sft(cfg, paires, sortie):
     return trainer.model, tok, trainer.mesures
 
 
+def depart_sft(cfg) -> str:
+    """Modèle de départ non aligné : SFT complet d'un modèle de base sur les réponses préférées d'autres paires.
+
+    C'est la recette de Zephyr (SFT puis DPO) : la préférence s'apprend sur un modèle qui sait déjà répondre,
+    mais qui n'a pas encore été aligné. Les paires du SFT sont disjointes de celles du DPO et du témoin.
+    """
+    d = cfg.depart_sft
+    dossier = pathlib.Path(cfg.sortie) / "depart-sft"
+    model, tok = modeles.charger_llm(cfg.modele.nom, cfg.modele.get("dtype", "auto"))
+    toutes = preferences.charger_paires(cfg, tok, "train", cfg.donnees.n_train + d.n)
+    exemples = []
+    for ex in toutes[cfg.donnees.n_train:]:
+        prompt, chosen, _ = preferences._decomposer(ex)
+        exemples.append(modeles.exemple_sft(tok, prompt[-1]["content"] if isinstance(prompt, list) else prompt, chosen))
+    trainer = entrainement.sft(model, tok, exemples, d.entrainement, str(dossier / "trainer"), max_length=cfg.entrainement.max_length)
+    print(f"[depart_sft] {len(exemples)} exemples, {trainer.mesures}")
+    modeles.sauvegarder(trainer.model.to(torch.bfloat16), tok, dossier)
+    del trainer, model
+    gc.collect()
+    torch.cuda.empty_cache()
+    return str(dossier)
+
+
 def main():
     cfg = config.charger(__file__)
+    if cfg.get("depart_sft", {}).get("activer"):
+        cfg.modele.nom = reprise.etape("depart_sft", lambda: depart_sft(cfg))
     model, tok = modeles.charger_llm(cfg.modele.nom, cfg.modele.get("dtype", "auto"))
     paires = preferences.charger_paires(cfg, tok, "train", cfg.donnees.n_train)
     paires_test = preferences.charger_paires(cfg, tok, "test", cfg.evaluation.n_paires)
@@ -105,6 +132,9 @@ def main():
         with open(pathlib.Path(cfg.sortie) / "reponses.json", "w", encoding="utf-8") as f:
             json.dump([{"demande": p, **{nom: {"reponse": reponses[nom][i], "note": round(notes[nom][i], 3)} for nom in reponses}}
                        for i, p in enumerate(prompts)], f, ensure_ascii=False, indent=1)
+    if cfg.get("depart_sft", {}).get("activer") and not cfg.get("sauvegarder", True):
+        import shutil
+        shutil.rmtree(pathlib.Path(cfg.sortie) / "depart-sft", ignore_errors=True)
     rapport.enregistrer(cfg, **sections, algo=cfg.algo)
 
 

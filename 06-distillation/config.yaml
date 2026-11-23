@@ -8,6 +8,10 @@ eleve:
 
 mode: sequence                      # sequence | logits | on_policy
 temoin: true                        # sequence : même élève entraîné sur les solutions humaines du jeu, mêmes questions
+temoin_auto:                        # sequence : même élève entraîné sur ses propres solutions justes (auto-distillation),
+  activer: false                    #   autant d'exemples que l'enseignant : même style, solutions moins bonnes
+  k: 4                              # réponses échantillonnées par question ; la première juste est gardée
+  temperature: 0.8
 
 kd:
   temperature: 2.0                  # adoucit les distributions : transmet les « presque bonnes » réponses
@@ -46,7 +50,7 @@ evaluation:
     mode: nombre
     max_new_tokens: 256
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   generation:

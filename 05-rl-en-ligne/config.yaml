@@ -44,6 +44,21 @@ entrainement:
   logging_steps: 5
   max_grad_norm: 1.0
 
+temoin:                             # SFT sur les réponses justes du modèle de départ (même budget de génération que le RL)
+  activer: true
+  batch: 8                          # questions par lot de génération (x num_generations réponses)
+  max_length: 768
+  entrainement:
+    epochs: 1
+    batch: 4
+    accumulation: 4
+    gradient_checkpointing: true
+    optim: adamw_bnb_8bit
+    lr: 1.0e-5                      # SFT complet, comme le témoin de SIGN06
+    warmup: 0.03
+    scheduler: cosine
+    logging_steps: 20
+
 evaluation:
   mode: nombre
   n: 1319                           # tout le jeu de test de GSM8K
@@ -56,7 +71,7 @@ evaluation:
     mode: nombre
     max_new_tokens: 256
 
-sauvegarder: true
+sauvegarder: false
 
 quick:
   modele:
@@ -72,6 +87,11 @@ quick:
     accumulation: 1
     lr: 5.0e-6
     max_steps: 2
+  temoin:
+    entrainement:
+      batch: 8
+      accumulation: 1
+      max_steps: 2
   evaluation:
     n: 8
     max_new_tokens: 48

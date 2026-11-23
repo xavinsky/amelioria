@@ -21,6 +21,7 @@ import torch
 from commun import config, donnees, entrainement, evaluation, modeles, preuve, rapport
 
 AMORCE = None   # exemples few-shot placés en tête des prompts tant que le générateur est le modèle de base
+SOURCE_GEN = None   # nom ou dossier du modèle qui génère, rechargé par vLLM
 
 EXPRESSION = re.compile(r"What is ([\d\s\+\-\*\(\)]+)\?")
 
@@ -60,11 +61,21 @@ def amorce(cfg):
     return "\n\n".join(f"Question: {e['question']}\nAnswer: {e['reponse']}" for e in exemples)
 
 
+def produire(cfg, gen, tok_gen, prompts, **kw):
+    """Génération des données : par vLLM (chaque suite s'arrête seule) si `generation.vllm.python` est renseigné,
+    sinon par transformers (un lot dure jusqu'à sa suite la plus longue)."""
+    v = cfg.generation.get("vllm")
+    if not (v and v.get("python")):
+        return modeles.generer(gen, tok_gen, prompts, batch=cfg.generation.batch, **kw)
+    return modeles.generer_vllm(SOURCE_GEN, prompts, v.python, graine=cfg.graine, texte_brut=not modeles.a_chat_template(tok_gen),
+                                gpu_memory_utilization=v.get("memoire_gpu", 0.6), dtype=v.get("dtype", "bfloat16"), **kw)
+
+
 def strategie_rejet(cfg, gen, tok_gen, questions):
     g = cfg.generation
     prompts = [modeles.prompt_texte(tok_gen, q["question"], AMORCE) for q in questions]
-    candidats = modeles.generer(gen, tok_gen, prompts, max_new_tokens=cfg.evaluation.max_new_tokens,
-                                temperature=g.temperature, n=g.k, batch=g.batch)
+    candidats = produire(cfg, gen, tok_gen, prompts, max_new_tokens=cfg.evaluation.max_new_tokens,
+                         temperature=g.temperature, n=g.k)
     gardes, ratees = [], []
     for q, sols in zip(questions, candidats):
         justes = justes_distinctes(sols, q["cible"], g.get("toutes_justes"), g.get("max_par_question"))
@@ -78,8 +89,8 @@ def strategie_rejet(cfg, gen, tok_gen, questions):
         # qui y mène. On le garde s'il aboutit à cette réponse sans citer l'indice, puis on l'entraîne sur la
         # question seule, sans l'indice.
         indices = [modeles.prompt_texte(tok_gen, f"{q['question']}\n\n{g.indice.format(cible=q['cible'])}", AMORCE) for q in ratees]
-        rationalisees = modeles.generer(gen, tok_gen, indices, max_new_tokens=cfg.evaluation.max_new_tokens,
-                                        temperature=g.temperature, n=g.k_rationalisation, batch=g.batch)
+        rationalisees = produire(cfg, gen, tok_gen, indices, max_new_tokens=cfg.evaluation.max_new_tokens,
+                                 temperature=g.temperature, n=g.k_rationalisation)
         n_avant = len(gardes)
         for q, sols in zip(ratees, rationalisees):
             sols = [s for s in sols if not re.search(r"\b(hint|given answer|correct (final )?answer is)\b", s, re.I)]
@@ -145,12 +156,13 @@ def charger(cfg):
 
 
 def main():
-    global AMORCE
+    global AMORCE, SOURCE_GEN
     cfg = config.charger(__file__)
     random.seed(cfg.graine)
     model, tok = charger(cfg)
     gen, tok_gen = (modeles.charger_llm(cfg.generateur.nom) if cfg.generateur.get("nom") else (model, tok))
     AMORCE = amorce(cfg)
+    SOURCE_GEN = cfg.generateur.get("nom") or cfg.modele.nom
 
     test = donnees.charger_qa(cfg.donnees, "test", cfg.evaluation.n)
     format_ = (lambda m: {"taux_format": taux_format(m, tok, test, cfg)}) if cfg.evaluation.get("taux_format") else (lambda m: {})
@@ -176,6 +188,9 @@ def main():
         model = trainer.model
         if not cfg.generateur.get("nom"):
             gen, AMORCE = model, None   # auto-amélioration : le tour suivant génère avec le modèle entraîné, sans amorce
+            if tour < cfg.tours and cfg.generation.get("vllm", {}).get("python"):
+                SOURCE_GEN = f"{cfg.sortie}/modele-tour-{tour}"
+                modeles.sauvegarder(model, tok, SOURCE_GEN)
         etapes[f"tour_{tour}"] = evaluation.evaluer(model, tok, cfg, test) | format_(model) | stats
 
     if cfg.get("sauvegarder", True):

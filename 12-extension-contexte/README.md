@@ -118,7 +118,26 @@ flowchart TD
 
 Avec `SET="entrainement.max_steps=0"`, il n'y a pas de fine-tuning : le modèle mis à l'échelle est sauvegardé tel quel et `resultats.json` ne contient que `origine` et `echelle_seule`.
 
-## Utilisation
+## Ce que fait l'exemple
+
+**Le besoin** : faire lire à un modèle des documents plus longs que sa fenêtre d'origine (contrats, dossiers, historiques de conversation) sans le réentraîner.
+
+SmolLM-360M (fenêtre d'origine 2 048 tokens) passe à 8 192 tokens par YaRN (facteur 4), puis 200 pas d'entraînement sur des blocs longs de wikitext. Trois modèles sont mesurés : l'origine, la mise à l'échelle seule (YaRN sans entraînement) et la mise à l'échelle entraînée. Tâches en choix forcé parmi 10 candidats, sur des paragraphes de Wikipédia jamais vus à l'entraînement, 30 questions par longueur : une clé cachée à retrouver, et deux codes cachés à deux endroits à donner dans l'ordre. Perplexité à 2 048 et à 8 192 tokens. 3 graines (`make graines EX=12 N=3`).
+
+| | Clé, 4 096 tokens | Clé, 7 000 tokens | Deux codes, 2 048 | Perplexité 2 048 | Perplexité 8 192 |
+|---|---|---|---|---|---|
+| Origine | 0,07 ± 0,06 | 0,13 ± 0,03 | 0,00 | 21,16 | 422 |
+| YaRN seul | **1,00** | **1,00** | 0,11 ± 0,02 | 22,48 | 19,36 |
+| YaRN entraîné | 1,00 | 1,00 | 0,11 ± 0,04 | 21,52 ± 0,01 | 18,69 ± 0,01 |
+
+Écarts appariés : YaRN seul contre origine sur la clé +0,93 à 4 096 tokens et +0,87 à 7 000 (p < 10⁻⁶, net sur chaque graine) ; YaRN entraîné contre YaRN seul : 0,00 sur la clé à toutes les longueurs, −0,03 à +0,03 sur les deux codes, non significatif.
+
+**Ce qu'on en retient.**
+
+- **La mise à l'échelle YaRN étend la fenêtre à elle seule** : sans aucun entraînement, le modèle retrouve la clé à 7 000 tokens au lieu de rater 9 fois sur 10.
+- **Le court entraînement n'améliore aucune tâche** ; il corrige surtout la perplexité : à 2 048 tokens, la mise à l'échelle la dégrade de 6 % (21,16 → 22,48) et l'entraînement en rattrape les trois quarts (21,52), et à 8 192 tokens il la baisse de 19,36 à 18,69.
+- **La tâche à deux codes ne mesure rien ici** : même dans sa fenêtre d'origine (2 048 tokens), SmolLM-360M ne la résout pas (0,00 à 0,13, le hasard étant 0,10). Elle dépasse les capacités du modèle, quelle que soit la longueur.
+
 
 ```bash
 python run.py --quick

@@ -9,6 +9,7 @@ Trois modes (`--set mode=...`), du plus simple au plus fidèle :
 
 import gc
 import pathlib
+import random
 import sys
 
 sys.path.insert(0, str(next(p for p in pathlib.Path(__file__).resolve().parents if (p / "commun").is_dir())))
@@ -92,21 +93,50 @@ def main():
         trainer.save_model(f"{cfg.sortie}/eleve-{cfg.mode}")
         tok.save_pretrained(f"{cfg.sortie}/eleve-{cfg.mode}")
     temoin = {}
-    if cfg.mode == "sequence" and cfg.get("temoin"):
-        # Témoin : le même élève, entraîné de la même façon sur les mêmes questions, mais avec les solutions écrites
-        # par les auteurs du jeu au lieu de celles de l'enseignant. L'écart mesure ce qu'apporte l'enseignant.
+    if cfg.mode == "sequence" and (cfg.get("temoin") or cfg.get("temoin_auto", {}).get("activer")):
         entrainement.liberer(trainer)
         del trainer, eleve
         gc.collect()
         torch.cuda.empty_cache()
-        eleve, tok = modeles.charger_llm(cfg.eleve.nom, cfg.eleve.get("dtype", "auto"))
-        retenues = {c["question"] for c in corpus}
-        humaines = [q for q in questions if q["question"] in retenues]
-        trainer = entrainement.sft(eleve, tok, entrainement.exemples_sft(tok, humaines), e, f"{cfg.sortie}/temoin",
-                                   max_length=e.max_length)
-        res_temoin = evaluation.evaluer(trainer.model, tok, cfg, test)
-        temoin = {"temoin": res_temoin, "distille_contre_temoin": preuve.difference_appariee(
-            res_temoin["tache"]["succes"], apres["tache"]["succes"])}
+
+        def entrainer_temoin(nom, exemples):
+            """Le même élève, entraîné de la même façon, sur d'autres solutions : l'écart isole l'apport de l'enseignant."""
+            el, tk = modeles.charger_llm(cfg.eleve.nom, cfg.eleve.get("dtype", "auto"))
+            tr = entrainement.sft(el, tk, entrainement.exemples_sft(tk, exemples), e, f"{cfg.sortie}/{nom}", max_length=e.max_length)
+            res = evaluation.evaluer(tr.model, tk, cfg, test) | {"exemples_entrainement": len(exemples)}
+            entrainement.liberer(tr)
+            del tr, el
+            gc.collect()
+            torch.cuda.empty_cache()
+            return res
+
+        if cfg.get("temoin"):
+            # Solutions écrites par les auteurs du jeu, sur les questions retenues pour la distillation.
+            retenues = {c["question"] for c in corpus}
+            res = entrainer_temoin("temoin", [q for q in questions if q["question"] in retenues])
+            temoin |= {"temoin": res, "distille_contre_temoin": preuve.difference_appariee(res["tache"]["succes"], apres["tache"]["succes"])}
+        if cfg.get("temoin_auto", {}).get("activer"):
+            # Auto-distillation : l'élève de départ rédige lui-même, même filtrage, même nombre d'exemples que l'enseignant.
+            # Même style « modèle Qwen » que l'enseignant : l'écart restant vient de la qualité des solutions.
+            el, tk = modeles.charger_llm(cfg.eleve.nom, cfg.eleve.get("dtype", "auto"))
+            ta = cfg.temoin_auto
+            propres = modeles.generer(el, tk, [modeles.prompt_texte(tk, q["question"]) for q in questions],
+                                      max_new_tokens=cfg.evaluation.max_new_tokens, temperature=ta.temperature, n=ta.k,
+                                      batch=cfg.generation.batch // ta.k or 1)
+            del el
+            torch.cuda.empty_cache()
+            auto = []
+            for q, rs in zip(questions, propres):
+                justes = [r for r in rs if not cfg.generation.filtrer or evaluation.correct(r, q["cible"], cfg.evaluation.mode)]
+                if justes:
+                    auto.append({"question": q["question"], "reponse": justes[0].strip(), "cible": q["cible"]})
+            random.Random(cfg.graine).shuffle(auto)
+            auto = auto[: len(corpus)]
+            print(f"[auto-distillation] {len(auto)} solutions de l'élève gardées (enseignant : {len(corpus)})")
+            res = entrainer_temoin("temoin-auto", auto)
+            temoin |= {"temoin_auto": res,
+                       "distille_contre_auto": preuve.difference_appariee(res["tache"]["succes"], apres["tache"]["succes"]),
+                       "auto_contre_avant": preuve.difference_appariee(avant["tache"]["succes"], res["tache"]["succes"])}
     rapport.enregistrer(cfg, avant=avant, apres=apres, **temoin, enseignant=ref_enseignant, mode=cfg.mode,
                         **({"reponses_conservees": len(corpus)} if cfg.mode == "sequence" else {}))
 
