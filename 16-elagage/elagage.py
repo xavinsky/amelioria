@@ -166,3 +166,50 @@ def reduire_largeur(model, scores: dict, ratio: float):
         c.mlp.down_proj = nouveau
         nouvelle_taille = k
     model.config.intermediate_size = nouvelle_taille
+
+
+@torch.no_grad()
+def vitesse_semi_structuree(model, tok, tokens: int = 32, repetitions: int = 3, lot: int = 8, longueur: int = 512) -> dict:
+    """Vitesse réelle du motif 2:4 : le même modèle en fp16 dense, puis ses couches linéaires converties en tenseurs
+    semi-structurés (noyaux creux de PyTorch, cuSPARSELt). Modifie `model` : à appeler en dernier.
+
+    Deux mesures : la génération d'une séquence (limitée par la lecture des poids) et le traitement d'un lot de
+    `lot` x `longueur` tokens (limité par le calcul, là où le motif 2:4 peut accélérer). Si les noyaux ne sont pas
+    disponibles sur la carte, renvoie l'erreur au lieu de lever."""
+    import time
+
+    from torch.sparse import to_sparse_semi_structured
+
+    if hasattr(model, "get_base_model"):
+        model = model.get_base_model()
+    dev = next(model.parameters()).device
+    if dev.type != "cuda":
+        return {"erreur": "noyaux creux : GPU requis"}
+    model.half().eval()
+    ids = tok("The history of the city", return_tensors="pt").to(dev)
+    bloc = torch.randint(0, model.config.vocab_size, (lot, longueur), device=dev)
+
+    def chronometrer(f):
+        f()   # préchauffage
+        torch.cuda.synchronize()
+        t0 = time.time()
+        for _ in range(repetitions):
+            f()
+        torch.cuda.synchronize()
+        return (time.time() - t0) / repetitions
+
+    def mesurer_les_deux():
+        g = chronometrer(lambda: model.generate(**ids, max_new_tokens=tokens, min_new_tokens=tokens, do_sample=False))
+        p = chronometrer(lambda: model(input_ids=bloc))
+        return {"generation_tokens_par_s": round(tokens / g, 1), "traitement_tokens_par_s": round(lot * longueur / p)}
+
+    res = {"dense_fp16": mesurer_les_deux()}
+    try:
+        for _, mod in lineaires(model):
+            mod.weight = torch.nn.Parameter(to_sparse_semi_structured(mod.weight.data), requires_grad=False)
+        res["semi_structure_2_4"] = mesurer_les_deux()
+        res["gain_traitement"] = round(res["semi_structure_2_4"]["traitement_tokens_par_s"] / res["dense_fp16"]["traitement_tokens_par_s"], 3)
+        res["gain_generation"] = round(res["semi_structure_2_4"]["generation_tokens_par_s"] / res["dense_fp16"]["generation_tokens_par_s"], 3)
+    except Exception as e:   # noyaux absents, forme ou carte non prise en charge
+        res["erreur"] = f"{type(e).__name__}: {e}"[:300]
+    return res

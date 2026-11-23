@@ -42,6 +42,8 @@ evaluation:
   max_new_tokens: 256               # assez long pour que la réponse finale du modèle d'origine ne soit pas coupée
   n_textes_generaux: 50
 
+vitesse_2_4: false                  # méthode 2:4 : débit réel avec les noyaux creux de PyTorch (fp16, GPU Ampere ou plus récent)
+
 sauvegarder: false
 
 quick:

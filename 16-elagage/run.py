@@ -134,6 +134,8 @@ def main():
 
     if cfg.get("sauvegarder", True):
         modeles.sauvegarder(model, tok, f"{cfg.sortie}/modele-{m.replace(':', '-')}")
+    if m == "2:4" and cfg.get("vitesse_2_4"):
+        res["vitesse_2_4"] = elagage.vitesse_semi_structuree(model, tok)   # en dernier : convertit le modèle en place
     rapport.enregistrer(cfg, **res)
 
 
