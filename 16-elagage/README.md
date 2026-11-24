@@ -174,6 +174,25 @@ python run.py --set methode=largeur --set ratio_largeur=0.3 --set cicatrisation.
 
 `--set cicatrisation.mode=distillation_lora` (module `cicatrisation.py`) : avant l'élagage, le modèle d'origine passe une fois sur les blocs de texte et on garde ses `top_k` (32) tokens les plus probables par position, avec leurs log-probabilités. L'enseignant n'est plus en mémoire pendant l'entraînement. L'élève élagué reste creux et gelé ; seul un adaptateur LoRA (rang 16) apprend, par KL restreinte aux tokens de l'enseignant et renormalisée sur eux. L'adaptateur n'est pas fusionné : la fusion rendrait les poids denses. Le protocole est identique à 0,5B, 1,5B et 3B (`--set modele.nom=... --set modele.dtype=bfloat16`), pour Wanda et le motif 2:4.
 
+### Pourquoi l'élagage d'un petit modèle dépasse un poste de 12 Go
+
+Les élagages qui réussissent sur des modèles de moins de 7 milliards de paramètres s'appuient sur un budget de récupération hors de portée d'un poste local. Le coût d'un entraînement se compte en opérations : environ 6 × paramètres × tokens.
+
+| Protocole | Tokens de réentraînement | Opérations | Durée sur ce poste |
+|---|---|---|---|
+| Cet exemple (distillation, 1 000 pas de 16 blocs de 256 tokens, 0,5B) | 4 millions | 1 × 10¹⁶ | environ 10 minutes |
+| Étude 2:4 sur Llama-3.1-8B (la perte se stabilise) | 0,5 milliard | — | — |
+| Sheared-LLaMA vers 1,3B (Xia et al., 2024) | 50 milliards | 4 × 10²⁰ | plus de 200 jours |
+| Sheared-LLaMA vers 2,7B | 50 milliards | 8 × 10²⁰ | plus de 450 jours |
+
+Les durées supposent un débit effectif de 20 mille milliards d'opérations par seconde sur la carte ; c'est une hypothèse, pas une mesure. Le budget de cet exemple est environ 12 000 fois plus petit que celui de Sheared-LLaMA.
+
+La phase d'élagage de Sheared-LLaMA entraîne en outre le modèle de 7 milliards de paramètres avec des masques appris : poids, gradients et états de l'optimiseur représentent plus de 80 Go, pour 11,5 Go de mémoire GPU disponibles. Minitron réduit un 8B à 4B avec moins de 3 % des données d'origine et jusqu'à 40 fois moins de tokens qu'un entraînement depuis zéro. Wanda, lui, n'entraîne rien, et son papier ne traite que des modèles de 7B à 65B.
+
+Les études sur de petits modèles vont dans le même sens : les gros modèles perdent nettement moins de précision à sparsité égale (SparseGPT), et un Llama-3.2-1B élagué en 2:4 demande plus de tokens de récupération qu'un 8B. Sur de petits modèles, la quantification donne une meilleure fidélité et de meilleures performances de langage que l'élagage, avec un avantage variable sur le raisonnement (EMNLP 2025).
+
+Conséquence pour cet exemple : à 0,5B, 1,5B et 3B, il mesure la part de l'exactitude que garde un modèle élagué à 50 %, avec le protocole de la variante 7B, et la compare à celle du 7B. Il ne démontre pas un gain d'élagage sur ces tailles.
+
 ## Paramètres principaux (`config.yaml`)
 
 | Clé | Rôle |
@@ -200,5 +219,5 @@ python run.py --set methode=largeur --set ratio_largeur=0.3 --set cicatrisation.
 ## Références
 
 - Han et al., *Learning both Weights and Connections* (2015) · Frantar & Alistarh, *SparseGPT* (2023) · Sun et al., *Wanda* (2023)
-- Men et al., *ShortGPT* (2024) · Gromov et al., *The Unreasonable Ineffectiveness of the Deeper Layers* (2024)
+- Xia et al., *Sheared LLaMA: Accelerating Language Model Pre-training via Structured Pruning* (2023) · Men et al., *ShortGPT* (2024) · Gromov et al., *The Unreasonable Ineffectiveness of the Deeper Layers* (2024)
 - Muralidharan et al., *Compact Language Models via Pruning and Knowledge Distillation (Minitron)* (2024) · Ma et al., *LLM-Pruner* (2023)
