@@ -44,23 +44,34 @@ class TrainerKD(Trainer):
         return (perte, sortie) if return_outputs else perte
 
 
+def charger_eleve(cfg):
+    model, tok = modeles.charger_llm(cfg.eleve.nom, cfg.eleve.get("dtype", "auto"))
+    if cfg.eleve.get("format_texte"):
+        tok.chat_template = None   # élève de base : prompts « Question: ... Answer: », sans chat template
+    return model, tok
+
+
 def main():
     cfg = config.charger(__file__)
-    eleve, tok = modeles.charger_llm(cfg.eleve.nom, cfg.eleve.get("dtype", "auto"))
+    eleve, tok = charger_eleve(cfg)
+    texte = bool(cfg.eleve.get("format_texte"))
+    amorce = donnees.amorce_gsm8k(cfg.get("amorce")) if texte else None   # le départ d'un modèle de base est mesuré avec l'amorce
     enseignant, tok_ens = modeles.charger_llm(cfg.enseignant.nom)
     enseignant.requires_grad_(False)
 
-    questions = donnees.charger_qa(cfg.donnees, "train")
+    questions = [q for q in donnees.charger_qa(cfg.donnees, "train") if not amorce or q["question"] not in amorce]
     test = donnees.charger_qa(cfg.donnees, "test", cfg.evaluation.n)
     ref_enseignant = evaluation.evaluer(enseignant, tok_ens, cfg, test)
-    avant = evaluation.evaluer(eleve, tok, cfg, test)
+    cfg_depart = config.Cfg(dict(cfg, evaluation=config.Cfg(dict(cfg.evaluation, systeme=amorce)))) if amorce else cfg
+    avant = evaluation.evaluer(eleve, tok, cfg_depart, test)
     e = cfg.entrainement
 
     if cfg.mode == "sequence":
         # L'enseignant rédige ; on ne garde que les réponses justes quand on peut vérifier (distillation filtrée).
         sorties = modeles.generer(enseignant, tok_ens, [modeles.prompt_texte(tok_ens, q["question"]) for q in questions],
                                   max_new_tokens=cfg.evaluation.max_new_tokens, batch=cfg.generation.batch)
-        corpus = [{"question": q["question"], "reponse": s.strip(), "cible": q["cible"]} for q, s in zip(questions, sorties)
+        fin = (lambda q: f"\nAnswer: {q['cible']}") if texte else (lambda q: "")   # élève de base : la solution finit par la ligne qu'il doit produire
+        corpus = [{"question": q["question"], "reponse": s.strip() + fin(q), "cible": q["cible"]} for q, s in zip(questions, sorties)
                   if not cfg.generation.filtrer or evaluation.correct(s, q["cible"], cfg.evaluation.mode)]
         print(f"[distillation] {len(corpus)}/{len(questions)} réponses de l'enseignant conservées")
         del enseignant
@@ -101,7 +112,7 @@ def main():
 
         def entrainer_temoin(nom, exemples):
             """Le même élève, entraîné de la même façon, sur d'autres solutions : l'écart isole l'apport de l'enseignant."""
-            el, tk = modeles.charger_llm(cfg.eleve.nom, cfg.eleve.get("dtype", "auto"))
+            el, tk = charger_eleve(cfg)
             tr = entrainement.sft(el, tk, entrainement.exemples_sft(tk, exemples), e, f"{cfg.sortie}/{nom}", max_length=e.max_length)
             res = evaluation.evaluer(tr.model, tk, cfg, test) | {"exemples_entrainement": len(exemples)}
             entrainement.liberer(tr)
@@ -118,9 +129,9 @@ def main():
         if cfg.get("temoin_auto", {}).get("activer"):
             # Auto-distillation : l'élève de départ rédige lui-même, même filtrage, même nombre d'exemples que l'enseignant.
             # Même style « modèle Qwen » que l'enseignant : l'écart restant vient de la qualité des solutions.
-            el, tk = modeles.charger_llm(cfg.eleve.nom, cfg.eleve.get("dtype", "auto"))
+            el, tk = charger_eleve(cfg)
             ta = cfg.temoin_auto
-            propres = modeles.generer(el, tk, [modeles.prompt_texte(tk, q["question"]) for q in questions],
+            propres = modeles.generer(el, tk, [modeles.prompt_texte(tk, q["question"], amorce) for q in questions],
                                       max_new_tokens=cfg.evaluation.max_new_tokens, temperature=ta.temperature, n=ta.k,
                                       batch=cfg.generation.batch // ta.k or 1)
             del el

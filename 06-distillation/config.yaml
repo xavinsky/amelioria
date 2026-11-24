@@ -5,6 +5,11 @@ enseignant:
 eleve:
   nom: Qwen/Qwen2.5-0.5B-Instruct
   dtype: float32
+  format_texte: false               # true pour un élève de base (`--set eleve.nom=Qwen/Qwen2.5-0.5B`) : prompts « Question: ... Answer: »
+
+amorce:                             # élève de base : exemples few-shot en tête des prompts du départ et de l'auto-distillation
+  n: 4
+  graine: 999
 
 mode: sequence                      # sequence | logits | on_policy
 temoin: true                        # sequence : même élève entraîné sur les solutions humaines du jeu, mêmes questions

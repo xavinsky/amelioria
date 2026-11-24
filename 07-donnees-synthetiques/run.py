@@ -54,11 +54,7 @@ def justes_distinctes(sols, cible, toutes, plafond=None):
 
 def amorce(cfg):
     """Exemples few-shot : problèmes du jeu d'entraînement avec leur solution rédigée, au format du prompt texte."""
-    a = cfg.get("amorce")
-    if not a or not a.get("n"):
-        return None
-    exemples = donnees.gsm8k(a.n, "train", graine=a.get("graine", 999))
-    return "\n\n".join(f"Question: {e['question']}\nAnswer: {e['reponse']}" for e in exemples)
+    return donnees.amorce_gsm8k(cfg.get("amorce"))
 
 
 def produire(cfg, gen, tok_gen, prompts, **kw):

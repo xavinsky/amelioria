@@ -317,6 +317,15 @@ def etiquettes(d) -> list[str] | None:
     return {"banking77": intentions_banking77, "clinc150": intentions_clinc150}.get(d.get("source"), lambda: None)()
 
 
+def amorce_gsm8k(a) -> str | None:
+    """Exemples few-shot pour un modèle de base : problèmes du jeu d'entraînement avec leur solution rédigée, au format
+    « Question: ... Answer: ... ». `a` est la section `amorce` d'une config (n, graine) ; None si elle est absente."""
+    if not a or not a.get("n"):
+        return None
+    exemples = gsm8k(a["n"], "train", graine=a.get("graine", 999))
+    return "\n\n".join(f"Question: {e['question']}\nAnswer: {e['reponse']}" for e in exemples)
+
+
 def consignes_generales(n: int, graine: int = 0, longueur_max: int = 300) -> list[str]:
     """Demandes générales variées (Alpaca, sans champ d'entrée) : prompts du remélange contre l'oubli."""
     from datasets import load_dataset
