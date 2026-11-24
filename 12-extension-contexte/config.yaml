@@ -23,6 +23,12 @@ entrainement:
   gradient_checkpointing: true
   logging_steps: 10
 
+recuperation:                       # entraînement avec des tâches de récupération (voir recuperation.py), à côté de l'entraînement sur texte seul
+  activer: false
+  part: 0.5                         # part des exemples qui sont des tâches (le reste : texte long, perte sur tout le texte)
+  longueur: [2048, 7000]            # tokens par exemple de tâche
+  n_cles: [4, 12]                   # phrases de même forme cachées dans chaque exemple
+
 evaluation:
   longueurs: [1024, 2048, 4096, 7000]
   n_cles: 10
@@ -54,4 +60,7 @@ quick:
     n_cles_multi: 4
     longueur_ppl: 1024
     n_ppl: 1
+  recuperation:
+    longueur: [256, 900]
+    n_cles: [2, 4]
   sauvegarder: false

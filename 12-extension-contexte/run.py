@@ -10,16 +10,20 @@ retrouver celle d'un nom donné (`multi_L`, tâche multi-clés de RULER). Perple
 L'écart apparié entre le modèle entraîné et la mise à l'échelle seule dit ce qu'apporte l'entraînement.
 """
 
+import gc
 import pathlib
 import random
 import sys
 
 sys.path.insert(0, str(next(p for p in pathlib.Path(__file__).resolve().parents if (p / "commun").is_dir())))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM
 
 from commun import config, donnees, entrainement, evaluation, modeles, preuve, rapport
+import recuperation  # noqa: E402
+from recuperation import remplissage_varie  # noqa: E402
 
 REMPLISSAGE = "The grass is green. The sky is blue. The sun is yellow. Here we go. There and back again. "
 
@@ -52,16 +56,6 @@ def prompt_cle(tok, longueur: int, graine: int) -> tuple[str, str]:
     position = rng.randint(0, n_rep)
     texte = REMPLISSAGE * position + f"The pass key is {cle}. Remember it. {cle} is the pass key. " + REMPLISSAGE * (n_rep - position)
     return texte + "\nWhat is the pass key? The pass key is", cle
-
-
-def remplissage_varie(tok, pool, longueur: int, rng) -> list[str]:
-    """Paragraphes tirés au hasard, jusqu'à `longueur` tokens environ."""
-    res, n = [], 0
-    while n < longueur:
-        p = rng.choice(pool)
-        res.append(p)
-        n += len(tok(p)["input_ids"])
-    return res
 
 
 def prompt_cle_varie(tok, pool, longueur: int, graine: int) -> tuple[str, str]:
@@ -148,7 +142,10 @@ def main():
 
     conf = configurer_rope(AutoConfig.from_pretrained(cfg.modele.nom), c)
     print(f"[contexte] {c.methode} : {conf.max_position_embeddings} positions, {getattr(conf, 'rope_parameters', None) or conf.rope_scaling}")
-    model = AutoModelForCausalLM.from_pretrained(cfg.modele.nom, config=conf, dtype=dtype).to(modeles.appareil())
+    def nouveau_modele():
+        return AutoModelForCausalLM.from_pretrained(cfg.modele.nom, config=conf, dtype=dtype).to(modeles.appareil())
+
+    model = nouveau_modele()
     res["echelle_seule"] = mesurer(model, tok, cfg, longs, pool)
 
     if cfg.entrainement.max_steps == 0:   # mise à l'échelle seule (ex. NTK dynamique), sans entraînement
@@ -166,6 +163,24 @@ def main():
     if cfg.get("sauvegarder", True):
         trainer.save_model(f"{cfg.sortie}/modele-{c.methode}")
         tok.save_pretrained(f"{cfg.sortie}/modele-{c.methode}")
+
+    if cfg.recuperation.get("activer"):
+        # Deux entraînements de même taille, du même modèle mis à l'échelle : avec les tâches de récupération, et le témoin
+        # sans (mêmes longueurs, même texte). L'écart entre les deux isole l'effet des tâches.
+        n = cfg.entrainement.max_steps * cfg.entrainement.accumulation * cfg.entrainement.batch
+        entrainement.liberer(trainer)
+        del trainer, model
+        for nom, avec_taches in (("apres_recuperation", True), ("apres_temoin_recuperation", False)):
+            jeu = recuperation.jeu_entrainement(tok, textes, textes, cfg, n, cfg.graine, avec_taches)
+            trainer = recuperation.entrainer(nouveau_modele(), jeu, cfg.entrainement, f"{cfg.sortie}/{nom}")
+            res[nom] = mesurer(trainer.model, tok, cfg, longs, pool)
+            del trainer
+            gc.collect()
+            torch.cuda.empty_cache()
+        for nom, (a, b) in {"recuperation_moins_echelle": ("echelle_seule", "apres_recuperation"),
+                            "recuperation_moins_temoin": ("apres_temoin_recuperation", "apres_recuperation")}.items():
+            res[nom] = {k: preuve.difference_appariee(res[a][k]["succes"], res[b][k]["succes"])
+                        for k in res[b] if isinstance(res[b][k], dict) and "succes" in res[b][k]}
     rapport.enregistrer(cfg, **res)
 
 
