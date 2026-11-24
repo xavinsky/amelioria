@@ -454,12 +454,12 @@ exemples:
     prerequis: {gpu: conseille}
 
   - chemin: 07-donnees-synthetiques
-    statut: non-prouve
+    statut: demontre
     fait: "Qwen2.5-0.5B de base, amorcé par 4 exemples, résout 3 000 problèmes de GSM8K 8 fois chacun et garde au plus 4 solutions justes aux calculs distincts par question (RFT, ReST-EM) ; pour les questions ratées, il rédige un raisonnement à partir de la réponse attendue en indice (STaR). Une époque de SFT ; témoin sur les solutions humaines."
-    piste: "Remesurer sur 3 graines avec l'arrêt de la génération à la fin de la ligne « Answer: »."
     duree_test: "30 s"
-    resultat: "une graine : GSM8K (n = 1 319) 0,363 → 0,402 (p = 0,004) ; témoin solutions humaines 0,332. Depuis le modèle instruct : 0,411 → 0,393 (n.s.)"
-    reserve: "mesure à refaire : texte parasite après la réponse dans les solutions et la mesure de départ"
+    duree_complet: "3 h 37 (3 graines)"
+    resultat: "GSM8K (n = 1 319, 3 graines) 0,363 → 0,397 ± 0,008 (+0,034 ± 0,008, net à chaque graine) ; témoin solutions humaines 0,330 ; non-régression arithmétique 0,465 → 0,907"
+    reserve: "gain modeste (3 points) dont une part est le format « Answer: N » (0,001 → 0,70) ; le témoin humain est sous le départ, la comparaison au départ est la prudente ; depuis le modèle instruct, aucun gain (0,411 → 0,393, non significatif)"
     prerequis: {gpu: requis}
 
   - chemin: 08-fusion-modeles

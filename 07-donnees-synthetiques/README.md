@@ -141,17 +141,20 @@ Le jeu généré est sauvegardé dans `sorties/.../donnees-tour-N.jsonl`, réuti
 
 **Non démontré.** Ses propres solutions valent nettement mieux que les solutions humaines, trop laconiques, mais ne font pas progresser le modèle, qu'on en garde une ou toutes par question. Le modèle de départ est un modèle instruct déjà entraîné à ce raisonnement : 78 % des questions sont résolues en 8 tirages, et réapprendre ses propres solutions justes ne déplace pas son décodage glouton. Le RL en ligne ([SIGN05](../05-rl-en-ligne)), qui pénalise aussi les solutions fausses, le fait progresser (0,411 → 0,465). STaR et RFT partent de modèles de base amorcés en few-shot ; c'est le cadre de la configuration par défaut.
 
-**Résultats depuis Qwen2.5-0.5B de base** (configuration par défaut, une graine/seed) :
+**Résultats depuis Qwen2.5-0.5B de base** (configuration par défaut, 3 graines/seeds, RTX 5070 Ti Laptop, 3 h 37 pour les trois, génération par vLLM : `--set generation.vllm.python=.venv-vllm/bin/python`) :
 
-| | GSM8K | Non-régression (arithmétique) |
-|---|---|---|
-| Avant, avec l'amorce | 0,363 [0,338 ; 0,390] | 0,465 |
-| RFT + STaR : 5 720 solutions (au plus 4 par question) + 485 rationalisations | 0,402 [0,376 ; 0,428] | 0,87 |
-| Témoin : solutions humaines des mêmes questions | 0,332 [0,307 ; 0,358] | 0,87 |
+| | GSM8K (1 319 problèmes) | GSM8K, strict (ligne « Answer: N ») | Non-régression (arithmétique) | Part finissant par « Answer: N » |
+|---|---|---|---|---|
+| Avant, avec l'amorce (4 exemples) | 0,363 [0,338 ; 0,390] | 0,318 | 0,465 | 0,001 |
+| RFT + STaR : ~5 700 solutions (au plus 4 par question) + ~500 rationalisations | **0,397 ± 0,008** | 0,359 ± 0,007 | 0,907 ± 0,028 | 0,700 ± 0,005 |
+| Témoin : solutions humaines des mêmes questions | 0,330 ± 0,002 | 0,325 ± 0,002 | 0,863 ± 0,008 | |
 
-Écarts appariés : après − avant +0,039 [+0,013 ; +0,064], p = 0,004 ; après − témoin +0,070, p < 0,001.
+Écarts appariés : après − avant +0,034 ± 0,008 (+0,029, +0,029 et +0,043 selon la graine, l'intervalle à 95 % exclut 0 à chaque graine) ; après − témoin +0,067 ± 0,010, p < 0,001 à chaque graine.
 
-**Non démontré à ce stade.** Ces chiffres sont à remesurer : la génération continuait après la ligne « Answer: » (texte parasite dans 5 403 des 6 205 solutions gardées, et nombre final parfois pris dans ce texte à la mesure de départ). L'arrêt à la fin de cette ligne corrige les deux ; la remesure se fait sur 3 graines.
+- **Le modèle progresse en s'entraînant sur ses propres solutions justes**, d'environ 3 points sur GSM8K, de façon reproductible sur les trois graines.
+- **Le témoin humain est sous le modèle de départ** (−0,03) : les solutions de GSM8K, très courtes, dégradent un modèle qui raisonne mieux en détaillant. L'écart avec le témoin surestime donc le gain ; la comparaison avec le départ est la plus prudente.
+- **Une part du gain est le format** : le modèle de base ne termine presque jamais par « Answer: N » (0,001), il le fait dans 70 % des cas après l'entraînement. La mesure stricte, qui ne compte que cette ligne, donne +0,04.
+- **Le départ est mesuré avec l'amorce de 4 exemples, le modèle entraîné sans** : l'amorce aide le départ, ce qui rend l'écart plus prudent.
 
 - **`self_instruct`** : le générateur écrit de nouveaux problèmes du même style. On ne garde que ceux dont l'expression se calcule, et la réponse vient du calcul lui-même, donc elle est garantie juste.
 - **`critique_revision`** : un principe (« être concis et donner le résultat final sous la forme Answer: N ») guide la critique puis la réécriture.

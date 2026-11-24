@@ -16,6 +16,7 @@ donnees:
   colonne: text
   n_textes: 3000                    # 4/5 pour l'entraînement, 1/5 jamais vu pour les mesures
   longueur_bloc: 512
+  car_max_test: 8000                # caractères gardés par article de test (mesures de longueur et de bits par caractère)
   # source: faits                   # noms inventés, très mal découpés (base fictive de commun/donnees.py)
   # n_entites: 80
   # graine: 0

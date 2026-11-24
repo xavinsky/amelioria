@@ -85,7 +85,8 @@ def main():
         ds = load_dataset(cfg.donnees.nom, cfg.donnees.get("config"), split="train").shuffle(seed=cfg.graine)
         docs = [t for t in ds.select(range(cfg.donnees.n_textes))[cfg.donnees.colonne] if t.strip()]
     train = [t for i, t in enumerate(docs) if i % 5 != 4]
-    test = [t for i, t in enumerate(docs) if i % 5 == 4]
+    car_max = cfg.donnees.get("car_max_test", 8000)   # un article très long saturerait la mémoire avec les logits d'un vocabulaire agrandi
+    test = [t[:car_max] for i, t in enumerate(docs) if i % 5 == 4]
 
     nouveaux = cfg.vocabulaire.get("liste") or candidats(tok, train, cfg.vocabulaire.n_nouveaux, cfg.vocabulaire.min_freq)
     print(f"[vocabulaire] {len(nouveaux)} nouveaux tokens, ex. {nouveaux[:8]}")
