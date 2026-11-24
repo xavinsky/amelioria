@@ -70,7 +70,7 @@ Combiner des modèles, corriger, effacer ou orienter un savoir ou un comportemen
 
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
-| [EDIT08](08-fusion-modeles) | Fusion de modèles | Model soups, SLERP, task arithmetic, TIES, DARE ; mergekit, fusion évolutionnaire | Fine-tunes d'une même base : LLM, LoRA, CLIP/ViT, diffusion | ✅ CPU/RAM | 🟡 principal · 🟡 deux-competences (×2) |
+| [EDIT08](08-fusion-modeles) | Fusion de modèles | Model soups, SLERP, task arithmetic, TIES, DARE ; mergekit, fusion évolutionnaire | Fine-tunes d'une même base : LLM, LoRA, CLIP/ViT, diffusion | ✅ CPU/RAM | 🟡 principal · 🟡 deux-competences (×3) |
 | [EDIT09](09-edition-connaissances) | Édition de connaissances | ROME, FT-L ; MEMIT, AlphaEdit en infra | LLM décodeurs ; diffusion (UCE, TIME) | ✅ ≤ 3B | 🟢 principal |
 | [EDIT10](10-desapprentissage) | Désapprentissage | Gradient ascent, gradient difference, NPO, IDK ; TOFU, open-unlearning | LLM ; classifieurs ; diffusion (ESD) | ✅ ≤ 1B | 🟢 principal |
 | [EDIT11](11-pilotage-activations) | Pilotage par activations | Steering vectors (ActAdd, CAA), abliteration | LLM décodeurs (tout flux résiduel) ; diffusion (concept sliders) | ✅ ≤ 7B | 🟢 principal |
