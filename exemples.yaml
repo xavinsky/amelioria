@@ -480,13 +480,14 @@ exemples:
     piste: "Fusionner deux compétences d'une même base Qwen2.5-0.5B (routage banking77 et RL GSM8K), mesurer chaque compétence avec ses sources et un témoin, 3 graines."
     prerequis: {gpu: conseille}
   - chemin: 08-fusion-modeles/variantes/deux-competences
-    statut: non-prouve
+    statut: a-reexaminer
     tentatives: 3
     fait: "Fusionne deux spécialistes de Qwen2.5-0.5B-Instruct (routage de messages bancaires ; raisonnement GSM8K, entraîné sur les solutions justes de Qwen2.5-3B-Instruct) par fusion linéaire, arithmétique des tâches, TIES et DARE-TIES, 3 graines."
     duree_complet: "1 h 40"
     resultat: "GSM8K (1 319 problèmes, 3 graines), arithmétique des tâches : routage 0,840 (spécialiste 0,837, base 0,226) et raisonnement souple 0,443 (spécialiste 0,465, base 0,374), net contre la base sur chaque graine ; raisonnement strict 0,291 (base 0,175)"
-    reserve: "la fusion reste de 0,015 à 0,027 sous le spécialiste raisonnement en souple, écart significatif sur 1 graine sur 3 ; les trois quarts du gain du spécialiste sont conservés"
+    reserve: "AVERTISSEMENT : trois tentatives sans preuve ; la fusion garde tout le gain de routage mais seulement environ trois quarts de celui du raisonnement (0,443 contre 0,465 pour le spécialiste, base 0,374), un gain de départ trop petit (+0,09) pour que la rétention se mesure sans bruit ; la fusion reste de 0,015 à 0,027 sous le spécialiste, écart significatif sur 1 graine sur 3"
     prerequis: {gpu: requis}
+    piste: "Remplacer le raisonnement par une compétence que le petit modèle gagne beaucoup à apprendre (extraction d'entités ou de champs, ou une seconde classification), pour que les deux gains soient grands et la rétention bien conditionnée."
 
   - chemin: 09-edition-connaissances
     statut: demontre

@@ -128,6 +128,8 @@ python run.py --set methode=arithmetique_taches
 
 ### Variante deux compétences : fusionner deux spécialistes
 
+> **Avertissement : démonstration à reprendre.** Trois tentatives n'ont pas prouvé que la fusion garde les deux compétences. Le routage est conservé en entier (rétention de 100 %), mais le raisonnement ne l'est qu'aux trois quarts, et son gain de départ (+0,09 sur la base) est trop petit pour qu'une rétention se mesure sans bruit. Une compétence que le petit modèle gagne beaucoup à apprendre serait un meilleur second spécialiste.
+
 **Le besoin** : deux équipes ont fine-tuné la même base chacune sur une tâche (router des messages bancaires, résoudre des problèmes de mathématiques) ; on veut un seul modèle qui garde les deux, sans réentraîner.
 
 [`variantes/deux-competences`](variantes/deux-competences) fine-tune Qwen2.5-0.5B-Instruct deux fois (banking77 : 3 000 exemples, une époque ; GSM8K : 3 000 questions, solutions justes de l'enseignant Qwen2.5-3B-Instruct, deux époques), puis fusionne les deux spécialistes par fusion linéaire, arithmétique des tâches, TIES (20 % des coordonnées) et DARE-TIES (30 %). Les réglages viennent des papiers et sont fixés avant la mesure. Chaque compétence est mesurée sur son propre test (1 000 messages, 400 problèmes) pour la base, chaque spécialiste et chaque fusion, sur les mêmes questions : l'écart apparié dit ce que la fusion garde de chaque spécialiste et ce qu'elle ajoute à la base. Lancement : `make graines EX=08 VAR=deux-competences N=3`.
