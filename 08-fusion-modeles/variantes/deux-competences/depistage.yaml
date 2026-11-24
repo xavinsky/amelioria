@@ -1,0 +1,37 @@
+# Dépistage d'une seconde compétence : gain d'un spécialiste sur la base, sans fusion.
+# `python run.py --config depistage.yaml` entraîne un spécialiste par compétence candidate et mesure base et spécialistes
+# sur les tests de chacune. Une compétence est retenue quand son gain est grand et net : la rétention d'une fusion
+# n'est mesurable sans bruit que si le gain du spécialiste l'est.
+base:
+  nom: Qwen/Qwen2.5-0.5B-Instruct
+
+competences:
+  - nom: clinc150                      # demandes à un assistant -> l'une de 150 intentions
+    donnees: {source: clinc150, n_train: 3000, n_test: 1000, graine: 0}
+    entrainement: {max_length: 1024, epochs: 1, batch: 2, accumulation: 8, gradient_checkpointing: true, lr: 1.0e-5,
+                   warmup: 0.03, scheduler: cosine, logging_steps: 50}
+    evaluation:
+      mode: etiquette
+      n: 1000
+      max_new_tokens: 16
+      batch: 16
+      systeme: |-
+        You route the requests made to a voice assistant. Reply with exactly one intent label from this list, and nothing else.
+        Intents: {intentions}
+  - nom: entites                       # phrase d'un article -> ses entités nommées (personnes, organisations, lieux, divers)
+    donnees: {source: conll2003, n_train: 3000, n_test: 1000, graine: 0}
+    entrainement: {max_length: 512, epochs: 1, batch: 4, accumulation: 4, gradient_checkpointing: true, lr: 1.0e-5,
+                   warmup: 0.03, scheduler: cosine, logging_steps: 50}
+    evaluation:
+      mode: entites
+      n: 1000
+      max_new_tokens: 96
+      batch: 32
+      systeme: "Extract the named entities of the sentence. Reply with one line per entity, in the form 'TYPE: text' with TYPE among PER, ORG, LOC, MISC, in order of appearance, and nothing else."
+
+fusions: []
+
+evaluation:
+  n_textes_generaux: 50
+
+sauvegarder: false

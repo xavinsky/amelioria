@@ -240,9 +240,81 @@ def banking77(split: str, n: int, graine: int = 0) -> list[dict]:
     return [{"question": ex["text"], "reponse": noms[ex["label"]], "cible": noms[ex["label"]]} for ex in ds]
 
 
+def _clinc150(split: str):
+    """CLINC150 (150 intentions d'un assistant vocal) sans la classe hors périmètre « oos »."""
+    from datasets import load_dataset
+
+    ds = load_dataset("clinc/clinc_oos", "plus", split=split)
+    oos = ds.features["intent"].names.index("oos")
+    return ds.filter(lambda e: e["intent"] != oos)
+
+
+def intentions_clinc150() -> list[str]:
+    return [intention(n) for n in _clinc150("test").features["intent"].names if n != "oos"]
+
+
+def clinc150(split: str, n: int, graine: int = 0) -> list[dict]:
+    """Demande à un assistant -> intention parmi 150 (même format que banking77)."""
+    ds = _clinc150(split)
+    noms = [intention(n) for n in ds.features["intent"].names]
+    ds = ds.shuffle(seed=graine).select(range(min(n, len(ds))))
+    return [{"question": ex["text"], "reponse": noms[ex["intent"]], "cible": noms[ex["intent"]]} for ex in ds]
+
+
+def entites_bio(mots: list[str], etiquettes: list[str]) -> list[tuple[str, str]]:
+    """Entités (type, texte) d'une phrase étiquetée en BIO (B-PER, I-PER, O...)."""
+    res, courant, type_ = [], [], None
+    for mot, e in zip(mots, etiquettes):
+        if e.startswith("B-") or (e.startswith("I-") and e[2:] != type_):
+            if courant:
+                res.append((type_, " ".join(courant)))
+            courant, type_ = [mot], e[2:]
+        elif e.startswith("I-"):
+            courant.append(mot)
+        else:
+            if courant:
+                res.append((type_, " ".join(courant)))
+            courant, type_ = [], None
+    if courant:
+        res.append((type_, " ".join(courant)))
+    return res
+
+
+def liste_entites(entites: list[tuple[str, str]]) -> str:
+    """Forme écrite d'une liste d'entités : une ligne « TYPE: texte » par entité, dans l'ordre de la phrase."""
+    return "\n".join(f"{t}: {x}" for t, x in entites)
+
+
+def lire_entites(sortie: str) -> set[tuple[str, str]]:
+    """Entités lues dans une réponse (lignes « TYPE: texte »), sans tenir compte de la casse ni de l'ordre."""
+    res = set()
+    for ligne in sortie.splitlines():
+        t, sep, x = ligne.partition(":")
+        if sep and t.strip() and x.strip():
+            res.add((t.strip().upper(), x.strip().lower()))
+    return res
+
+
+def conll2003(split: str, n: int, graine: int = 0) -> list[dict]:
+    """Phrase -> entités nommées (PER, ORG, LOC, MISC) ; les phrases sans entité sont écartées."""
+    from datasets import load_dataset
+
+    ds = load_dataset("tomaarsen/conll2003", split="train" if split == "train" else "test")
+    noms = ds.features["ner_tags"].feature.names
+    res = []
+    for ex in ds.shuffle(seed=graine):
+        ents = entites_bio(ex["tokens"], [noms[i] for i in ex["ner_tags"]])
+        if ents:
+            res.append({"question": " ".join(ex["tokens"]), "reponse": liste_entites(ents),
+                        "cible": "\n".join(sorted(f"{t}: {x.lower()}" for t, x in ents))})
+        if len(res) >= n:
+            break
+    return res
+
+
 def etiquettes(d) -> list[str] | None:
     """Liste fermée des réponses possibles d'une source de classification, sinon None."""
-    return intentions_banking77() if d.get("source") == "banking77" else None
+    return {"banking77": intentions_banking77, "clinc150": intentions_clinc150}.get(d.get("source"), lambda: None)()
 
 
 def consignes_generales(n: int, graine: int = 0, longueur_max: int = 300) -> list[str]:
@@ -265,6 +337,10 @@ def charger_qa(d, split: str = "train", n: int | None = None) -> list[dict]:
         return gsm8k(n, "train" if split == "train" else "test", graine)
     if source == "banking77":
         return banking77("train" if split == "train" else "test", n, graine)
+    if source == "clinc150":
+        return clinc150("train" if split == "train" else "test", n, graine)
+    if source == "conll2003":
+        return conll2003("train" if split == "train" else "test", n, graine)
     if source == "faits":
         return faits_fictifs(d.get("n_entites", 20), d.get("graine", 0))["qa"][:n]
     if source == "hf":

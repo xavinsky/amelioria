@@ -18,6 +18,8 @@ def correct(sortie: str, cible: str, mode: str) -> bool:
         return donnees.intention(premiere_ligne(sortie)) == donnees.intention(str(cible))
     if mode == "contient":
         return str(cible).strip().lower() in sortie.lower()
+    if mode == "entites":   # la phrase est réussie quand l'ensemble des entités lues égale celui attendu
+        return donnees.lire_entites(sortie) == donnees.lire_entites(str(cible))
     if mode == "premiere_phrase":   # la réponse elle-même, pas ce que le modèle enchaîne après
         return str(cible).strip().lower() in premiere_phrase(sortie).lower()
     raise ValueError(mode)
