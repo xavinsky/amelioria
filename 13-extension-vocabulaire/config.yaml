@@ -14,7 +14,7 @@ donnees:
   nom: wikimedia/wikipedia
   config: 20231101.br               # Wikipédia en breton
   colonne: text
-  n_textes: 3000                    # 4/5 pour l'entraînement, 1/5 jamais vu pour les mesures
+  n_textes: 9000                    # 4/5 pour l'entraînement, 1/5 jamais vu pour les mesures ; à 3 000, l'écart avec le témoin est de +0,03
   longueur_bloc: 512
   car_max_test: 8000                # caractères gardés par article de test (mesures de longueur et de bits par caractère)
   # source: faits                   # noms inventés, très mal découpés (base fictive de commun/donnees.py)

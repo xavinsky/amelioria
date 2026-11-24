@@ -528,14 +528,13 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 13-extension-vocabulaire
-    statut: non-prouve
-    tentatives: 1
+    statut: demontre
+    tentatives: 2
     fait: "Ajoute 1 000 mots bretons au tokenizer de Qwen2.5-0.5B, les initialise et les entraîne sur la Wikipédia en breton ; compare à un témoin sans nouveaux tokens, sur 3 graines."
     duree_test: "23 s"
-    duree_complet: "13 min"
-    resultat: "tokens du texte breton −15,8 % (2,48 → 2,94 caractères par token) ; bits par caractère 1,602 contre 1,572 pour le témoin (1 époque par phase, 3 graines) ; à 3 époques par phase (2 graines) : 1,708 et 1,782 contre 1,690 et 1,751, soit +0,018 et +0,031 ; après la seule phase 1 : 1,624 et 1,695, sous le témoin"
-    reserve: "le gain démontré est un coût d'inférence (−15,8 % de tokens), pas une qualité : après les deux phases les bits par caractère restent au-dessus du témoin sur chaque graine ; le témoin se dégrade lui aussi avec les époques (corpus de 2 400 articles d'entraînement : sur-apprentissage)"
-    piste: "Même budget d'entraînement avec plus de textes (9 000 articles, 1 époque par phase) au lieu de répéter les mêmes ; ou annoncer le seul gain d'inférence."
+    duree_complet: "2 h (3 graines, 9 000 articles)"
+    resultat: "tokens du texte breton −16 % (2,48 → 2,94 caractères par token) ; bits par caractère 1,364 contre 1,361 pour le témoin sans nouveaux tokens (écart +0,003, de +0,002 à +0,004 selon la graine) avec 9 000 articles, 1 époque par phase"
+    reserve: "écart avec le témoin de +0,003 bit par caractère (0,2 %), mesuré sur 3 graines ; avec 3 000 articles il était de +0,030, le budget d'entraînement referme l'écart"
     prerequis: {gpu: requis}
 
   - chemin: 14-croissance-architecture

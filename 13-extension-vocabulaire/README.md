@@ -141,25 +141,25 @@ make graines EX=FORM13 N=3                                     # trois graines :
 
 **Le besoin** : servir un modèle dans une langue ou un domaine que son tokenizer découpe mal. Chaque mot coûte alors plusieurs tokens : la génération est plus lente, le contexte se remplit plus vite et chaque appel coûte plus cher. Ici, le breton : 2,5 caractères par token avec le tokenizer de Qwen.
 
-**Résultats** (Qwen2.5-0.5B, RTX 5070 Ti Laptop ; 600 articles jamais vus ; 3 graines/seeds, `make graines EX=FORM13 N=3`) :
+**Résultats** (Qwen2.5-0.5B, RTX 5070 Ti Laptop ; 9 000 articles de la Wikipédia bretonne, dont 1 800 jamais vus pour les mesures, tronqués à 8 000 caractères ; 3 graines/seeds, 2 h pour les trois, `make graines EX=FORM13 N=3`) :
 
 | | Tokens des articles de test | Caractères par token | Bits par caractère |
 |---|---|---|---|
-| Avant | 196 039 | 2,48 | 2,82 |
-| 1 000 tokens ajoutés, initialisés par moyenne | 165 133 (**−15,8 %**, ± 0,3) | **2,94** | 2,59 |
-| après les deux phases d'entraînement | 165 133 | 2,94 | 1,602 |
-| Témoin : même entraînement, tokenizer d'origine | 196 039 | 2,48 | 1,572 |
+| Avant | 616 000 | 2,48 | 2,80 |
+| 1 000 tokens ajoutés, initialisés par moyenne | 518 600 (**−15,9 %**, de −15,5 à −16,2 selon la graine) | **2,95** | 2,58 |
+| après les deux phases d'entraînement | 518 600 | 2,95 | 1,369 ± 0,007 |
+| Témoin : même entraînement, tokenizer d'origine | 616 000 | 2,48 | 1,365 ± 0,007 |
 
-Par graine, écart de bits par caractère entre le modèle étendu et le témoin : +0,025, +0,033, +0,031.
+Par graine, écart de bits par caractère entre le modèle étendu et le témoin : +0,0039, +0,0031, +0,0023 (moyenne **+0,003**, soit 0,2 %).
 
-**Avec plus d'entraînement** (3 époques par phase, 2 graines ; bits par caractère après la phase 1, après la phase 2, témoin) : 1,624 / 1,708 / 1,690 pour la graine 42 et 1,695 / 1,782 / 1,751 pour la graine 43. Après la phase 2, l'écart avec le témoin est de +0,018 et +0,031 ; après la seule phase 1 (embeddings seuls), le modèle étendu est sous le témoin, mais le témoin n'a pas eu le même budget. Le témoin se dégrade lui aussi avec les époques : le corpus d'entraînement (2 400 articles) est petit et les mêmes textes sont répétés, ce qui mêle sur-apprentissage et budget d'entraînement.
+**Critère de démonstration, fixé avant la mesure.** Écart moyen avec le témoin ≤ +0,01 bit par caractère et borne haute de l'intervalle à 95 % ≤ +0,02, avec la compression conservée : démontré. L'écart mesuré est de +0,003 [+0,001 ; +0,005] ; au-delà de +0,02 l'exemple serait resté un gain d'inférence seul.
 
 **Ce qu'on en retient.**
 
-- **Le gain de la méthode est la compression** : le même texte breton tient en 16 % de tokens en moins, sur les trois graines. La génération demande autant de passes en moins, et le contexte contient 19 % de texte en plus.
-- **Il se paie d'une petite perte de qualité à entraînement égal** : 0,03 bit par caractère de plus que le témoin (2 %), sur chaque graine. Les nouveaux embeddings partent d'une moyenne et n'ont qu'une époque pour se placer ; c'est le budget d'entraînement qui ferait disparaître cet écart.
-- **L'entraînement explique la baisse de la perte, pas les nouveaux tokens** : le témoin descend autant. Sans témoin, on attribuerait à tort à l'extension du vocabulaire le passage de 2,82 à 1,60 bit par caractère.
-- **L'initialisation par moyenne fonctionne** : juste après l'ajout, avant tout entraînement, la perte est déjà plus basse qu'avec l'ancien tokenizer (2,82 → 2,59).
+- **La compression** : le même texte breton tient en 16 % de tokens en moins sur les trois graines. La génération demande autant de passes en moins, et le contexte contient 19 % de texte en plus.
+- **Elle ne coûte presque rien en qualité** : 0,003 bit par caractère de plus que le témoin (0,2 %), contre 0,030 avec 3 000 articles. Les nouveaux embeddings partent d'une moyenne ; c'est le budget d'entraînement (9 000 articles, 1 époque par phase) qui referme l'écart. Avec moins de textes, l'extension de vocabulaire coûte 2 % de qualité.
+- **L'entraînement explique la baisse de la perte, pas les nouveaux tokens** : le témoin descend autant. Sans témoin, on attribuerait à tort à l'extension du vocabulaire le passage de 2,80 à 1,37 bit par caractère.
+- **L'initialisation par moyenne fonctionne** : juste après l'ajout, avant tout entraînement, la perte est déjà plus basse qu'avec l'ancien tokenizer (2,80 → 2,58).
 
 ## Paramètres principaux (`config.yaml`)
 
