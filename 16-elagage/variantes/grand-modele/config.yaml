@@ -17,7 +17,7 @@ evaluation:
   huit_bits: true                    # référence et modèles élagués évalués en 8 bits (LLM.int8)
   mode: nombre
   n: 250
-  max_new_tokens: 320
+  max_new_tokens: 768
   batch: 32
   n_textes_generaux: 50
 
