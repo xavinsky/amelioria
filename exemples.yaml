@@ -579,7 +579,7 @@ exemples:
     tentatives: 1
     fait: "Élague Qwen2.5-7B-Instruct par Wanda et 2:4, couche par couche (modèle en RAM), et l'évalue en 8 bits sur GSM8K et en perplexité."
     duree_complet: "25 min"
-    resultat: "GSM8K (n = 250) : 0,824 → 0,720 (Wanda 50 %, −0,104, net) → 0,504 (2:4) ; perplexité 11,8 → 14,4 → 22,4 ; 87 % de l'exactitude gardée à 7B contre 39 % à 0,5B"
+    resultat: "GSM8K (n = 250), Wanda 50 % sans cicatrisation : 12 % de l'exactitude conservée à 0,5B (0,432 → 0,052), 29 % à 1,5B (0,640 → 0,188), 87 % à 7B (0,824 → 0,720) ; 2:4 : 2 %, 3 % et 61 %"
     reserve: "une exécution ; sans cicatrisation, la perte sur le raisonnement reste nette, et forte avec 2:4, le seul motif qui accélère"
     piste: "Même protocole à 0,5B, 1,5B et 3B avec cicatrisation par LoRA non fusionné (FORM16-o2)."
     prerequis: {gpu: requis}

@@ -168,6 +168,23 @@ python run.py --set methode=largeur --set ratio_largeur=0.3 --set cicatrisation.
 - **À 7B, l'élagage non structuré garde l'essentiel sans cicatrisation** : 87 % de l'exactitude (0,72 sur 0,82), contre 39 % à 0,5B (0,34 sur 0,88, voir plus haut). La hausse de perplexité (+22 %) est de l'ordre de celle que publie Wanda sur LLaMA-7B.
 - **Mais la perte reste nette sur une tâche de raisonnement** : 10 points, et 32 points avec le motif 2:4, le seul qui accélère sur les GPU actuels. Sans cicatrisation, un 7B élagué n'est pas utilisable à la place de l'original.
 
+### Part de l'exactitude conservée selon la taille (même protocole, sans cicatrisation)
+
+La variante grand-modèle, lancée à 0,5B, 1,5B et 7B avec le même protocole (GSM8K, 250 problèmes, 768 tokens, évaluation en 8 bits, une graine) :
+
+| Modèle | Original | Wanda 50 % | Conservé | 2:4 | Conservé | Perplexité (original → Wanda → 2:4) |
+|---|---|---|---|---|---|---|
+| Qwen2.5-0.5B-Instruct | 0,432 | 0,052 | 12 % | 0,008 | 2 % | 22,1 → 38,7 → 107,6 |
+| Qwen2.5-1.5B-Instruct | 0,640 | 0,188 | 29 % | 0,020 | 3 % | 14,8 → 23,4 → 63,6 |
+| Qwen2.5-7B-Instruct | 0,824 | 0,720 | 87 % | 0,504 | 61 % | 11,8 → 14,4 → 22,4 |
+
+Écarts appariés avec l'original, en Wanda : −0,380 [−0,44 ; −0,32] à 0,5B, −0,452 [−0,516 ; −0,384] à 1,5B, −0,104 [−0,156 ; −0,052] à 7B.
+
+- **La part conservée croît très vite avec la taille** : 12 % à 0,5B, 29 % à 1,5B, 87 % à 7B pour Wanda. Sans réentraînement, un modèle de 1,5B ou moins perd l'essentiel de sa compétence de raisonnement.
+- **Le motif 2:4 s'effondre sous 7B** : de 2 à 3 % de l'exactitude conservée à 0,5B et 1,5B, contre 61 % à 7B.
+- **À petite taille, les réponses du modèle élagué dérivent** : 34 % de réponses tronquées à 0,5B après Wanda (0,8 % pour l'original), signe de répétitions.
+- **Cohérent avec la littérature** : les gros modèles perdent moins à sparsité égale (SparseGPT), et les élagages réussis sous 7B reposent sur un budget de réentraînement hors de portée d'un poste local (voir plus haut). Le 3B est mesuré avec le même protocole.
+
 ### Cicatrisation d'un modèle plus grand : sorties de l'enseignant pré-calculées et LoRA non fusionné
 
 **Le besoin** : cicatriser un 1,5B ou un 3B sur 12 Go de GPU, où l'enseignant et l'élève entraîné ne tiennent pas ensemble.
