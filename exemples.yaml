@@ -568,7 +568,7 @@ exemples:
     duree_complet: "25 min"
     resultat: "GSM8K (n = 250) : 0,824 → 0,720 (Wanda 50 %, −0,104, net) → 0,504 (2:4) ; perplexité 11,8 → 14,4 → 22,4 ; 87 % de l'exactitude gardée à 7B contre 39 % à 0,5B"
     reserve: "une exécution ; sans cicatrisation, la perte sur le raisonnement reste nette, et forte avec 2:4, le seul motif qui accélère"
-    piste: "Même protocole à 0,5B, 1,5B et 3B avec cicatrisation par LoRA non fusionné (F1-o2)."
+    piste: "Même protocole à 0,5B, 1,5B et 3B avec cicatrisation par LoRA non fusionné (FORM16-o2)."
     prerequis: {gpu: requis}
 
   - chemin: 17-optimisation-prompt
