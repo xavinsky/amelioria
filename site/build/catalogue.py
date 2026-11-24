@@ -26,7 +26,7 @@ from pathlib import Path
 import yaml
 
 DEPOT = Path(__file__).resolve().parents[2]
-MARQUEURS = {"demontre": "[!DEMONTRE]", "non-prouve": "[!NONPROUVE]", "pret-a-tester": "[!PRETATESTER]", "non-teste": "[!NONTESTE]"}
+MARQUEURS = {"demontre": "[!DEMONTRE]", "non-prouve": "[!NONPROUVE]", "a-reexaminer": "[!AREEXAMINER]", "pret-a-tester": "[!PRETATESTER]", "non-teste": "[!NONTESTE]"}
 # Largeur moyenne d'un caractère dans une case de l'arbre : nom de méthode (serif gras 11,5 px),
 # critère (serif 10,5 px)
 CHAR_FEUILLE, CHAR_CRITERE = 6.4, 5.6
@@ -176,7 +176,7 @@ class Catalogue:
             nom = self.lien_code(e["chemin"], f"variante `{var}`" if var else "exemple principal")
             opt = f" VAR={var}" if var else ""
             reserve = f" — *{cellule(e['reserve'])}*" if e.get("reserve") else ""
-            lignes.append(f"| {nom} | {MARQUEURS[e['statut']]} | {cellule(e['resultat'])}{reserve} "
+            lignes.append(f"| {nom} | {MARQUEURS[e['statut']]}{self.essais(e)} | {cellule(e['resultat'])}{reserve} "
                           f"| {self.durees(e)} | `make test EX={self.ident(num)}{opt}` |")
         if (DEPOT / m["dossier"] / "infra").is_dir():
             lignes.append(f"| {MARQUEURS['non-teste']} version grosse infra | | jamais exécutée | "
@@ -256,18 +256,24 @@ class Catalogue:
                 "| Méthode | Ce que fait la version infra | Matériel visé | Durée estimée |\n|---|---|---|---|\n"
                 + "\n".join(cloud) + "\n")
 
+    @staticmethod
+    def essais(e):
+        """Nombre de façons de prouver la méthode déjà mesurées, pour un exemple non démontré."""
+        n = e.get("tentatives")
+        return f" · {n} tentative{'s' if n > 1 else ''}" if n and e["statut"] != "demontre" else ""
+
     def compteurs(self):
         """Chiffres du dépôt pour les pages qui les citent (`{{cle}}` dans le texte, front matter `compteurs: true`)."""
         n = {k: sum(e["statut"] == k for e in self.exemples) for k in MARQUEURS}
         return {"methodes": len(self.methodes), "categories": len(self.categories), "exemples": len(self.exemples),
-                "demontres": n["demontre"], "non_prouves": n["non-prouve"] + n["pret-a-tester"], "prets_a_tester": n["pret-a-tester"],
+                "demontres": n["demontre"], "non_prouves": n["non-prouve"] + n["pret-a-tester"] + n["a-reexaminer"], "a_reexaminer": n["a-reexaminer"], "prets_a_tester": n["pret-a-tester"],
                 "infra": sum((DEPOT / m["dossier"] / "infra").is_dir() for m in self.methodes.values())}
 
     def bilan(self):
         """Phrase de bilan : nombre d'exemples par statut."""
         n = {k: sum(e["statut"] == k for e in self.exemples) for k in MARQUEURS}
         return (f"Bilan : {len(self.exemples)} exemples locaux, dont {n['demontre']} démontrés et "
-                f"{n['non-prouve'] + n['pret-a-tester']} non prouvés (dont {n['pret-a-tester']} prêts à tester) ; versions grosse infra non testées.")
+                f"{n['non-prouve'] + n['pret-a-tester'] + n['a-reexaminer']} non prouvés (dont {n['pret-a-tester']} prêts à tester et {n['a-reexaminer']} à réexaminer) ; versions grosse infra non testées.")
 
     def verifier_menu(self, groupes):
         """Les groupes de l'onglet Méthodes sont les catégories du catalogue, dans le même ordre ; leur

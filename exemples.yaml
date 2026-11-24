@@ -4,7 +4,10 @@
 # Statuts :
 #   demontre    le gain est mesuré et net sur le besoin visé (les réserves éventuelles sont indiquées)
 #   non-prouve  l'exemple s'exécute, mais son résultat ne démontre pas encore le gain de la méthode
+#   a-reexaminer  trois façons de prouver la méthode ont échoué : on s'arrête, la méthode ou la démonstration est à reprendre à la main
 #   non-teste   le code existe mais n'a pas été exécuté (versions grosse infra des dossiers `infra/`)
+#
+# tentatives : nombre de façons de prouver la méthode déjà mesurées (-o1, -o2…), la réussie comprise. À 3 sans preuve : statut a-reexaminer.
 #
 # Prérequis :
 #   extras        modules Python hors socle (`make install EXTRAS=1`)
@@ -18,6 +21,7 @@ materiel_reference: RTX 5070 Ti Laptop (12 Go, 11,5 Gio utilisables), 30 Go de R
 statuts:
   demontre: Démontré
   non-prouve: Non prouvé
+  a-reexaminer: À réexaminer
   pret-a-tester: Prêt à tester
   non-teste: Non testé
 
@@ -330,6 +334,7 @@ methodes:
 exemples:
   - chemin: 01-pre-entrainement-continu
     statut: demontre
+    tentatives: 1
     fait: "Poursuit l'entraînement de Qwen2.5-0.5B sur les biographies de 400 personnages inventés et les questions-réponses de la moitié d'entre eux (protocole *Physics of Language Models 3.1*), puis l'interroge sur l'autre moitié, 3 graines."
     duree_complet: "25 min"
     resultat: "questions sur les personnages jamais questionnés 0,001 → 0,9996 ± 0,0007 ; témoin à une biographie 0,997"
@@ -402,6 +407,7 @@ exemples:
 
   - chemin: 04-optimisation-preferences
     statut: demontre
+    tentatives: 2
     fait: "DPO LoRA de Qwen2.5-0.5B, d'abord aligné par un SFT complet sur 8 000 paires (`--set modele.nom=Qwen/Qwen2.5-0.5B --set depart_sft.activer=true`), sur 16 000 paires UltraFeedback ; un modèle de récompense externe compare ses réponses à celles du modèle de départ ; témoin SFT sur les réponses préférées, de même volume."
     duree_test: "1 min"
     duree_complet: "2 h 10 par graine"
@@ -418,6 +424,7 @@ exemples:
 
   - chemin: 05-rl-en-ligne
     statut: non-prouve
+    tentatives: 1
     fait: "RL (DAPO) sur 800 problèmes de GSM8K : le modèle est récompensé quand sa réponse finale est juste, sans solution rédigée."
     duree_test: "21 s"
     duree_complet: "1 h 05"
@@ -436,6 +443,7 @@ exemples:
 
   - chemin: 06-distillation
     statut: non-prouve
+    tentatives: 1
     fait: "Qwen2.5-3B-Instruct résout des problèmes de GSM8K ; Qwen2.5-0.5B-Instruct est entraîné sur ses solutions justes. Témoin : même entraînement sur les solutions humaines du jeu."
     duree_test: "16 s"
     duree_complet: "1 h 30"
@@ -454,6 +462,7 @@ exemples:
 
   - chemin: 07-donnees-synthetiques
     statut: demontre
+    tentatives: 3
     fait: "Qwen2.5-0.5B de base, amorcé par 4 exemples, résout 3 000 problèmes de GSM8K 8 fois chacun et garde au plus 4 solutions justes aux calculs distincts par question (RFT, ReST-EM) ; pour les questions ratées, il rédige un raisonnement à partir de la réponse attendue en indice (STaR). Une époque de SFT ; témoin sur les solutions humaines."
     duree_test: "30 s"
     duree_complet: "3 h 37 (3 graines)"
@@ -472,6 +481,7 @@ exemples:
     prerequis: {gpu: conseille}
   - chemin: 08-fusion-modeles/variantes/deux-competences
     statut: non-prouve
+    tentatives: 2
     fait: "Fusionne deux spécialistes de Qwen2.5-0.5B-Instruct (routage de messages bancaires ; raisonnement GSM8K, entraîné sur les solutions justes de Qwen2.5-3B-Instruct) par fusion linéaire, arithmétique des tâches, TIES et DARE-TIES, 3 graines."
     duree_complet: "2 h"
     resultat: "arithmétique des tâches : routage 0,835 (spécialiste 0,834, base 0,226) et raisonnement souple 0,450 (spécialiste 0,483, base 0,388) dans un seul modèle ; raisonnement strict 0,303 (base 0,170)"
@@ -507,17 +517,19 @@ exemples:
     prerequis: {gpu: requis}
 
   - chemin: 12-extension-contexte
-    statut: non-prouve
+    statut: a-reexaminer
+    tentatives: 3
     fait: "Fait passer SmolLM-360M de 2 048 à 8 192 tokens de contexte par YaRN et un court entraînement, 3 graines."
     duree_test: "15 s"
     duree_complet: "45 min"
-    resultat: "clé cachée dans du texte varié à 4 096 tokens 0,07 → 1,00 par YaRN seul (n = 30, net sur chaque graine) ; tâche multi-clés (8 clés) à 4 096 tokens 0,08 → 0,36 par YaRN seul ; perplexité à 8 192 tokens 422 → 19,4 (YaRN seul) → 18,7 (entraîné) ; à 2 048 tokens 21,2 → 22,5 → 21,5"
-    reserve: "l'entraînement n'améliore pas YaRN seul sur la tâche multi-clés (écart −0,01 ± 0,04 à 7 000 tokens, 0,00 à 4 096) ni sur la clé cachée ; YaRN seul dégrade la tâche multi-clés dans la fenêtre d'origine (0,77 → 0,48 à 2 048 tokens) ; l'origine la réussit à 0,77 à 2 048 tokens, sous le seuil de validation de 0,8"
-    piste: "Entraîner sur des blocs longs qui contiennent des tâches de récupération (clés cachées parmi des clés voisines, dans un gabarit différent de celui du test) au lieu de texte seul, puis mesurer la tâche multi-clés."
+    resultat: "clé cachée dans du texte varié à 4 096 tokens 0,07 → 1,00 par YaRN seul (n = 30, net sur chaque graine) ; perplexité à 8 192 tokens 422 → 19,4 (YaRN seul) → 18,7 (entraîné) ; tâche multi-clés à 4 096 tokens 0,08 → 0,36 par YaRN seul"
+    reserve: "AVERTISSEMENT : trois démonstrations de l'apport de l'entraînement ont échoué (clé cachée, deux codes, multi-clés avec et sans tâches de récupération) ; YaRN seul suffit pour une clé unique, aucun entraînement testé n'améliore la tâche multi-clés (récupération contre témoin : écart de 0,00, −0,01 et −0,02 à 2 048, 4 096 et 7 000 tokens, non significatifs) ; seule la perplexité s'améliore"
+    piste: "Aucune piste automatique : à investiguer (modèle plus grand que SmolLM-360M, tâche mesurée, ou signal d'entraînement beaucoup plus fort)."
     prerequis: {gpu: requis}
 
   - chemin: 13-extension-vocabulaire
     statut: non-prouve
+    tentatives: 1
     fait: "Ajoute 1 000 mots bretons au tokenizer de Qwen2.5-0.5B, les initialise et les entraîne sur la Wikipédia en breton ; compare à un témoin sans nouveaux tokens, sur 3 graines."
     duree_test: "23 s"
     duree_complet: "13 min"
@@ -555,6 +567,7 @@ exemples:
 
   - chemin: 16-elagage
     statut: non-prouve
+    tentatives: 1
     fait: "Met à zéro 50 % des poids de Qwen2.5-0.5B-Instruct (Wanda), puis récupère la qualité par distillation sur Wikipédia et sur des conversations du modèle d'origine."
     piste: "Un modèle bien plus grand (7-8B) avec un budget de cicatrisation de plusieurs milliards de tokens, sur grosse infra."
     duree_test: "21 s"
@@ -564,6 +577,7 @@ exemples:
     prerequis: {gpu: requis}
   - chemin: 16-elagage/variantes/grand-modele
     statut: non-prouve
+    tentatives: 1
     fait: "Élague Qwen2.5-7B-Instruct par Wanda et 2:4, couche par couche (modèle en RAM), et l'évalue en 8 bits sur GSM8K et en perplexité."
     duree_complet: "25 min"
     resultat: "GSM8K (n = 250) : 0,824 → 0,720 (Wanda 50 %, −0,104, net) → 0,504 (2:4) ; perplexité 11,8 → 14,4 → 22,4 ; 87 % de l'exactitude gardée à 7B contre 39 % à 0,5B"

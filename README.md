@@ -39,7 +39,7 @@ Dans un dossier de méthode, les mêmes cibles marchent sans `EX` : `cd 03-peft 
 
 <!-- methodes:debut (généré par make readme depuis exemples.yaml) -->
 
-Statut de chaque exemple : 🟢 Démontré (gain mesuré et net) · 🟡 Non prouvé (s'exécute, gain pas encore démontré) · 🔵 Prêt à tester (code de la démonstration écrit, calcul à lancer) · ⚪ Non testé (versions `infra/`, jamais exécutées). Résultats et réserves : `make liste`.
+Statut de chaque exemple : 🟢 Démontré (gain mesuré et net) · 🟡 Non prouvé (s'exécute, gain pas encore démontré) · 🔴 À réexaminer (trois tentatives sans preuve, à reprendre à la main) · 🔵 Prêt à tester (code de la démonstration écrit, calcul à lancer) · ⚪ Non testé (versions `infra/`, jamais exécutées). Résultats et réserves : `make liste`.
 
 Colonne « Local 12 Go » : ✅ faisable sur un GPU grand public ; ⚠️ seulement sur de petits modèles ; ☁️ les vrais cas d'usage demandent une grosse infra (exemple fourni dans `infra/`).
 
@@ -60,8 +60,8 @@ Apprendre d'un jugement, d'une récompense, d'un enseignant ou de ses propres so
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
 | [SIGN04](04-optimisation-preferences) | Optimisation des préférences | DPO, IPO, rDPO, SLiC, APO, NCA, BCO, SPPO, ORPO, SimPO, CPO, KTO ; variante DPO itératif | LLM (après SFT), VLM, diffusion (Diffusion-DPO) | ⚠️ ≤ 0,5B complet, ≤ 3B LoRA | 🟢 principal · 🟢 dpo-iteratif |
-| [SIGN05](05-rl-en-ligne) | RL en ligne | RLHF, RLAIF, RLVR ; GRPO, Dr.GRPO, DAPO, GSPO, CISPO, RLOO ; PPO en infra ; variante modèle de récompense | LLM, VLM, agents ; diffusion (DDPO) | ⚠️ ≤ 1,5B · ☁️ | 🟡 principal · 🟢 modele-recompense |
-| [SIGN06](06-distillation) | Distillation | Logits (KD), séquences, on-policy (GKD) ; variante classifieur encodeur | LLM (même tokenizer pour logits), encodeurs, vision, diffusion | ✅ petits couples · ☁️ 70B → 8B | 🟡 principal · 🟢 encodeur-classification |
+| [SIGN05](05-rl-en-ligne) | RL en ligne | RLHF, RLAIF, RLVR ; GRPO, Dr.GRPO, DAPO, GSPO, CISPO, RLOO ; PPO en infra ; variante modèle de récompense | LLM, VLM, agents ; diffusion (DDPO) | ⚠️ ≤ 1,5B · ☁️ | 🟡 principal (×1) · 🟢 modele-recompense |
+| [SIGN06](06-distillation) | Distillation | Logits (KD), séquences, on-policy (GKD) ; variante classifieur encodeur | LLM (même tokenizer pour logits), encodeurs, vision, diffusion | ✅ petits couples · ☁️ 70B → 8B | 🟡 principal (×1) · 🟢 encodeur-classification |
 | [SIGN07](07-donnees-synthetiques) | Données synthétiques | Rejection sampling (RFT/STaR), Self-Instruct, critique-révision (Constitutional AI) | LLM ; données pour classifieurs, VLM, diffusion | ✅ ≤ 1B | 🟢 principal |
 
 ### EDIT · Chirurgie du modèle
@@ -70,7 +70,7 @@ Combiner des modèles, corriger, effacer ou orienter un savoir ou un comportemen
 
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
-| [EDIT08](08-fusion-modeles) | Fusion de modèles | Model soups, SLERP, task arithmetic, TIES, DARE ; mergekit, fusion évolutionnaire | Fine-tunes d'une même base : LLM, LoRA, CLIP/ViT, diffusion | ✅ CPU/RAM | 🟡 principal · 🟡 deux-competences |
+| [EDIT08](08-fusion-modeles) | Fusion de modèles | Model soups, SLERP, task arithmetic, TIES, DARE ; mergekit, fusion évolutionnaire | Fine-tunes d'une même base : LLM, LoRA, CLIP/ViT, diffusion | ✅ CPU/RAM | 🟡 principal · 🟡 deux-competences (×2) |
 | [EDIT09](09-edition-connaissances) | Édition de connaissances | ROME, FT-L ; MEMIT, AlphaEdit en infra | LLM décodeurs ; diffusion (UCE, TIME) | ✅ ≤ 3B | 🟢 principal |
 | [EDIT10](10-desapprentissage) | Désapprentissage | Gradient ascent, gradient difference, NPO, IDK ; TOFU, open-unlearning | LLM ; classifieurs ; diffusion (ESD) | ✅ ≤ 1B | 🟢 principal |
 | [EDIT11](11-pilotage-activations) | Pilotage par activations | Steering vectors (ActAdd, CAA), abliteration | LLM décodeurs (tout flux résiduel) ; diffusion (concept sliders) | ✅ ≤ 7B | 🟢 principal |
@@ -81,11 +81,11 @@ Changer la forme du modèle (fenêtre de contexte, vocabulaire, couches, précis
 
 | Id | Méthode | Regroupe | Modèles concernés | Local 12 Go | Exemples |
 |---|---|---|---|---|---|
-| [FORM12](12-extension-contexte) | Extension de contexte | Position Interpolation, NTK dynamique, YaRN, ABF | LLM à RoPE ; VLM (M-RoPE) ; encodeurs RoPE | ⚠️ petits modèles, 8k · ☁️ | 🟡 principal |
-| [FORM13](13-extension-vocabulaire) | Extension de vocabulaire | Added tokens, fusion BPE, init par moyenne, entraînement en 2 phases | LLM, encodeurs, seq2seq, tokens spéciaux VLM | ✅ ≤ 1B | 🟡 principal |
+| [FORM12](12-extension-contexte) | Extension de contexte | Position Interpolation, NTK dynamique, YaRN, ABF | LLM à RoPE ; VLM (M-RoPE) ; encodeurs RoPE | ⚠️ petits modèles, 8k · ☁️ | 🔴 principal (×3) |
+| [FORM13](13-extension-vocabulaire) | Extension de vocabulaire | Added tokens, fusion BPE, init par moyenne, entraînement en 2 phases | LLM, encodeurs, seq2seq, tokens spéciaux VLM | ✅ ≤ 1B | 🟡 principal (×1) |
 | [FORM14](14-croissance-architecture) | Croissance d'architecture | Depth up-scaling (SOLAR), block expansion (LLaMA Pro), upcycling MoE | LLM famille LLaMA/Mistral ; encodeurs, ViT | ⚠️ transformation ✅, cicatrisation ☁️ | 🟢 principal |
 | [FORM15](15-quantification) | Quantification | bitsandbytes, torchao, GPTQ, AWQ, QAT ; variante GGUF llama.cpp | Tous : LLM, MoE, encodeurs, VLM, diffusion, Whisper | ✅ | 🟢 principal · 🟢 gguf-llamacpp |
-| [FORM16](16-elagage) | Élagage | Magnitude, Wanda, 2:4, suppression de couches, réduction de largeur + cicatrisation | LLM ; encodeurs ; CNN/ViT ; diffusion | ⚠️ ≤ 0,5B avec cicatrisation · ☁️ | 🟡 principal · 🟡 grand-modele |
+| [FORM16](16-elagage) | Élagage | Magnitude, Wanda, 2:4, suppression de couches, réduction de largeur + cicatrisation | LLM ; encodeurs ; CNN/ViT ; diffusion | ⚠️ ≤ 0,5B avec cicatrisation · ☁️ | 🟡 principal (×1) · 🟡 grand-modele (×1) |
 
 ### EXEC · À l'exécution, sans toucher aux poids
 

@@ -24,7 +24,7 @@ import yaml
 RACINE = pathlib.Path(__file__).resolve().parents[1]
 MEMOIRE_REFERENCE_GIO = 11.5
 COULEUR = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
-TEINTES = {"demontre": "32", "non-prouve": "33", "pret-a-tester": "36", "non-teste": "90", "erreur": "31", "titre": "1;34", "gris": "90"}
+TEINTES = {"demontre": "32", "non-prouve": "33", "a-reexaminer": "1;31", "pret-a-tester": "36", "non-teste": "90", "erreur": "31", "titre": "1;34", "gris": "90"}
 SOCLE = ["torch", "transformers", "trl", "peft", "accelerate", "datasets", "sentence_transformers", "yaml"]
 
 
@@ -76,6 +76,7 @@ def liste(cat: dict):
     statuts = cat["statuts"]
     print(f"Statuts : {teinte('● ' + statuts['demontre'], 'demontre')} : gain mesuré et net · "
           f"{teinte('● ' + statuts['non-prouve'], 'non-prouve')} : s'exécute, gain pas encore démontré · "
+          f"{teinte('● ' + statuts['a-reexaminer'], 'a-reexaminer')} : trois tentatives sans preuve, à reprendre à la main · "
           f"{teinte('● ' + statuts['pret-a-tester'], 'pret-a-tester')} : code écrit pour la démonstration, calcul à lancer · "
           f"{teinte('● ' + statuts['non-teste'], 'non-teste')} : jamais exécuté (versions infra/)")
     print(f"Mesures : configuration complète sur {cat['materiel_reference']}.\n")
@@ -88,16 +89,20 @@ def liste(cat: dict):
                 variante = e["chemin"].split("/variantes/")[1] if "/variantes/" in e["chemin"] else ""
                 commande = f"make test EX={num}" + (f" VAR={variante}" if variante else "")
                 etiquette = teinte(f"● {statuts[e['statut']]:<10}", e["statut"])
-                print(f"      {etiquette} {commande:<48} {e['resultat']}")
+                essais = f" [{e['tentatives']} tentative{'s' if e['tentatives'] > 1 else ''}]" if e.get("tentatives") else ""
+                print(f"      {etiquette} {commande:<48}{essais} {e['resultat']}")
                 if e.get("reserve"):
                     print(" " * 67 + teinte(f"↳ {e['reserve']}", "gris"))
             if (RACINE / m["dossier"] / "infra").is_dir():
                 print(f"      {teinte('● ' + statuts['non-teste'], 'non-teste'):<10}  "
                       + teinte(f"{m['dossier']}/infra/ (grosse infra)", "gris"))
         print()
+    en_faute = [e["chemin"] for e in cat["exemples"] if e.get("tentatives", 0) >= 3 and e["statut"] in ("non-prouve", "pret-a-tester")]
+    if en_faute:
+        print(teinte("Règle des trois tentatives : à passer en « À réexaminer » : " + ", ".join(en_faute), "erreur"))
 
 
-PASTILLES = {"demontre": "🟢", "non-prouve": "🟡", "pret-a-tester": "🔵", "non-teste": "⚪"}
+PASTILLES = {"demontre": "🟢", "non-prouve": "🟡", "a-reexaminer": "🔴", "pret-a-tester": "🔵", "non-teste": "⚪"}
 DEBUT, FIN = "<!-- methodes:debut (généré par make readme depuis exemples.yaml) -->", "<!-- methodes:fin -->"
 
 
@@ -106,7 +111,7 @@ def section_readme(cat: dict) -> str:
     s = cat["statuts"]
     lignes = [DEBUT, "",
               f"Statut de chaque exemple : 🟢 {s['demontre']} (gain mesuré et net) · 🟡 {s['non-prouve']} (s'exécute, "
-              f"gain pas encore démontré) · 🔵 {s['pret-a-tester']} (code de la démonstration écrit, calcul à lancer) · ⚪ {s['non-teste']} (versions `infra/`, jamais exécutées). Résultats et "
+              f"gain pas encore démontré) · 🔴 {s['a-reexaminer']} (trois tentatives sans preuve, à reprendre à la main) · 🔵 {s['pret-a-tester']} (code de la démonstration écrit, calcul à lancer) · ⚪ {s['non-teste']} (versions `infra/`, jamais exécutées). Résultats et "
               "réserves : `make liste`.",
               "",
               "Colonne « Local 12 Go » : ✅ faisable sur un GPU grand public ; ⚠️ seulement sur de petits modèles ; "
@@ -117,7 +122,8 @@ def section_readme(cat: dict) -> str:
         for m in (m for m in cat["methodes"] if m["categorie"] == c["id"]):
             exemples = [e for e in cat["exemples"] if e["chemin"].split("/")[0] == m["dossier"]]
             etats = " · ".join(PASTILLES[e["statut"]] + " " + (e["chemin"].split("/variantes/")[1]
-                               if "/variantes/" in e["chemin"] else "principal") for e in exemples)
+                               if "/variantes/" in e["chemin"] else "principal")
+                               + (f" (×{e['tentatives']})" if e.get("tentatives") and e["statut"] != "demontre" else "") for e in exemples)
             lignes.append(f"| [{ident(cat, m)}]({m['dossier']}) | {m['titre']} | {m['regroupe']} | {m['modeles']} "
                           f"| {m['local']} | {etats} |")
     return "\n".join(lignes + ["", FIN])

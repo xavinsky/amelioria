@@ -120,6 +120,8 @@ Avec `SET="entrainement.max_steps=0"`, il n'y a pas de fine-tuning : le modèle 
 
 ## Ce que fait l'exemple
 
+> **Avertissement : méthode à réexaminer.** Trois façons de prouver que l'entraînement apporte quelque chose après la mise à l'échelle YaRN ont échoué (clé cachée, deux codes, tâche multi-clés avec et sans tâches de récupération). YaRN seul suffit pour retrouver une clé unique ; aucun entraînement testé n'améliore la tâche multi-clés. Cet exemple ne démontre donc que la mise à l'échelle.
+
 **Le besoin** : faire lire à un modèle des documents plus longs que sa fenêtre d'origine (contrats, dossiers, historiques de conversation) sans le réentraîner.
 
 SmolLM-360M (fenêtre d'origine 2 048 tokens) passe à 8 192 tokens par YaRN (facteur 4), puis 200 pas d'entraînement sur des blocs longs de wikitext. Trois modèles sont mesurés : l'origine, la mise à l'échelle seule (YaRN sans entraînement) et la mise à l'échelle entraînée. Deux tâches en choix forcé, sur des paragraphes de Wikipédia jamais vus à l'entraînement, 30 questions par longueur : une clé cachée (choix parmi 10 candidats) et une tâche multi-clés de RULER (8 phrases « The pass key for <nom> is <nombre>. » réparties dans le texte, question sur l'un des noms, choix parmi les 8 nombres présents).
@@ -137,6 +139,17 @@ SmolLM-360M (fenêtre d'origine 2 048 tokens) passe à 8 192 tokens par YaRN (fa
 - **La mise à l'échelle YaRN étend la fenêtre à elle seule pour une clé unique** : sans aucun entraînement, le modèle retrouve la clé à 7 000 tokens au lieu de rater 9 fois sur 10.
 - **Le court entraînement sur du texte n'améliore aucune tâche** ; il corrige surtout la perplexité : à 2 048 tokens, la mise à l'échelle la dégrade de 6 % (21,16 → 22,48) et l'entraînement en rattrape les trois quarts (21,52), et à 8 192 tokens il la baisse de 19,36 à 18,69.
 - **La tâche multi-clés est plus dure que la clé unique** : YaRN seul la fait remonter à 4 096 tokens (0,08 → 0,36) mais la dégrade dans la fenêtre d'origine (0,77 → 0,48 à 2 048 tokens), et à 7 000 tokens le gain sur l'origine n'est plus net. L'origine ne la réussit qu'à 0,77 à 2 048 tokens, sous le seuil de 0,8 retenu pour valider la tâche.
+
+**Entraînement à la récupération** (`--set recuperation.activer=true`, module `recuperation.py`, 3 graines) : 200 pas sur des exemples dont la moitié sont des textes longs contenant plusieurs phrases de même forme (un nom et un code), la question portant sur l'une d'elles et la perte sur la seule réponse ; gabarits et noms différents de ceux de la mesure. Le témoin a les mêmes longueurs sans phrases cachées.
+
+| Multi-clés (8 clés) | 2 048 tokens | 4 096 tokens | 7 000 tokens |
+|---|---|---|---|
+| YaRN seul | 0,48 ± 0,05 | 0,36 ± 0,02 | 0,21 ± 0,02 |
+| Entraîné sur texte | 0,52 ± 0,08 | 0,36 ± 0,05 | 0,22 ± 0,05 |
+| Entraîné avec tâches de récupération | 0,52 ± 0,02 | 0,34 ± 0,04 | 0,23 ± 0,06 |
+| Témoin sans tâches | 0,52 ± 0,08 | 0,36 ± 0,05 | 0,26 ± 0,08 |
+
+L'écart récupération − témoin vaut 0,00 ± 0,09, −0,01 ± 0,02 et −0,02 ± 0,05 : les tâches de récupération n'apportent rien. La perplexité à 2 048 tokens est de 21,65 avec les tâches et 20,85 pour le témoin.
 
 ```bash
 python run.py --quick

@@ -34,7 +34,7 @@ en SVG en tête de la section ;
 `catalogue: true` insère le tableau de tous les exemples ; `travaux: true` ajoute les tableaux de la page « Travail en cours » ; `compteurs: true` remplace `{{demontres}}`,
 `{{exemples}}`, `{{infra}}`... par les chiffres du catalogue (Catalogue.compteurs) ; `comparatif: <catégorie>` le tableau comparatif des
 méthodes d'une catégorie. Marqueurs de statut des exemples :
-`[!DEMONTRE]`, `[!NONPROUVE]`, `[!NONTESTE]`.
+`[!DEMONTRE]`, `[!NONPROUVE]`, `[!AREEXAMINER]`, `[!NONTESTE]`.
 
 Pour le référencement, le build produit aussi, à partir de www/index.html pris pour gabarit, une
 page par section et une pour le lexique (www/<id>.html : titre, description, URL canonique, Open
@@ -88,6 +88,8 @@ STATUS_MARKERS = {
                  "configuration complète. Les réserves éventuelles sont indiquées à côté du résultat."),
     "NONPROUVE": ("unproven", "non prouvé", "Non prouvé : l'exemple s'exécute, mais son résultat ne démontre pas "
                   "encore le gain de la méthode. La raison est indiquée à côté du résultat."),
+    "AREEXAMINER": ("review", "à réexaminer", "À réexaminer : trois façons de prouver la méthode ont échoué. On s'arrête : la méthode ou la "
+                    "façon de la démontrer est à reprendre. L'avertissement figure à côté du résultat."),
     "PRETATESTER": ("ready", "prêt à tester", "Prêt à tester : le code de la démonstration est écrit, le calcul sur le GPU local reste à lancer."),
     "NONTESTE": ("untested", "non testé", "Non testé : le code existe mais n'a jamais été exécuté (versions "
                  "grosse infra des dossiers infra/)."),
