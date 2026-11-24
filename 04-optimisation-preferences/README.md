@@ -150,6 +150,18 @@ Chaque tour dure environ 30 minutes, dont 3 min 30 d'entraînement (6,2 Gio de m
 
 **Confirmation à deux tours sur trois graines neuves** (45, 46, 47 ; nombre de tours fixé à 2 avant la mesure ; mêmes 500 demandes de test et même juge) : victoires contre le départ **0,592 ± 0,025** après deux tours (0,572 ; 0,584 ; 0,620), l'intervalle de Wilson de chaque graine excluant 0,5 (le plus bas : [0,528 ; 0,615]) ; après le tour 1, 0,497 (0,508 ; 0,486 ; 0,498), pas de gain. La note moyenne du juge monte de +0,83 (de +0,63 à +0,93, p < 10⁻³ sur chaque graine) ; la non-régression arithmétique reste à 0,962 (départ 0,955, écart +0,007, non significatif). Le gain apparaît donc au deuxième tour, et deux tours suffisent.
 
+**Départ non aligné : Qwen2.5-0.5B de base, SFT complet puis DPO** (`--set modele.nom=Qwen/Qwen2.5-0.5B --set depart_sft.activer=true`, recette Zephyr : SFT sur les réponses préférées de 8 000 paires disjointes, puis DPO LoRA sur 16 000 paires ; 3 graines, 2 h 10 par graine ; même juge externe, 500 demandes de test). Le témoin est un SFT de même volume sur les réponses préférées des 16 000 paires du DPO.
+
+| | Victoires contre le départ (SFT) | Victoires contre le témoin SFT | Note moyenne du juge, écart avec le départ | Mots par réponse |
+|---|---|---|---|---|
+| Départ : base + SFT | | | | 311 |
+| Témoin SFT de même volume | 0,505 ± 0,023 (0,516 ; 0,478 ; 0,520) | | +0,12 ± 0,07 (p = 0,38) | 299 |
+| DPO | **0,696 ± 0,021** (0,720 ; 0,686 ; 0,682) | **0,666 ± 0,020** (0,688 ; 0,660 ; 0,650) | **+1,36 ± 0,22** (p ≈ 10⁻⁴) | 351 |
+
+- **Le DPO apporte un gain net que le SFT seul n'apporte pas** : contre le témoin, l'intervalle de Wilson des victoires exclut 0,5 sur chaque graine (le plus bas : [0,607 ; 0,691]) ; le témoin ne dépasse pas le départ (0,505).
+- **Réserve : les réponses du DPO s'allongent de 13 %** (311 → 351 mots), et un modèle de récompense peut préférer les réponses longues ; la longueur n'a pas été contrôlée ici.
+- **Un seul juge** (Skywork-Reward-V2 1,7B) mesure les victoires : une part du gain est un gain aux yeux de ce juge.
+
 - **Moins de 1 500 paires produites par le modèle valent mieux que 16 000 paires figées** : 0,625 contre 0,533 pour le DPO de l'exemple principal, sur les mêmes demandes de test et avec le même juge. Les paires restent dans la distribution du modèle, et chaque tour repart du modèle amélioré.
 - **Le gain se reproduit sur les trois graines** : l'intervalle de victoires exclut 0,5 à chaque tour 2 et 3 sur chaque graine (0,616, 0,634, 0,624 au tour 3).
 - **Le gain ne vient pas de la longueur** : les réponses raccourcissent un peu (193 → 175 mots).

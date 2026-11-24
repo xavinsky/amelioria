@@ -401,13 +401,12 @@ exemples:
     prerequis: {gpu: requis, extras: [diffusers]}
 
   - chemin: 04-optimisation-preferences
-    statut: non-prouve
-    fait: "DPO LoRA de Qwen2.5-0.5B-Instruct sur 16 000 paires UltraFeedback ; un modèle de récompense externe compare ses réponses à celles du modèle de départ ; témoin SFT sur les réponses préférées."
-    piste: "Partir d'un modèle non aligné (base + SFT) où la marge est plus grande, ou passer au DPO itératif sur les réponses du modèle lui-même."
+    statut: demontre
+    fait: "DPO LoRA de Qwen2.5-0.5B, d'abord aligné par un SFT complet sur 8 000 paires (`--set modele.nom=Qwen/Qwen2.5-0.5B --set depart_sft.activer=true`), sur 16 000 paires UltraFeedback ; un modèle de récompense externe compare ses réponses à celles du modèle de départ ; témoin SFT sur les réponses préférées, de même volume."
     duree_test: "1 min"
-    duree_complet: "2 h"
-    resultat: "victoires contre le départ 0,533 ± 0,032 sur 3 graines (0,552 ; 0,496 ; 0,550) ; témoin SFT 0,380 ; non-régression 0,955 → 0,963"
-    reserve: "gain net sur 2 graines sur 3 ; faible sur un modèle déjà aligné par ses auteurs"
+    duree_complet: "2 h 10 par graine"
+    resultat: "victoires du DPO contre le témoin SFT 0,666 ± 0,020 sur 3 graines (0,688 ; 0,660 ; 0,650, intervalle qui exclut 0,5 à chacune) ; contre le départ 0,696 ; le SFT seul 0,505 ; note du juge +1,36"
+    reserve: "réponses 13 % plus longues après le DPO (311 → 351 mots), longueur non contrôlée ; un seul juge (modèle de récompense Skywork 1,7B) ; depuis Qwen2.5-0.5B-Instruct déjà aligné, le gain est faible (0,533, net sur 2 graines sur 3)"
     prerequis: {gpu: requis}
   - chemin: 04-optimisation-preferences/variantes/dpo-iteratif
     statut: demontre
