@@ -41,6 +41,7 @@ fusions:
 
 evaluation:
   n_textes_generaux: 50
+  n_problemes: null                    # ex. 1319 (tout le test de GSM8K) à la place des 400 problèmes du raisonnement
 
 quick:
   base: {nom: HuggingFaceTB/SmolLM2-135M-Instruct}

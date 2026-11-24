@@ -472,11 +472,11 @@ exemples:
     prerequis: {gpu: conseille}
   - chemin: 08-fusion-modeles/variantes/deux-competences
     statut: non-prouve
-    fait: "Fusionne deux spécialistes de Qwen2.5-0.5B-Instruct (routage de messages bancaires, raisonnement GSM8K) par fusion linéaire, arithmétique des tâches, TIES et DARE-TIES, 3 graines."
-    duree_complet: "40 min"
-    resultat: "arithmétique des tâches : routage 0,837 (spécialiste 0,837, base 0,226) et raisonnement strict 0,327 (spécialiste 0,337, base 0,170) dans un seul modèle, écarts avec chaque spécialiste non significatifs sur chaque graine"
-    reserve: "le spécialiste raisonnement n'est pas meilleur que la base en notation souple (0,340 contre 0,388) : la fusion conserve le format « Answer: N », pas une compétence de raisonnement"
-    piste: "Spécialiste raisonnement entraîné sur les solutions de l'enseignant Qwen2.5-3B (données de SIGN06, +4 points de raisonnement réel), puis même fusion."
+    fait: "Fusionne deux spécialistes de Qwen2.5-0.5B-Instruct (routage de messages bancaires ; raisonnement GSM8K, entraîné sur les solutions justes de Qwen2.5-3B-Instruct) par fusion linéaire, arithmétique des tâches, TIES et DARE-TIES, 3 graines."
+    duree_complet: "2 h"
+    resultat: "arithmétique des tâches : routage 0,835 (spécialiste 0,834, base 0,226) et raisonnement souple 0,450 (spécialiste 0,483, base 0,388) dans un seul modèle ; raisonnement strict 0,303 (base 0,170)"
+    reserve: "le gain de raisonnement de la fusion sur la base est net sur 2 graines sur 3 (+0,04 non significatif sur la troisième, 400 problèmes) et la fusion est sous le spécialiste sur une graine"
+    piste: "Évaluer le raisonnement sur les 1 319 problèmes de test de GSM8K au lieu de 400 pour resserrer les intervalles (--set evaluation.n_problemes=1319)."
     prerequis: {gpu: requis}
 
   - chemin: 09-edition-connaissances

@@ -130,27 +130,28 @@ python run.py --set methode=arithmetique_taches
 
 **Le besoin** : deux équipes ont fine-tuné la même base chacune sur une tâche (router des messages bancaires, résoudre des problèmes de mathématiques) ; on veut un seul modèle qui garde les deux, sans réentraîner.
 
-[`variantes/deux-competences`](variantes/deux-competences) fine-tune Qwen2.5-0.5B-Instruct deux fois (banking77 : 3 000 exemples, une époque ; GSM8K : 3 000 exemples, deux époques), puis fusionne les deux spécialistes par fusion linéaire, arithmétique des tâches, TIES (20 % des coordonnées) et DARE-TIES (30 %). Les réglages viennent des papiers et sont fixés avant la mesure. Chaque compétence est mesurée sur son propre test (1 000 messages, 400 problèmes) pour la base, chaque spécialiste et chaque fusion, sur les mêmes questions : l'écart apparié dit ce que la fusion garde de chaque spécialiste et ce qu'elle ajoute à la base. Lancement : `make graines EX=08 VAR=deux-competences N=3`.
+[`variantes/deux-competences`](variantes/deux-competences) fine-tune Qwen2.5-0.5B-Instruct deux fois (banking77 : 3 000 exemples, une époque ; GSM8K : 3 000 questions, solutions justes de l'enseignant Qwen2.5-3B-Instruct, deux époques), puis fusionne les deux spécialistes par fusion linéaire, arithmétique des tâches, TIES (20 % des coordonnées) et DARE-TIES (30 %). Les réglages viennent des papiers et sont fixés avant la mesure. Chaque compétence est mesurée sur son propre test (1 000 messages, 400 problèmes) pour la base, chaque spécialiste et chaque fusion, sur les mêmes questions : l'écart apparié dit ce que la fusion garde de chaque spécialiste et ce qu'elle ajoute à la base. Lancement : `make graines EX=08 VAR=deux-competences N=3`.
 
 Résultats sur 3 graines (routage : 1 000 messages ; raisonnement : 400 problèmes ; « strict » ne compte juste qu'une réponse terminée par `Answer: N`, « souple » accepte le dernier nombre écrit) :
 
 | | Routage | Raisonnement, souple | Raisonnement, strict | Perplexité générale |
 |---|---|---|---|---|
 | Base | 0,226 | 0,388 | 0,170 | 22,1 |
-| Spécialiste routage | **0,837 ± 0,007** | 0,132 ± 0,063 | 0,004 | 22,3 |
-| Spécialiste raisonnement | 0,073 ± 0,040 | 0,340 ± 0,011 | **0,337 ± 0,008** | 23,5 |
-| Fusion linéaire | 0,725 ± 0,010 | 0,378 ± 0,012 | 0,373 ± 0,013 | 22,3 |
-| **Arithmétique des tâches** | **0,837 ± 0,005** | 0,328 ± 0,028 | **0,327 ± 0,030** | 23,3 |
-| TIES (20 %) | 0,743 ± 0,003 | 0,379 ± 0,011 | 0,377 ± 0,011 | 22,9 |
-| DARE-TIES (30 %) | 0,825 ± 0,006 | 0,340 ± 0,028 | 0,338 ± 0,027 | 23,4 |
+| Spécialiste routage | **0,834 ± 0,002** | 0,101 ± 0,021 | 0,003 | 22,3 |
+| Spécialiste raisonnement | 0,016 ± 0,005 | **0,483 ± 0,020** | 0,223 ± 0,014 | 22,8 |
+| Fusion linéaire | 0,718 ± 0,006 | 0,448 ± 0,015 | 0,185 ± 0,007 | 22,2 |
+| **Arithmétique des tâches** | **0,835 ± 0,004** | 0,450 ± 0,020 | **0,303 ± 0,024** | 22,9 |
+| TIES (20 %) | 0,754 ± 0,013 | 0,450 ± 0,013 | 0,189 ± 0,009 | 22,4 |
+| DARE-TIES (30 %) | 0,830 ± 0,007 | 0,460 ± 0,022 | 0,278 ± 0,032 | 22,9 |
 
-Écarts appariés de l'arithmétique des tâches contre chaque spécialiste, sur sa propre tâche : routage −0,002, +0,003, −0,003 ; raisonnement −0,028, +0,023, −0,030 ; aucun n'est significatif. Contre la base : routage +0,61 et raisonnement strict +0,16, nets sur chaque graine.
+Écarts appariés de l'arithmétique des tâches contre le spécialiste routage sur le routage : +0,004, +0,003, −0,004, non significatifs. Contre la base : routage +0,61 net sur chaque graine ; raisonnement strict +0,15, +0,14, +0,11 nets ; raisonnement souple +0,073 [+0,023 ; +0,125], +0,075 [+0,028 ; +0,123] et +0,040 [−0,008 ; +0,085]. Contre le spécialiste raisonnement, en souple : −0,043, 0,000 (non significatifs) et −0,058 [−0,103 ; −0,013] (net).
 
 **Ce qu'on en retient.**
 
-- **Chaque spécialiste perd l'autre compétence** : le spécialiste routage ne termine presque plus aucun problème par `Answer: N` (0,004), le spécialiste raisonnement ne route plus (0,07).
-- **L'arithmétique des tâches réunit les deux dans un seul modèle**, sans réentraînement : 100 % du gain de routage et le format de réponse du spécialiste raisonnement. DARE-TIES fait presque aussi bien ; la fusion linéaire et TIES perdent 10 points de routage.
-- **Réserve : le spécialiste raisonnement n'a pas appris à mieux raisonner.** En notation souple, il est sous la base (0,340 contre 0,388) : son gain en notation stricte vient du format `Answer: N`, pas de réponses plus justes. La fusion conserve donc ici un format, pas une compétence de raisonnement.
+- **Chaque spécialiste perd l'autre compétence** : le spécialiste routage ne termine presque plus aucun problème par `Answer: N` (0,003), le spécialiste raisonnement ne route plus (0,016).
+- **Le spécialiste raisonnement dépasse la base, y compris en notation souple** (0,483 contre 0,388, net sur chaque graine) : entraîné sur des solutions justes de l'enseignant, il apprend à mieux résoudre, pas seulement le format `Answer: N`.
+- **L'arithmétique des tâches réunit les deux dans un seul modèle**, sans réentraînement : tout le gain de routage (0,835, comme le spécialiste), et en raisonnement souple 0,450, soit les deux tiers du gain du spécialiste (+0,06 sur +0,10). DARE-TIES fait presque aussi bien ; la fusion linéaire et TIES perdent 8 à 12 points de routage.
+- **Réserve : le gain de la fusion en raisonnement n'est pas net sur chaque graine.** Sur la graine 44, il n'est pas significatif contre la base (+0,040) et la fusion reste sous le spécialiste raisonnement (−0,058). Avec 400 problèmes, l'intervalle à 95 % mesure environ ± 0,05 : `--set evaluation.n_problemes=1319` évalue tout le test de GSM8K.
 
 ## Paramètres principaux (`config.yaml`)
 

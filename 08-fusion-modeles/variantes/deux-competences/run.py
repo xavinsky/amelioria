@@ -104,7 +104,9 @@ def etat(chemin) -> dict:
 def main():
     cfg = config.charger(__file__)
     tok = modeles.charger_tokenizer(cfg.base.nom)
-    tests = {c.nom: donnees.charger_qa(c.donnees, "test", c.evaluation.n) for c in cfg.competences}   # mêmes questions pour tous les modèles
+    n_problemes = cfg.evaluation.get("n_problemes")   # raisonnement : plus de problèmes de test que `competences[].evaluation.n` (intervalles plus étroits)
+    tests = {c.nom: donnees.charger_qa(c.donnees, "test", n_problemes if n_problemes and c.evaluation.mode == "nombre" else c.evaluation.n)
+             for c in cfg.competences}   # mêmes questions pour tous les modèles
     resultats = {"base": reprise.etape("mesure-base", lambda: mesurer_dossier(cfg, tok, cfg.base.nom, tests))}
 
     chemins = {}
