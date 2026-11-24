@@ -512,9 +512,9 @@ exemples:
     fait: "Fait passer SmolLM-360M de 2 048 à 8 192 tokens de contexte par YaRN et un court entraînement, 3 graines."
     duree_test: "15 s"
     duree_complet: "45 min"
-    resultat: "clé cachée dans du texte varié à 4 096 tokens 0,07 → 1,00 par YaRN seul (n = 30, net sur chaque graine) ; perplexité à 8 192 tokens 422 → 19,4 (YaRN seul) → 18,7 (entraîné) ; à 2 048 tokens 21,2 → 22,5 → 21,5"
-    reserve: "l'entraînement n'améliore aucune tâche (YaRN entraîné contre YaRN seul : 0,00 sur la clé, non significatif sur les deux codes) ; la tâche à deux codes est au niveau du hasard même à 2 048 tokens, donc trop dure pour ce modèle"
-    piste: "Tâche multi-clés de type RULER (plusieurs clés de même format, retrouver celle demandée), validée d'abord dans la fenêtre d'origine, sur laquelle YaRN seul se dégrade avec la longueur."
+    resultat: "clé cachée dans du texte varié à 4 096 tokens 0,07 → 1,00 par YaRN seul (n = 30, net sur chaque graine) ; tâche multi-clés (8 clés) à 4 096 tokens 0,08 → 0,36 par YaRN seul ; perplexité à 8 192 tokens 422 → 19,4 (YaRN seul) → 18,7 (entraîné) ; à 2 048 tokens 21,2 → 22,5 → 21,5"
+    reserve: "l'entraînement n'améliore pas YaRN seul sur la tâche multi-clés (écart −0,01 ± 0,04 à 7 000 tokens, 0,00 à 4 096) ni sur la clé cachée ; YaRN seul dégrade la tâche multi-clés dans la fenêtre d'origine (0,77 → 0,48 à 2 048 tokens) ; l'origine la réussit à 0,77 à 2 048 tokens, sous le seuil de validation de 0,8"
+    piste: "Entraîner sur des blocs longs qui contiennent des tâches de récupération (clés cachées parmi des clés voisines, dans un gabarit différent de celui du test) au lieu de texte seul, puis mesurer la tâche multi-clés."
     prerequis: {gpu: requis}
 
   - chemin: 13-extension-vocabulaire
